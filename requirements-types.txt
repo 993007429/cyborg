@@ -1,0 +1,4 @@
+types-redis==4.5.5.2
+types-requests==2.30.0.0
+types-sqlalchemy==1.4.53.38
+typing-extensions==4.3.0

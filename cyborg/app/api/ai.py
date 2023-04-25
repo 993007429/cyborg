@@ -1,0 +1,88 @@
+import json
+from flask import jsonify, request
+
+from cyborg.app.api import api_blueprint
+from cyborg.app.request_context import request_context
+from cyborg.app.service_factory import AppServiceFactory
+from cyborg.modules.slice_analysis.domain.value_objects import AIType
+
+
+@api_blueprint.route('/ai/start', methods=['get', 'post'])
+def start():
+    other = request.form.get('other')  # 前端只在调用start接口时会传入参数 判断AI是否生成拼图供复核
+    ai_name = request.form.get('type')
+    try:
+        areas = json.loads(other) if other else []
+    except ValueError:
+        areas = []
+
+    upload_batch_number = request.form.get('uploadBatchNumber')  # 高通量批次号
+    remote_ip = request.environ.get('REMOTE_ADDR')
+
+    res = AppServiceFactory.ai_service.start_ai(
+        ai_name=ai_name, target_areas=areas, upload_batch_number=upload_batch_number, ip_address=remote_ip)
+
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/batchCalculation', methods=['get', 'post'])
+def batch_calculation():
+    case_ids = json.loads(request.form.get('caseid_list'))  # 病例id列表
+    ai_name = request.form.get('algor_type')
+
+    res = AppServiceFactory.ai_service.batch_start_ai(ai_name=ai_name, case_ids=case_ids)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/modelCalibration', methods=['get', 'post'])
+def model_calibration():
+    case_ids = json.loads(request.form.get('caseid_list'))  # 病例id列表
+    ai_name = request.form.get('algor_type')  # 算法类型
+
+    res = AppServiceFactory.ai_service.do_model_calibration(ai_name=ai_name, case_ids=case_ids)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/resetModelCalibration', methods=['get', 'post'])
+def reset_model_calibration():
+    """
+    重置所有模块阈值到默认值
+    :return:
+    """
+    res = AppServiceFactory.user_service.update_company_ai_threshold(model_name=None, use_default_threshold=True)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/cancelCalibration', methods=['get', 'post'])
+def cancel_calibration():
+    res = AppServiceFactory.ai_service.cancel_calibration()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/getresult', methods=['get', 'post'])
+def get_result():
+    ai_type = request.form.get('type')
+    request_context.ai_type = AIType.get_by_value(ai_type)
+
+    res = AppServiceFactory.ai_service.get_ai_task_result()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/revokeTask', methods=['get', 'post'])
+def revoke_task():
+    ai_type = request.form.get('type')
+    request_context.ai_type = AIType.get_by_value(ai_type)
+
+    res = AppServiceFactory.ai_service.cancel_task()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/analyseThreshold', methods=['get', 'post'])
+def analyse_threshold():
+    threshold = float(request.form.get('threshold'))
+    analyse_mode = request.form.get('mode')
+    ai_type = request.form.get('type')
+    request_context.ai_type = AIType.get_by_value(ai_type)
+
+    res = AppServiceFactory.ai_service.get_analyze_threshold(threshold=threshold, analyse_mode=analyse_mode)
+    return jsonify(res.dict())

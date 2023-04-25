@@ -1,0 +1,8 @@
+[flake8]
+ignore = W503,W504
+
+exclude = .git, __pycache__, venv, migrations, tools
+
+max-complexity = 32
+
+max-line-length = 256
