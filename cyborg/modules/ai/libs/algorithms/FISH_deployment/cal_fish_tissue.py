@@ -12,6 +12,8 @@ from argparse import ArgumentParser
 from mmdet.apis import inference_detector
 from mmdet.apis.inference import init_detector
 
+from cyborg.infra.oss import oss
+
 pattern = re.compile(r"\$\{[a-zA-Z\d_.]*\}")
 
 logger = logging.getLogger(__name__)
@@ -351,15 +353,16 @@ def save_both_results(cell_for_tissue, pred, score_thr, overlap_thr, ots_thr):
 
 def parse_args():
     parser = ArgumentParser()
-    proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     parser.add_argument("--config",
-                        default=os.path.join(proj_root, 'Algorithms/FISH_deployment/config_and_weights/config.py'),
+                        default=os.path.join(current_dir, 'config_and_weights/config.py'),
                         help="Config file")
-    parser.add_argument("--checkpoint", default=os.path.join(
-        'Algorithms/FISH_deployment/config_and_weights/mul0.2_coef0.1_redcoef0.8_epoch_300.pth'),
-                        help="checkpoint file")
+    parser.add_argument(
+        "--checkpoint",
+        default=oss.generate_sign_url('GET', oss.path_join(
+            'AI', 'FISH_deployment', 'config_and_weights', 'mul0.2_coef0.1_redcoef0.8_epoch_300.pth')),
+        help="checkpoint file")
     parser.add_argument("--CELL_OR_TISSUE",
-                        # default="CELL",
                         default="TISSUE",
                         help="CELL_OR_TISSUE")
     parser.add_argument("--img_dir",

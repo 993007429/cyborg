@@ -1,9 +1,13 @@
+import logging
 from functools import wraps
 
 from celery import Celery
 from kombu import Exchange, Queue
 
+from cyborg.app.request_context import request_context
 from cyborg.infra.celery import make_default_config
+
+logger = logging.getLogger(__name__)
 
 
 QUEUE_NAME_DEFAULT = 'default'
@@ -44,10 +48,21 @@ app.conf.update(
 
 
 def celery_task(f):
-    func = app.task(f, max_retries=3)
+
+    @wraps(f)
+    def _remote_func(*args, **kwargs):
+        with request_context:
+            request_context.current_user = kwargs.pop('current_user')
+            request_context.company = kwargs.pop('company')
+            result = f(*args, **kwargs)
+            return result
+
+    func = app.task(_remote_func, max_retries=3)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        kwargs['current_user'] = request_context.current_user
+        kwargs['company'] = request_context.company
         task_options = kwargs.pop('task_options', {}) or {}
         return func.apply_async(args, kwargs, **task_options)
     return wrapper

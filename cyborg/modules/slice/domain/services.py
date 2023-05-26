@@ -18,7 +18,7 @@ from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.infra.session import transaction
 from cyborg.libs.label_ocr.label_rec import label_recognition
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.slice.application.tasks import update_clarity
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository

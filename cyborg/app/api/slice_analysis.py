@@ -33,9 +33,7 @@ def create_mark():
 def get_marks():
     view_path = json.loads(request.form.get('position'))  # 视野区域
 
-    ai_type = request.form.get('ai_type') or ''
-    if ai_type.startswith('lct') or ai_type.startswith('tct'):
-        ai_type = ai_type[0:3]
+    ai_type = request.form.get('ai_type')
 
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
@@ -48,10 +46,6 @@ def get_marks():
 def select_count():
     scope = request.form.get('scope')
     ai_type = request.form.get('ai_type')
-    if ai_type == 'tagging':
-        ai_type = 'label'
-    if ai_type.startswith('lct') or ai_type.startswith('tct'):
-        ai_type = ai_type[0:3]
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
     res = AppServiceFactory.slice_analysis_service.count_marks_in_scope(scope=scope)
@@ -75,10 +69,6 @@ def modify_marks():
     marks = json.loads(request.form.get('marks')) if request.form.get('marks') is not None else None
 
     ai_type = request.form.get('ai_type', '')
-    if ai_type == 'tagging':
-        ai_type = 'label'
-    if ai_type.startswith('lct') or ai_type.startswith('tct'):
-        ai_type = ai_type[0:3]
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
     if scope == 'null':
@@ -93,10 +83,6 @@ def modify_marks():
 def delete_mark():
     scope = request.form.get('scope')
     ai_type = request.form.get('ai_type')
-    if ai_type == 'tagging':
-        ai_type = 'label'
-    if ai_type.startswith('lct') or ai_type.startswith('tct'):
-        ai_type = ai_type[0:3]
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
     mark_ids = json.loads(request.form.get('marks')) if request.form.get('marks') else None
@@ -110,11 +96,10 @@ def delete_mark():
 
 @api_blueprint.route('/slice/getROIList', methods=['get', 'post'])
 def get_roi_list():
-    ai_type = request.form.get('ai_type') or 'human'
-    if ai_type.startswith('lct') or ai_type.startswith('tct'):
-        ai_type = ai_type[0:3]
+    ai_type = request.form.get('ai_type')
+    print(ai_type)
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-
+    print(request_context.ai_type)
     res = AppServiceFactory.slice_analysis_service.get_rois()
     return jsonify(res.dict())
 

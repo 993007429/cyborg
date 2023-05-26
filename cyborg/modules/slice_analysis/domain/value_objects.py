@@ -3,6 +3,7 @@ import json
 import math
 from typing import List, Optional
 
+from cyborg.consts.her2 import Her2Consts
 from cyborg.consts.np import NPConsts
 from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.seedwork.domain.value_objects import BaseEnum, BaseValueObject, AIType
@@ -26,6 +27,9 @@ class AIResult(BaseValueObject):
 
     def to_string(self):
         return json.dumps(self.data)
+
+    def to_dict(self):
+        return self.data
 
     @classmethod
     def get_init_data(cls, ai_type: AIType) -> Optional[dict]:
@@ -79,18 +83,9 @@ class AIResult(BaseValueObject):
                 'whole_slide': 1,
             }
         elif ai_type == AIType.her2:
-            return {
-                '微弱染色的不完整膜阳性肿瘤细胞': 0,
-                '弱-中等染色的完整细胞膜阳性肿瘤细胞': 0,
-                '中-强度染色的不完整细胞膜阳性肿瘤细胞': 0,
-                '强度染色的完整细胞膜阳性肿瘤细胞': 0,
-                '阴性肿瘤细胞': 0,
-                '组织细胞': 0,
-                '淋巴细胞': 0,
-                '纤维细胞': 0,
-                '其他非肿瘤细胞': 0,
-                'whole_slide': 0
-            }
+            summary = Her2Consts.rois_summary_dict
+            summary['whole_slide'] = 0
+            return summary
         elif ai_type == AIType.np:
             return {
                 '嗜酸性粒细胞': {'count': 0, 'index': 0, 'area': None},

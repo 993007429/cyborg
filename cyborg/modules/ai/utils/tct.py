@@ -6,7 +6,7 @@ import imageio
 from PIL import Image
 import json
 
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.libs.heimdall.dispatch import open_slide
 
 logger = logging.getLogger(__name__)
 

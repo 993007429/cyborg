@@ -162,7 +162,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(CaseRecordModel.report == 2)
 
         if update_min is not None and update_max is not None:
-            query = query.filter(CaseRecordModel.update_time.between(json.loads(update_min), json.loads(update_max)))
+            query = query.filter(CaseRecordModel.update_time.between(update_min, update_max))
 
         if create_time_min is not None and create_time_max is not None:
             query = query.filter(CaseRecordModel.create_time.between(
@@ -231,7 +231,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
         total = query.count()
 
-        page = min(page, math.ceil(total / limit) - 1)
+        page = min(page, math.ceil(total / limit))
         offset = page * limit
         query = query.offset(offset).limit(limit)
 

@@ -110,7 +110,7 @@ class AIService(object):
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
             return AppResponse(err_code=2, message='找不到切片信息')
 
-        ai_type = AIType.get_by_value(task.ai_type)
+        ai_type = task.ai_type
         request_context.ai_type = ai_type
 
         if torch.cuda.is_available():
@@ -126,7 +126,7 @@ class AIService(object):
             area = self.analysis_service.get_default_area().data
             if not area:
                 return AppResponse(message='找不到ROI区域')
-            position = json.loads(area['position']) if area['position'] else {}
+            position = area['position']
             task.target_areas = [{
                 'id': area['id'],
                 'x': position.get('x', []),
@@ -189,6 +189,7 @@ class AIService(object):
         self.analysis_service.create_ai_marks(
             cell_marks=[mark.to_dict() for mark in result.cell_marks],
             roi_marks=[mark.to_dict() for mark in result.roi_marks],
+            area_marks=[mark.to_dict() for mark in result.area_marks],
             skip_mark_to_tile=ai_type in [AIType.bm]
         )
 

@@ -8,6 +8,7 @@ import torch
 import numpy as np
 import mpi4py.MPI as MPI
 
+from cyborg.infra.oss import oss
 from models.pa_p2pnet import build_model
 import cell_utils
 from cell_infer import cell_infer_
@@ -37,8 +38,8 @@ def detect(slice_path='', opt=None):
     torch.cuda.empty_cache()
     c_net = build_model(opt).cuda(int_device)
 
-    checkpoint = torch.load(os.getcwd() + f'/wsi_infer/C_net{model_name}/her2.pth',
-                            map_location={'cuda:0': f'cuda:{int_device}'})
+    model_file = oss.get_object_to_io(oss.path_join('AI', 'Her2New_', 'wsi_infer', f'C_net{model_name}/her2.pth'))
+    checkpoint = torch.load(model_file, map_location={'cuda:0': f'cuda:{int_device}'})
 
     model_dict = c_net.state_dict()
     pretrained_dict = {k: v for k, v in checkpoint.items() if k in model_dict}
@@ -54,7 +55,7 @@ def detect(slice_path='', opt=None):
     h0, w0 = size_list[0]
     thresh_scale = 16
     maskw, maskh = 0, 0
-    if opt.mask != 'None':
+    if opt.mask:
         mask = cv2.imread(opt.mask)
         maskh, maskw, _ = mask.shape
         logger.info(f'Mask_shape:{mask.shape}')
@@ -67,14 +68,13 @@ def detect(slice_path='', opt=None):
         x_coords, y_coords = json.loads(roi_coords[0]), json.loads(roi_coords[1])
     else:
         x_coords, y_coords = None, None
-    if len(x_coords) == 0:
+    if not x_coords:
         logger.info('Do Not Have ROI')
         threshold_map, flg = find_tissue_countours(slide, thresh_scale)
         if not flg:
             threshold_map, flg = find_tissue_countours(slide, 32)
         logger.info(f'Threshold_map2:{threshold_map.shape}')
-
-    if len(x_coords) > 0:
+    else:
         logger.info('Have ROI')
         x_coords_ = np.array(x_coords)
         y_coords_ = np.array(y_coords)
@@ -83,7 +83,7 @@ def detect(slice_path='', opt=None):
         contours = [np.expand_dims(np.stack([x_coords_.astype(int), y_coords_.astype(int)], axis=1), axis=1)]
         threshold_map = cv2.fillPoly(threshold_map, contours, 1)
 
-    if opt.mask != 'None':
+    if opt.mask:
         threshold_map = cv2.resize(threshold_map, (maskw, maskh))
         logger.info(f'Threshold_map:{threshold_map.shape}')
 

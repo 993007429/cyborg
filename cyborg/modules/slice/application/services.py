@@ -15,7 +15,7 @@ from werkzeug.datastructures import FileStorage
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.libs.heimdall.dispatch import open_slide
 
 from cyborg.modules.slice.domain.services import SliceDomainService
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus

@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 from celery.result import AsyncResult
 
-from cyborg import celery
 from cyborg.app.settings import Settings
+from cyborg.celery.app import app as celery_app
 from cyborg.consts.bm import BMConsts
 from cyborg.consts.common import Consts
 from cyborg.consts.her2 import Her2Consts
@@ -18,7 +18,7 @@ from cyborg.consts.np import NPConsts
 from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.consts.tct import TCTConsts
 from cyborg.infra.fs import fs
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
 from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus
@@ -30,7 +30,6 @@ from cyborg.modules.ai.libs.algorithms.Ki67.main import WSITester
 from cyborg.modules.ai.libs.algorithms.NP.run_np import cal_np
 from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v2_2.tct_alg import LCT_mobile_micro0324, LCT40k_convnext_nofz, \
     LCT40k_convnext_HDX, LCT_mix80k0417_8
-from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v3_0.tct_alg import KWW_ALG_2
 from cyborg.modules.ai.utils.gpu import get_gpu_status
 from cyborg.modules.ai.utils.pdl1 import fitting_target_tps_update, compute_pdl1_s
 from cyborg.modules.ai.utils.prob import save_prob_to_file
@@ -168,7 +167,6 @@ class AIDomainService(object):
         if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             models = {
                 "1": LCT_mobile_micro0324,
-                "2": KWW_ALG_2,
                 "LCT40k_convnext_nofz": LCT40k_convnext_nofz,
                 "LCT40k_convnext_HDX": LCT40k_convnext_HDX,
                 "LCT_mobile_micro0324": LCT_mobile_micro0324,
@@ -217,6 +215,8 @@ class AIDomainService(object):
                 position={'x': [], 'y': []},
                 ai_result=ai_result
             ))
+
+        print(area_marks)
 
         ai_result = area_marks[0].ai_result
 
@@ -272,7 +272,7 @@ class AIDomainService(object):
     def run_her2(self, task: AITaskEntity, group_name_to_id: dict):
         cell_marks = []
         area_marks = []
-        rois_summary = {}
+        ai_result = {}
 
         slide = open_slide(task.slide_path)
         mpp = slide.mpp or 0.242042
@@ -298,15 +298,15 @@ class AIDomainService(object):
                 y = float(coord[1]) if slide.height > float(coord[1]) else float(slide.height - 1)
 
                 mark = Mark(
-                    path={'x': [x], 'y': [y]},
-                    fillColor=Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]],
+                    position={'x': [x], 'y': [y]},
+                    fill_color=Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]],
                     mark_type=2,
                     diagnosis={'type': Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]},
                     radius=1 / mpp,
-                    aiResult='',
                     editable=0,
                     group_id=group_name_to_id.get(Her2Consts.idx_to_label[int(cls_labels[idx])]),
-                    area_id=area_id
+                    area_id=area_id,
+                    method='spot'
                 )
                 cell_marks.append(mark)
 
@@ -327,7 +327,7 @@ class AIDomainService(object):
             ))
 
         return ALGResult(
-            ai_suggest=rois_summary['分级结果'],
+            ai_suggest=ai_result['分级结果'],
             area_marks=area_marks,
             cell_marks=cell_marks,
             roi_marks=[]
@@ -409,7 +409,7 @@ class AIDomainService(object):
 
             for center_coords, cell_type, annot_type in zip(center_coords, cls_labels, annot_cls_labels):
                 mark = Mark(
-                    path={'x': [center_coords[0]], 'y': [center_coords[1]]},
+                    position={'x': [center_coords[0]], 'y': [center_coords[1]]},
                     fill_color=Pdl1Consts.display_color_dict[cell_type],
                     mark_type=2,
                     diagnosis=json.dumps({'type': cell_type}),
@@ -441,8 +441,7 @@ class AIDomainService(object):
         )
 
     def run_np(self, task: AITaskEntity, group_name_to_id: dict) -> ALGResult:
-        slide_path = task.slice_info['slice_file_path']
-        slide = open_slide(slide_path)
+        slide = open_slide(task.slide_path)
         mpp = slide.mpp or 0.242042
         xcent = int(slide.width / 2)
         ycent = int(slide.height / 2)
@@ -462,7 +461,7 @@ class AIDomainService(object):
                 whole_slide = 1
 
             cell_coords, cell_labels, contour_coords, contour_labels, total_area = cal_np(
-                slide_path=slide_path, x_coords=x_coords, y_coords=y_coords)
+                slide_path=task.slide_path, x_coords=x_coords, y_coords=y_coords)
 
             all_cell_center_coords += list(cell_coords)
             all_roi_coords += list(contour_coords)
@@ -607,8 +606,8 @@ class AIDomainService(object):
 
             for center_coord, cell_type, remap_cell_type in zip(center_coords, cls_labels, remap_cls_labels):
                 cell_mark = Mark(
-                    path=json.dumps({'x': [center_coord[0]], 'y': [center_coord[1]]}),
-                    fillColor=Ki67Consts.cell_color_dict[remap_cell_type],
+                    position={'x': [center_coord[0]], 'y': [center_coord[1]]},
+                    fill_color=Ki67Consts.cell_color_dict[remap_cell_type],
                     mark_type=2,
                     diagnosis=json.dumps({'type': remap_cell_type}),
                     radius=1 / mpp,
@@ -686,7 +685,7 @@ class AIDomainService(object):
             group_id = nucleus_group_id
             if len(nucleus_coord[:, 0]) > 3:
                 this_mark = Mark(
-                    path={'x': nucleus_coord[:, 0].tolist(), 'y': nucleus_coord[:, 1].tolist()},
+                    position={'x': nucleus_coord[:, 0].tolist(), 'y': nucleus_coord[:, 1].tolist()},
                     method='freepen',
                     stroke_color=type_color_dict[cell_type],
                     mark_type=2,
@@ -700,7 +699,7 @@ class AIDomainService(object):
             cell_type = 1
             group_id = red_group_id
             this_mark = Mark(
-                path={'x': [float(red_signal_coord[0])], 'y': [float(red_signal_coord[1])]},
+                position={'x': [float(red_signal_coord[0])], 'y': [float(red_signal_coord[1])]},
                 stroke_color=type_color_dict[cell_type],
                 mark_type=2,
                 diagnosis=json.dumps({'type': cell_type}),
@@ -714,7 +713,7 @@ class AIDomainService(object):
             cell_type = 2
             group_id = green_group_id
             this_mark = Mark(
-                path={'x': [float(green_signal_coord[0])], 'y': [float(green_signal_coord[1])]},
+                position={'x': [float(green_signal_coord[0])], 'y': [float(green_signal_coord[1])]},
                 stroke_color=type_color_dict[cell_type],
                 mark_type=2,
                 diagnosis=json.dumps({'type': cell_type}),
@@ -728,7 +727,7 @@ class AIDomainService(object):
 
         area_mark = Mark(
             id=area_id,
-            path={'x': [], 'y': []},
+            position={'x': [], 'y': []},
             mark_type=3,
             ai_result=count_summary_dict,
             diagnosis=json.dumps({'type': cell_type}),
@@ -785,8 +784,8 @@ class AIDomainService(object):
 
                 cell_mark = Mark(
                     id=idx,
-                    path=json.dumps({'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]}),
-                    strokeColor='red',
+                    position=json.dumps({'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]}),
+                    stroke_color='red',
                     mark_type=2,
                     method='rectangle',
                     diagnosis=json.dumps({'type': label}),
@@ -814,7 +813,7 @@ class AIDomainService(object):
 
         area_mark = Mark(
             id=area_id,
-            path={'x': [], 'y': []},
+            position={'x': [], 'y': []},
             mark_type=3,
             ai_result=ai_result,
             radius=1 / mpp
@@ -837,7 +836,9 @@ class AIDomainService(object):
         else:
             if task.result_id:
                 try:
-                    result = AsyncResult(task.result_id, app=celery.app).get()
+                    print('AAAAAAAAAAAAA')
+                    result = AsyncResult(task.result_id, app=celery_app).get()
+                    print('BBBBBBBBBBBBB')
                     if result:
                         return {'done': True, 'rank': -1}
                 except Exception as e:

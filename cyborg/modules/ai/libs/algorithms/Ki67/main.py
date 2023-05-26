@@ -10,7 +10,8 @@ from torch import nn
 from glob import glob
 from skimage.segmentation import slic
 
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.infra.oss import oss
+from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.libs.algorithms.Ki67.models.Network import resnet50
 from cyborg.modules.ai.libs.algorithms.Ki67.models.detr import build_model
 from cyborg.modules.ai.libs.algorithms.Ki67.src.multi_cls_cell_seg_manual import test_p2p_plus_ki67
@@ -38,8 +39,8 @@ class WSITester:
 
         # load cell detection model
         self.detnet = build_model()
-        model_dir = os.path.join(os.path.dirname(__file__), 'Model')
-        ckpt = torch.load(os.path.join(model_dir, 'ki67_mix_0.9.pth'), map_location='cpu')
+        model_file = oss.get_object_to_io(oss.path_join('AI', 'Ki67', 'Model', 'ki67_mix_0.9.pth'))
+        ckpt = torch.load(model_file, map_location='cpu')
         model_dict = self.detnet.state_dict()
         pretrained_dict = {k: v for k, v in ckpt['model'].items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -51,7 +52,8 @@ class WSITester:
         self.cnet = resnet50(pretrained=False, classes=5)
         self.cnet = nn.DataParallel(self.cnet)
         net_weightspath = '5class_classification_model_best1.pth'
-        checkpoint = torch.load(os.path.join(model_dir, net_weightspath))
+        checkpoint_file = oss.get_object_to_io(oss.path_join('AI', 'Ki67', 'Model', net_weightspath))
+        checkpoint = torch.load(checkpoint_file)
         self.cnet.load_state_dict(checkpoint['Classifier'])
         self.cnet = self.cnet.module.to(self.device)
         self.cnet.eval()

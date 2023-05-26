@@ -29,12 +29,9 @@ class MarkEntity(BaseDomainEntity):
     area: float = 0
     is_in_manual: bool = False
 
-    def __getattr__(self, name):
-        value = super().__getattr__(name)
-        if name in ('position', 'ai_result', 'diagnosis', 'doctor_diagnosis'):
-            if value and isinstance(value, str):
-                value = json.loads(value)
-        return value
+    @property
+    def json_fields(self) -> List[str]:
+        return ['position', 'ai_result', 'diagnosis', 'doctor_diagnosis']
 
     def update_data(self, **kwargs):
         if 'type' in kwargs:
@@ -292,8 +289,9 @@ class MarkEntity(BaseDomainEntity):
         d['id'] = str(self.id)
         d['area_id'] = str(self.area_id) if self.area_id else None
         d['image'] = self.is_export
-        d['fillColor'] = self.fillColor,
-        d['strokeColor'] = self.strokeColor,
+        d['fillColor'] = self.fill_color
+        d['strokeColor'] = self.stroke_color
+        d['doctorDiagnosis'] = self.doctor_diagnosis
         d['remark'] = self.doctor_diagnosis if ai_type == AIType.human_tl else self.remark
         return d
 

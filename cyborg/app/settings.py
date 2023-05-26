@@ -7,6 +7,8 @@ class Settings(object):
 
     ENV = os.environ.get('CYBORG_ENV', 'DEV').upper()
 
+    APP = os.environ.get('CYBORG_ENV', 'DEV').upper()
+
     LOG_LEVEL = 'INFO'
 
     # 设置session 秘钥
@@ -15,7 +17,7 @@ class Settings(object):
 
     JWT_SECRET = 'mysalt'
 
-    PORT = 9000  # 项目启动端口
+    PORT = int(os.environ.get('CYBORG_PORT', '8080'))
 
     PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
@@ -23,15 +25,15 @@ class Settings(object):
 
     INTEGRITY_CHECK = True  # 高通量上传切片完整性校验，开启为True，关闭为False
 
-    MAX_AREA = 300000  # 多选框最大支持面积，此值关系到多选返回标注数量的速度，值越大可操作范围越大，响应会变慢，不建议更改此值(单位：平方微米)
+    MAX_AREA = 1200000  # 多选框最大支持面积，此值关系到多选返回标注数量的速度，值越大可操作范围越大，响应会变慢，不建议更改此值(单位：平方微米)
 
-    # DATA_DIR = '/data/data'
-    DATA_DIR = '~/dipath_data'
+    DATA_DIR = '/data/data'
+    # DATA_DIR = '/Users/zhaoyu/dipath_data'
 
-    # LOG_DIR = '/data/logs'
-    LOG_DIR = '/var/logs'
+    LOG_DIR = '/data/logs'
+    # LOG_DIR = '/var/logs'
 
-    APP_LOG_FILE = os.path.join(LOG_DIR, 'dipath-back')
+    APP_LOG_FILE = os.path.join(LOG_DIR, f'cyborg-app-{PORT}')
 
     WHITE_LIST = [
         '/aipath/api/user/login',
@@ -89,6 +91,11 @@ class Settings(object):
     # celery配置
     CELERY_BROKER_URL = 'redis://{}:{}/2'.format(REDIS_HOST, str(REDIS_PORT))
     CELERY_BACKEND_URL = 'redis://{}:{}/3'.format(REDIS_HOST, str(REDIS_PORT))
+
+    MINIO_ACCESS_KEY = 'minioadmin'
+    MINIO_ACCESS_SECRET = 'minioadmin'
+    ENDPOINT = 'localhost:9090'
+    BUCKET_NAME = 'cyborg'
 
     # 需要记录操作日志的算法模块
     ai_log_list = ['tct', 'lct', 'pdl1', 'human_tl']

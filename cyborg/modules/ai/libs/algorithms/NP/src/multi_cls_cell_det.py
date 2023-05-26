@@ -21,7 +21,7 @@ def cal_region_deeplab(image, R_net, device, patch_size=512):
 
     if torch.cuda.is_available():
         data_variable = this_batch.unsqueeze(0).cuda(device)
-    elif torch.has_mps:
+    elif getattr(torch, 'has_mps', False):
         data_variable = this_batch.unsqueeze(0).to('mps')
     else:
         data_variable = this_batch.unsqueeze(0).to('cpu')
@@ -67,7 +67,7 @@ def cal_bxr_np(image, C_net, mean, std, device):
 
     if torch.cuda.is_available():
         image = image[None].cuda(device)
-    elif torch.has_mps:
+    elif getattr(torch, 'has_mps', False):
         image = image[None].to('mps')
     outputs = C_net(image)
 

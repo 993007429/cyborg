@@ -24,7 +24,6 @@ def connect_slice_db(need_template_db: bool = False):
 
         @wraps(f)
         def wrapped(*args, **kwargs):
-
             _self: SliceAnalysisService = args[0]
             case_id = request_context.case_id
             file_id = request_context.file_id
@@ -60,9 +59,9 @@ def connect_slice_db(need_template_db: bool = False):
                 _self.domain_service.repository.mark_table_suffix = mark_table_suffix
                 _self.domain_service.repository.create_mark_tables(ai_type=ai_type)
 
-                manual_table_suffix = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(ai_type, 'human')
-                _self.domain_service.repository.manual.mark_table_suffix = manual_table_suffix
-                _self.domain_service.repository.manual.create_mark_tables(ai_type=ai_type)
+            manual_table_suffix = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(ai_type, 'human')
+            _self.domain_service.repository.manual.mark_table_suffix = manual_table_suffix
+            _self.domain_service.repository.manual.create_mark_tables(ai_type=ai_type)
 
             r = f(*args, **kwargs)
 
@@ -146,7 +145,7 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def create_ai_marks(
-            self, cell_marks: List[dict], roi_marks: List[dict], skip_mark_to_tile: bool = False
+            self, cell_marks: List[dict], roi_marks: List[dict], area_marks: List[dict], skip_mark_to_tile: bool = False
     ) -> AppResponse[dict]:
 
         case_id = request_context.case_id
@@ -156,17 +155,17 @@ class SliceAnalysisService(object):
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id) if not skip_mark_to_tile else None
 
         err_msg, new_marks = self.domain_service.create_ai_marks(
-            cell_marks=cell_marks, roi_marks=roi_marks, tiled_slice=tiled_slice)
+            cell_marks=cell_marks, roi_marks=roi_marks, area_marks=area_marks, tiled_slice=tiled_slice)
 
         if err_msg:
             return AppResponse(err_code=1, message=err_msg)
 
         self._fetch_mark_area(ai_type=ai_type, case_id=case_id, file_id=file_id, marks=new_marks)
 
-        if ai_type not in [AIType.human, AIType.label]:
-            self.domain_service.update_ai_result(
-                marks=new_marks, option=1, ai_type=ai_type, tiled_slice=tiled_slice
-            )
+        # if ai_type not in [AIType.human, AIType.label]:
+        #     self.domain_service.update_ai_result(
+        #         marks=new_marks, option=1, ai_type=ai_type, tiled_slice=tiled_slice
+        #     )
 
         return AppResponse(
             message='create marks succeed', data={'latest_new_mark_id': new_marks[-1].id if new_marks else None})
@@ -252,7 +251,7 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def clear_ai_result(self) -> AppResponse:
-        self.domain_service.clear_mark_table(ai_type=request_context.ai_type, exclude_area_marks=True)
+        self.domain_service.clear_ai_result(ai_type=request_context.ai_type, exclude_area_marks=True)
         res = self.slice_service.delete_ai_image_files(case_id=request_context.case_id, file_id=request_context.file_id)
         if res.err_code:
             return res
@@ -351,7 +350,8 @@ class SliceAnalysisService(object):
         if res.err_code:
             return res
 
-        groups = self.domain_service.repository.get_mark_groups_by_template_id(template_id=template_id)
+        groups = self.domain_service.repository.get_mark_groups_by_template_id(
+            template_id=template_id, primary_only=True, is_import=0, is_ai=0)
         data = self.domain_service.show_mark_groups(groups)
         return AppResponse(message='operation succeed', data=data)
 

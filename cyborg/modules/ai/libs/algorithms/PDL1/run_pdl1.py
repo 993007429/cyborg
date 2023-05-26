@@ -13,53 +13,54 @@ import mpi4py.MPI as MPI
 from itertools import chain
 from configparser import ConfigParser
 
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.infra.oss import oss
+from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.libs.algorithms.PDL1.src.cell_det_cls import cal_pdl1_np
 from cyborg.modules.ai.libs.algorithms.PDL1.src.utils import delete_prev_json, split_patches, split2groups, \
-    dump_results, map_results, roi_filter, \
-    split_patches_map
+    dump_results, map_results, roi_filter, split_patches_map
 from cyborg.modules.ai.libs.algorithms.PDL1.src.seg_tissue_area import find_tissue_countours
 from cyborg.modules.ai.libs.algorithms.PDL1.models.detr import build_model
 
 
 libs_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
-os.environ['KMP_DUPLICATE_LIB_OK'] = "True"
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
-def model_selection(model_dir):
+def model_selection():
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'alg_config.ini')
     config = ConfigParser()
     config.read(config_file, encoding='utf-8')
     model_type = config.get('custom', 'customName')
     if model_type == 'general':
         model_path = config.get(model_type, 'modelName')
-        net_weights_path = os.path.join(model_dir, model_path)
-        net_weights_dict = torch.load(net_weights_path, map_location=lambda storage, loc: storage)
-        mean_std_path = os.path.join(model_dir, 'mean_std', config.get(model_type, 'meanstdVersion'))
-        mean_std = np.load(mean_std_path)
+        net_weights_model = oss.get_object_to_io(oss.path_join('AI', 'PDL1', 'Model', model_path))
+        net_weights_dict = torch.load(net_weights_model, map_location=lambda storage, loc: storage)
+        mean_std_data = oss.get_object_to_io(
+            oss.path_join('AI', 'PDL1', 'Model', 'mean_std', config.get(model_type, 'meanstdVersion')))
+        mean_std = np.load(mean_std_data)
         return net_weights_dict, mean_std
     else:
         model_root = model_type
         model_version = config.get(model_type, 'modelVersion')
         model_time = config.get(model_type, 'modelTime')
         model_path = os.path.join(model_root, f'{model_version}_{model_time}.pth')
-        net_weights_path = os.path.join(model_dir, model_path)
-        net_weights_dict = torch.load(net_weights_path, map_location=lambda storage, loc: storage)['model']
-        mean_std_path = os.path.join(model_dir, 'mean_std', config.get(model_type, 'meanstdVersion'))
-        mean_std = np.load(mean_std_path)
+        net_weights_model = oss.get_object_to_io(oss.path_join('AI', 'PDL1', 'Model', model_path))
+        net_weights_dict = torch.load(net_weights_model, map_location=lambda storage, loc: storage)['model']
+        mean_std_data = oss.get_object_to_io(
+            oss.path_join('AI', 'PDL1', 'Model', 'mean_std', config.get(model_type, 'meanstdVersion')))
+        mean_std = np.load(mean_std_data)
         return net_weights_dict, mean_std
 
 
 def load_model(default_device):
     import torch.backends.cudnn as cudnn
     cudnn.benchmark = True
-    model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Model')
 
     net = build_model(args)
 
-    net_weights_dict, mean_std = model_selection(model_dir)
+    net_weights_dict, mean_std = model_selection()
     net.load_state_dict(net_weights_dict)
     net.eval()
 
@@ -79,9 +80,8 @@ def cal_pdl1(slide_path: str, x_coords: List[float], y_coords: List[float]):
     delete_prev_json(result_root, coord_json_name, label_json_name, prob_json_name)
     gpu_num = torch.cuda.device_count()
     num_process_per_gpu = 1
-    command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu), 'python', '-m',
+    command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu), sys.executable, '-m',
                'Algorithms.PDL1.run_pdl1']
-
     command.insert(1, '--allow-run-as-root')
     command.append('--slide_path {}'.format(slide_path))
     command.append('--roi_coords')

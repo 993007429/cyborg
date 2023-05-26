@@ -111,7 +111,6 @@ class SliceAnalysisDomainService(object):
             self, ai_type: AIType, marks: List[MarkEntity], radius_ratio: float = 1, is_max_level: bool = False,
             mark_config: Optional[SliceMarkConfig] = None, show_groups: Optional[List[int]] = None
     ) -> List[dict]:
-
         mark_list = []
         if not marks:
             return mark_list
@@ -123,8 +122,7 @@ class SliceAnalysisDomainService(object):
             ai_result = area_mark.ai_result
             if ai_result:
                 for k, v in ai_result.get('cells', {}).items():
-                    mark_list = v.get('data')
-                    for mark in mark_list:
+                    for mark in v.get('data', []):
                         mark['mark_type'] = 1
                         mark_list.append(mark)
                 for nucleus in ai_result.get('nuclei', []):
@@ -211,7 +209,7 @@ class SliceAnalysisDomainService(object):
         if group_id:
             self.repository.update_mark_group_status(group_id=group_id, is_empty=0)
 
-        if ai_type in Settings.ai_log_list:
+        if op_name and ai_type in Settings.ai_log_list:
             table_name = 'Mark_{}'.format(ai_type)
             content = '新增标注-id:{}-position:{}-type:{}'.format(new_mark.id, new_mark.position, diagnosis_type)
             doctor_human_table_suffix = self.repository.manual.mark_table_suffix
@@ -221,7 +219,7 @@ class SliceAnalysisDomainService(object):
                 table_name = 'Mark_{}'.format(doctor_human_table_suffix)
 
             change_record = ChangeRecordEntity(raw_data=dict(
-                mark_id=new_mark.id, content=content, table_name=table_name, op_type='新增', op_Name=op_name))
+                mark_id=new_mark.id, content=content, table_name=table_name, op_type='新增', op_name=op_name))
             self.repository.save_change_record(change_record)
         return '', new_mark
 
@@ -230,11 +228,19 @@ class SliceAnalysisDomainService(object):
             self,
             cell_marks: List[dict],
             roi_marks: List[dict],
+            area_marks: List[dict],
             tiled_slice: Optional[TiledSlice] = None,
     ) -> Tuple[str, Optional[List[MarkEntity]]]:
 
         cell_mark_entities, roi_mark_entities = [], []
         group_ids = set()
+        for area_mark in area_marks:
+            area_id = area_mark.pop('id')
+            if area_id:
+                area_mark_entity = self.repository.get_mark(area_id)
+                area_mark_entity.update_data(**area_mark)
+                self.repository.save_mark(area_mark_entity)
+
         for item in cell_marks + roi_marks:
             # TODO fishTissue算法需要获取group_id逻辑
             # group_id = self.get_group_id(ai_type=ai_type, mark=mark_params, group_id=group_id)
@@ -316,7 +322,7 @@ class SliceAnalysisDomainService(object):
                             mark.id, mark.diagnosis_type, diagnosis_type)
                         change_record = ChangeRecordEntity(raw_data=dict(
                             mark_id=mark.id, content=content, table_name=table_name, op_type='修改',
-                            op_Name=op_name))
+                            op_name=op_name))
                         self.repository.save_change_record(change_record)
 
                     target_color = scope.get('color')
@@ -340,7 +346,7 @@ class SliceAnalysisDomainService(object):
                             table_name = 'Mark_{}'.format(doctor_human_table_suffix)
                         change_record = ChangeRecordEntity(raw_data=dict(
                             mark_id=mark.id, content=content, table_name=table_name, op_type='新增',
-                            op_Name=op_name))
+                            op_name=op_name))
                         self.repository.save_change_record(change_record)
 
                     mark.update_data(doctor_diagnosis=doctor_diagnosis)
@@ -464,7 +470,6 @@ class SliceAnalysisDomainService(object):
             self, ai_type: AIType, view_path: dict, tiled_slice: TiledSlice,
             mark_config: Optional[SliceMarkConfig] = None
     ) -> List[dict]:
-
         x_coords = view_path.get('x')
         y_coords = view_path.get('y')
         z = view_path.get('z')
@@ -486,6 +491,7 @@ class SliceAnalysisDomainService(object):
                 return []
 
             tile_ids = [tiled_slice.tile_to_id(tile=tile) for tile in tiles]
+
             _, marks = self.repository.get_marks(tile_ids=tile_ids)
 
             _, area_marks = self.repository.get_marks(mark_type=3)
@@ -495,7 +501,7 @@ class SliceAnalysisDomainService(object):
             ai_type=ai_type, marks=marks, radius_ratio=radius_ratio, is_max_level=is_max_level,
             mark_config=mark_config, show_groups=group_ids)
 
-        if ai_type not in ['human', 'label']:
+        if ai_type not in [AIType.human, AIType.label]:
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练
             """
@@ -575,7 +581,7 @@ class SliceAnalysisDomainService(object):
                     table_name = 'Mark_{}'.format(manual_mark_table_suffix)
 
                 change_record = ChangeRecordEntity(raw_data=dict(
-                    mark_id=mark.id, content=content, table_name=table_name, op_type='删除', op_Name=op_name))
+                    mark_id=mark.id, content=content, table_name=table_name, op_type='删除', op_name=op_name))
                 repository.save_change_record(change_record)
 
             mark_ids_for_delete.append(mark.id)
@@ -671,8 +677,9 @@ class SliceAnalysisDomainService(object):
 
     def import_ai_marks(self, template_id: int) -> str:
 
-        if not self.repository.create_mark_table_by_import():
-            return 'import mark table failed'
+        err_msg = self.repository.create_mark_table_by_import()
+        if err_msg:
+            return err_msg
 
         self.repository.delete_mark_groups_by_template_id(template_id=template_id)
         groups = self.repository.get_default_mark_groups(template_id=template_id)
@@ -758,10 +765,11 @@ class SliceAnalysisDomainService(object):
             return result
 
     def get_rois(self, ai_type: AIType, ai_suggest: dict, ai_status: int):
-
-        if ai_type in ['human_tl', 'human_bm']:
+        if ai_type in [AIType.human_tl, AIType.human_bm]:
+            print('>>>>>>>1111')
             rois = self.get_human_rois(ai_type)
         else:
+            print('>>>>>>>222222')
             _, marks = self.repository.get_marks(mark_type=3 if ai_type != AIType.human else None)
             rois = list()
             for mark in marks:
@@ -770,6 +778,7 @@ class SliceAnalysisDomainService(object):
                 if ai_type != AIType.fish_tissue or roi['aiResult']:
                     rois.append(roi)
 
+            print('>>>>>>>33333333')
             if not ai_status and ai_type not in [
                     AIType.human, AIType.label, AIType.pdl1, AIType.ki67, AIType.er, AIType.pr, AIType.ki67hot,
                     AIType.her2, AIType.fish_tissue, AIType.np]:
@@ -780,7 +789,7 @@ class SliceAnalysisDomainService(object):
                     self.create_mark(
                         ai_type, method='rectangle', mark_type=3,
                         position={'x': [0], 'y': [0]}, ai_result_ready=False)
-                elif ai_type == 'human_tl':
+                elif ai_type == AIType.human_tl:
                     cells = {k: {'data': []} for k in HUMAN_TL_CELL_TYPES}
                     rois = cells
         return rois
@@ -1303,6 +1312,14 @@ class SliceAnalysisDomainService(object):
             }
         return {'isMaxlvl': is_maxlvl, 'result': res_dict}
 
-    def clear_mark_table(self, ai_type: AIType, exclude_area_marks: bool = False) -> bool:
-        return self.repository.clear_mark_table(
+    @transaction
+    def clear_ai_result(self, ai_type: AIType, exclude_area_marks: bool = False) -> bool:
+        self.repository.clear_mark_table(
             ai_type=ai_type, exclude_mark_types=[3, 4] if exclude_area_marks else None)
+
+        if exclude_area_marks:
+            _, marks = self.repository.get_marks(mark_type=[3, 4])
+            for mark in marks:
+                mark.update_data(ai_result=AIResult.initialize(ai_type=ai_type).to_dict())
+                self.repository.save_mark(mark)
+        return True

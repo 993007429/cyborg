@@ -13,7 +13,8 @@ from itertools import chain
 import argparse
 import cv2
 
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.infra.oss import oss
+from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.libs.algorithms.NP.models.waternet.detr import build_model
 from cyborg.modules.ai.libs.algorithms.NP.src.utils import delete_prev_json, split_patches, split2groups, \
     filter_points, filter_contours
@@ -34,25 +35,24 @@ logger = logging.getLogger(__name__)
 def load_model(default_device, slide_mpp):
     import torch.backends.cudnn as cudnn
     cudnn.benchmark = True
-    model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Model')
 
     # 加载模型
-    c_net_weights_path = os.path.join(model_dir, 'bxr_pure_mpp=0.25.pth')  # label_map
+    c_net_weights_model = oss.get_object_to_io(oss.path_join('AI', 'NP', 'Model', 'bxr_pure_mpp=0.25.pth'))
     c_net = build_model(args)
-    c_net_weights_dict = torch.load(c_net_weights_path, map_location=lambda storage, loc: storage)
+    c_net_weights_dict = torch.load(c_net_weights_model, map_location=lambda storage, loc: storage)
     c_net.load_state_dict(c_net_weights_dict)
     c_net.eval()
 
     if slide_mpp == 0.250001:
-        r_net_weights_path = os.path.join(model_dir, 'bxr_deeplab_mpp=0.25.pth')
+        r_net_weights_model = oss.get_object_to_io(oss.path_join('AI', 'NP', 'Model', 'bxr_deeplab_mpp=0.25.pth'))
     else:
-        r_net_weights_path = os.path.join(model_dir, 'bxr_deeplab_mpp=0.5.pth')
+        r_net_weights_model = oss.get_object_to_io(oss.path_join('AI', 'NP', 'Model', 'bxr_deeplab_mpp=0.5.pth'))
     r_net = DeepLab(num_classes=4,
                     backbone='resnet',
                     output_stride=16,
                     sync_bn=True,
                     freeze_bn=False)
-    r_net_weights_dict = torch.load(r_net_weights_path, map_location=lambda storage, loc: storage)
+    r_net_weights_dict = torch.load(r_net_weights_model, map_location=lambda storage, loc: storage)
     r_net.load_state_dict(r_net_weights_dict)
     r_net.eval()
 
@@ -60,7 +60,7 @@ def load_model(default_device, slide_mpp):
         c_net.cuda(default_device)
         r_net.cuda(default_device)
         logger.info('{} are using CUDA - {}'.format(os.getpid(), default_device))
-    elif torch.has_mps:
+    elif getattr(torch, 'has_mps', False):
         c_net.to('mps')
         r_net.to('mps')
         logger.info('{} are using Metal on Mac OS - {}'.format(os.getpid(), default_device))
@@ -76,10 +76,8 @@ def cal_np(slide_path: str, x_coords: List[float], y_coords: List[float]):
     delete_prev_json(result_root, result_file)
     gpu_num = torch.cuda.device_count() or 1
     num_process_per_gpu = 1
-    command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu), 'python', '-m', 'algorithms.NP.run_np']
-    if sys.platform == 'linux':
-        command[3] = 'python3'
-        command.insert(1, '--allow-run-as-root')
+    command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu), sys.executable, '-m', 'algorithms.NP.run_np']
+    command.insert(1, '--allow-run-as-root')
     command.append('--slide_path {}'.format(slide_path))
     command.append('--roi_coords')
     command.append(json.dumps(x_coords, separators=(',', ':')))

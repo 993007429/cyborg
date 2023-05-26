@@ -55,11 +55,15 @@ class BaseValueObject(BaseModel):
 class AIType(BaseEnum):
 
     @classmethod
-    def get_by_value(cls, value: str):
-        if value.startswith('tct') or value.startswith('lct') or value.startswith('dna'):
+    def get_by_value(cls, value: Optional[str]):
+        if isinstance(value, AIType):
+            value = value.value
+        if value and value.startswith('tct') or value.startswith('lct') or value.startswith('dna'):
             value = value[0:3]
-        if value.startswith('fish'):
+        if value and value.startswith('fish'):
             value = 'fishTissue'
+        if value == 'tagging':
+            value = 'label'
         return super().get_by_value(value)
 
     human = 'human'

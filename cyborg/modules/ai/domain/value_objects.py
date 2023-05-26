@@ -16,6 +16,10 @@ class Mark(BaseValueObject):
     group_id: Optional[int] = None
     method: Optional[str] = None
 
+    def to_dict(self):
+        d = super().to_dict()
+        return {k: v for k, v in d.items() if v is not None}
+
 
 class ALGResult(BaseValueObject):
     ai_suggest: str

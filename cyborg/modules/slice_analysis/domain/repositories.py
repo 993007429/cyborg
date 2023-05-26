@@ -128,7 +128,9 @@ class SliceMarkRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def get_mark_groups_by_template_id(self, template_id: int) -> List[MarkGroupEntity]:
+    def get_mark_groups_by_template_id(
+            self, template_id: int, primary_only: bool = False, is_import: Optional[int] = None,
+            is_ai: Optional[int] = None) -> List[MarkGroupEntity]:
         ...
 
     @abstractmethod

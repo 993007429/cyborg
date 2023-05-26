@@ -8,6 +8,8 @@ __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
            'wide_resnet50_2', 'wide_resnet101_2']
 
+from cyborg.infra.oss import oss
+
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-f37072fd.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-b627a593.pth',
@@ -248,14 +250,9 @@ def _resnet(
         **kwargs: Any
 ) -> ResNet:
     model = ResNet(block, layers, **kwargs)
-    proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if pretrained:
-        state_dict = torch.load(proj_root + r"/Her2New_/resnet50.pth",
-                                map_location=lambda storage, loc: storage)
-        print('state_dict_'+arch,proj_root)
-        # state_dict = load_state_dict_from_url(model_urls[arch],
-        #                                       progress=progress)
-
+        model_file = oss.get_object_to_io(oss.path_join('AI', 'Her2New_', 'resnet50.pth'))
+        state_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in state_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)  # 同key替换

@@ -3,8 +3,8 @@ import random
 import torch
 import torch.nn as nn
 
+from cyborg.infra.oss import oss
 from .common import Conv
-from ..utils.google_utils import attempt_download
 
 
 class CrossConv(nn.Module):
@@ -241,9 +241,8 @@ def attempt_load(weights, map_location=None):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        print(w)
-        attempt_download(w)
-        ckpt = torch.load(w, map_location=map_location)  # load
+        weight_file = oss.get_object_to_io(w)
+        ckpt = torch.load(weight_file, map_location=map_location)  # load
         model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
 
     # Compatibility updates

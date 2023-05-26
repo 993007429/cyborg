@@ -1,18 +1,14 @@
 [![pipeline status](http://code.idiaoyan.cn/wj/da/seal/badges/pre_release/pipeline.svg)](http://code.idiaoyan.cn/wj/da/seal/-/commits/pre_release)
 [![coverage report](http://code.idiaoyan.cn/wj/da/seal/badges/pre_release/coverage.svg)](http://code.idiaoyan.cn/wj/da/seal/-/commits/pre_release)
 
-# seal
+# cyborg
 
-数据分析平台代码
+项目代号：钢骨（Cyborg），是美国DC漫画旗下的超级英雄，初次登场于《DC漫画礼物》（DC Comics Presents）第26期（1980年10月），由马文·沃尔夫曼以及乔治·佩雷斯联合创造。又名维克·斯通（Vic Stone），原本是一名优秀的美式橄榄球明星运动员，因意外被天启星母盒炸成重伤，处于濒死状态，却在爆炸瞬间融合了母盒分子，为了延续其生命，他的父亲塞拉斯·斯通将他带到美国政府收集各种外星科技的“红屋实验室”里进行抢救，过程中因为受到母盒分子的影响，维克多吸收了红屋中的所有高科技，最终成为了半人半机械的生化人。在新52后钢骨取代火星猎人成为正义联盟的七大创始人之一
 
-* Python3.8.11 + tornado6.1 + MySQL8.0
+本仓库是智能病理（DIPATH）的后端代码仓库 
+
+* Python3.8 + tornado6.1 + MySQL5.7
 * Restful API
-* 
-
-包含 `algorithm`、`server` `admin` 三个核心部分, 分别对应:
-- 项目核心算法包
-- 提供给客户端服务的 WebServer
-- 提供给后台管理的 WebServer
 
 开发时可以直接使用 `python app.py --port=8888` 运行本地 Server。
 
@@ -24,10 +20,6 @@
 ```
 pip-compile
 pip install requirements.txt
-```
-安装动态依赖（即版本经常变化的依赖，这种依赖每次发布都会自动安装升级
-```
-pip install requirements-dynamic.txt
 ```
 
 添加、删除、升级依赖时，首先修改原始的 `requirements.in` 文件（间接依赖不必写入这个文件），然后运行 `pip-compile` 更新 `requirements.txt`，最后通过 `pip-sync` 或者 `pip install -r requirements.txt` 更新虚拟环境。
@@ -49,7 +41,7 @@ pip install requirements-dynamic.txt
 # shell 调试
 - 可通过根目录执行： python shell.py 可进入项目交互环境
 - 提供项目内的包环境，自动补全，提示。
-- 例如: `from seal.core import cache`
+- 例如: `from cyborg.infra import session`
 
 # 数据库与迁移
 
@@ -65,16 +57,4 @@ pip install requirements-dynamic.txt
 
 ## Q&A
 
-- **Linux** `mysqlclient` 安装失败
-```shell
-> sudo apt-get install python3-dev default-libmysqlclient-dev build-essential # Debian/Ubuntu
-> sudo yum install python3-devel mysql-devel # Red Hat/CentOS
-```
-- **Mac M1** `mysqlclient` 安装失败
-```shell
-> brew install mysql  # 或者 mysql-client
-> export LDFLAGS="-L/opt/homebrew/opt/mysql-client/lib"  # 对应的安装路径
-> export CPPFLAGS="-I/opt/homebrew/opt/mysql-client/include"
-```
-- **Mac M1** `scikit-learn` 问题，参考[官方安装文档](https://scikit-learn.org/stable/install.html#installing-on-apple-silicon-m1-hardware)
-- **Mac M1** `scipy` 问题， 参考[Stackoverflow方法](https://stackoverflow.com/a/66536896)
+待写

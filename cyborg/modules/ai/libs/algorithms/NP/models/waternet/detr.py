@@ -141,7 +141,7 @@ class DETR(nn.Module):
         roi_features = torch.zeros(self.num_levels, *points.shape[:2], self.hidden_dim)
         if torch.cuda.is_available():
             roi_features = roi_features.cuda(points.device)
-        elif torch.has_mps:
+        elif getattr(torch, 'has_mps', False):
             roi_features = roi_features.to('mps')
 
         for i, stride in enumerate(self.strides):

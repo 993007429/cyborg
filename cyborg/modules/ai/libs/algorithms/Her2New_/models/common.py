@@ -11,10 +11,11 @@ import torch.nn.functional as F
 from PIL import Image
 from torch.cuda import amp
 
-from ..utils.datasets import letterbox
-from ..utils.plots import color_list, plot_one_box
-from ..utils.torch_utils import time_synchronized
-from ..utils.general import non_max_suppression, make_divisible, scale_coords, increment_path, xyxy2xywh
+from cyborg.modules.ai.libs.algorithms.Her2New_.utils.datasets import letterbox
+from cyborg.modules.ai.libs.algorithms.Her2New_.utils.plots import color_list, plot_one_box
+from cyborg.modules.ai.libs.algorithms.Her2New_.utils.torch_utils import time_synchronized
+from cyborg.modules.ai.libs.algorithms.Her2New_.utils.general import non_max_suppression, make_divisible, scale_coords, \
+    increment_path, xyxy2xywh
 
 
 ##### basic ####
@@ -1326,7 +1327,7 @@ class RepConv_OREPA(nn.Module):
                                             1:2] ** 2).sum()  # The L2 loss of the "circle" of weights in 3x3 kernel. Use regular L2 on them.
         eq_kernel = K3[:, :, 1:2, 1:2] * t3 + K1 * t1  # The equivalent resultant central point of 3x3 kernel.
         l2_loss_eq_kernel = (eq_kernel ** 2 / (
-                    t3 ** 2 + t1 ** 2)).sum()  # Normalize for an L2 coefficient comparable to regular L2.
+                t3 ** 2 + t1 ** 2)).sum()  # Normalize for an L2 coefficient comparable to regular L2.
         return l2_loss_eq_kernel + l2_loss_circle
 
     def get_equivalent_kernel_bias(self):

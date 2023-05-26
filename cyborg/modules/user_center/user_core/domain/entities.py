@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 from cyborg.app.settings import Settings
 from cyborg.seedwork.domain.entities import BaseDomainEntity
@@ -14,6 +14,10 @@ COMPANY_DEFAULT_AI_THRESHOLD = {'tct': 0.5, 'lct': 0.5}
 
 
 class CompanyEntity(BaseDomainEntity):
+
+    @property
+    def json_fields(self) -> List[str]:
+        return ['ai_threshold', 'default_ai_threshold', 'trial_times', 'model_lis', 'table_checked']
 
     def is_available(self, client_ip: str) -> Tuple[int, str]:
         if self.allowed_ip:

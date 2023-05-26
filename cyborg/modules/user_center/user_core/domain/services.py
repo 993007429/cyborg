@@ -73,7 +73,7 @@ class UserCoreDomainService(object):
     def get_customized_record_fields(self, company_id: str) -> List[str]:
         company = self.company_repository.get_company_by_id(company_id)
         table_checked = company.table_checked if company else None
-        return json.loads(table_checked) if table_checked else [
+        return table_checked or [
             '样本号', '姓名', '性别', '切片数量', '状态', '切片标签', '切片编号', '文件名', 'AI模块', 'AI建议', '复核结果',
             '最后更新', '报告', '创建时间'
         ]
@@ -146,7 +146,7 @@ class UserCoreDomainService(object):
             return 2, '组织不存在', None
 
         if company.on_trial:  # 如果试用则需要维护算法剩余次数
-            trial_times = json.loads(company.trial_times)
+            trial_times = company.trial_times
             ai_trial_count = trial_times.get(ai_name)
             if Settings.CLOUD and not ai_trial_count:
                 return 1, '当前为试用账号，该模块的可用次数已用尽。', None

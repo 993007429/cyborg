@@ -23,7 +23,7 @@ def init_app():
     limiter.init_app(app)
 
     # 启用日志
-    is_debug = not Settings.ENV or Settings.ENV == 'DEV'
+    is_debug = not Settings.ENV or Settings.ENV in ('DEV', 'TEST')
     dictConfig(gen_logging_config(logging_filename=Settings.APP_LOG_FILE, is_debug=is_debug))
 
     # 输出格式化

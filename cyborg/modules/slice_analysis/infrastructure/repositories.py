@@ -80,16 +80,19 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         return True
 
     @transaction
-    def create_mark_table_by_import(self) -> bool:
-        # rows = self.session.execute(f'select id from `{self.mark_model_class.__import_table_name__}` limit 1')
-        # if not rows:
-        #     return '未找到算法结果'
+    def create_mark_table_by_import(self) -> Optional[str]:
+        rows = self.session.execute(f'select id from `{self.mark_model_class.__import_table_name__}` limit 1')
+        self.session.commit()
+        if not rows:
+            return '未找到算法结果'
         for model_class in [self.mark_model_class, self.mark_to_tile_model_class]:
             table_name = model_class.__tablename__
             import_table_name = model_class.__import_table_name__
+            print(table_name)
+            print(import_table_name)
             self.session.execute(f'drop table if exists {table_name}')
             self.session.execute(f'create table `{table_name}` as select * from `{import_table_name}`')
-        return True
+        return None
 
     @transaction
     def clear_mark_table(self, ai_type: AIType, exclude_mark_types: Optional[List[int]] = None):
@@ -270,13 +273,21 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         model = self.session.query(MarkGroupModel).filter_by(is_selected=1).first()
         return MarkGroupEntity.from_dict(model.raw_data) if model else None
 
-    def get_mark_groups_by_template_id(self, template_id: int) -> List[MarkGroupEntity]:
-        models = self.session.query(MarkGroupModel).filter(
+    def get_mark_groups_by_template_id(
+            self, template_id: int, primary_only: bool = False, is_import: Optional[int] = None,
+            is_ai: Optional[int] = None
+    ) -> List[MarkGroupEntity]:
+        query = self.session.query(MarkGroupModel).filter(
             MarkGroupModel.template_id == template_id,
-            MarkGroupModel.parent_id.is_(None),
-            MarkGroupModel.is_import == 0,
-            MarkGroupModel.is_ai.isnot(1)
-        ).all()
+        )
+        if primary_only:
+            query = query.filter(MarkGroupModel.parent_id.is_(None))
+        if is_import is not None:
+            query = query.filter(MarkGroupModel.is_import == is_import)
+        if is_ai is not None:
+            query = query.filter(MarkGroupModel.is_ai == is_ai)
+
+        models = query.all()
         return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
     def get_default_mark_groups(self, template_id: Optional[int] = None) -> List[MarkGroupEntity]:

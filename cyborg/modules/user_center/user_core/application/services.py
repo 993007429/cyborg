@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 from werkzeug.datastructures import FileStorage
@@ -77,7 +78,7 @@ class UserCoreService(object):
             self, report_name: Optional[str] = None, report_info: Optional[str] = None
     ) -> AppResponse[bool]:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        updated = self.domain_service.update_report_settings(report_name=report_name, report_info=report_info)
+        updated = self.domain_service.update_report_settings(company, report_name=report_name, report_info=report_info)
         return AppResponse(data=updated)
 
     def get_company_info(self, company_id: str) -> AppResponse[dict]:
@@ -100,9 +101,9 @@ class UserCoreService(object):
     def get_company_trail_info(self) -> AppResponse:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
         info = {
-            'model_lis': company.model_lis,
+            'model_lis': json.dumps(company.model_lis),
             'onTrial': company.on_trial,
-            'trialTimes': company.trial_times
+            'trialTimes': json.dumps(company.trial_times)
         } if company else {}
         return AppResponse(data=info)
 

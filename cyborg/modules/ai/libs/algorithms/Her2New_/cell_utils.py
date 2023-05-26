@@ -6,7 +6,7 @@ import os
 
 from collections import defaultdict
 
-from cyborg.libs.slide.dispatch import open_slide
+from cyborg.libs.heimdall.dispatch import open_slide
 
 label_dict = {
     '微弱的不完整膜阳性肿瘤细胞': 0,
