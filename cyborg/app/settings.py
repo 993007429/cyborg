@@ -27,11 +27,11 @@ class Settings(object):
 
     MAX_AREA = 1200000  # 多选框最大支持面积，此值关系到多选返回标注数量的速度，值越大可操作范围越大，响应会变慢，不建议更改此值(单位：平方微米)
 
-    DATA_DIR = '/data/data'
-    # DATA_DIR = '/Users/zhaoyu/dipath_data'
+    # DATA_DIR = '/data/data'
+    DATA_DIR = '/Users/zhaoyu/dipath_data'
 
-    LOG_DIR = '/data/logs'
-    # LOG_DIR = '/var/logs'
+    # LOG_DIR = '/data/logs'
+    LOG_DIR = '/var/logs'
 
     APP_LOG_FILE = os.path.join(LOG_DIR, f'cyborg-app-{PORT}')
 
@@ -94,7 +94,7 @@ class Settings(object):
 
     MINIO_ACCESS_KEY = 'minioadmin'
     MINIO_ACCESS_SECRET = 'minioadmin'
-    ENDPOINT = 'localhost:9090'
+    ENDPOINT = 'localhost:9000'
     BUCKET_NAME = 'cyborg'
 
     # 需要记录操作日志的算法模块

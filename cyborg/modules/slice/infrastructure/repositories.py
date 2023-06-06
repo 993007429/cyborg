@@ -52,7 +52,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         if started is not None:
             query = query.filter_by(started=started.value)
         if case_ids is not None:
-            query = query.filter_by(SliceModel.caseid.in_(case_ids))
+            query = query.filter(SliceModel.caseid.in_(case_ids))
         if company is not None:
             query = query.filter_by(company=company)
 
@@ -63,6 +63,10 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
     def get_slice_count_by_case_id(self, case_id: str, company: str) -> int:
         return self.session.query(
             SliceModel).filter_by(caseid=case_id, company=company).order_by(desc(SliceModel.id)).count()
+
+    def get_record_by_id(self, record_id: int) -> Optional[CaseRecordEntity]:
+        model = self.session.query(CaseRecordModel).get(record_id)
+        return CaseRecordEntity.from_dict(model.raw_data) if model else None
 
     def get_record_by_case_id(self, case_id: str, company: str) -> Optional[CaseRecordEntity]:
         model = self.session.query(CaseRecordModel).filter_by(caseid=case_id, company=company).first()
@@ -132,7 +136,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         is_record_search_key = search_key in ['sampleNum', 'name']
         is_slice_search_key = not is_record_search_key
 
-        query = self.session.query(CaseRecordModel, func.group_concat(SliceModel.id)).join(
+        query = self.session.query(
+            CaseRecordModel, func.group_concat(SliceModel.id.op("ORDER BY")(SliceModel.id.desc()))).join(
             SliceModel, CaseRecordModel.caseid == SliceModel.caseid).filter(
                 CaseRecordModel.company == company_id,
                 SliceModel.type == 'slice'

@@ -58,7 +58,7 @@ class AIType(BaseEnum):
     def get_by_value(cls, value: Optional[str]):
         if isinstance(value, AIType):
             value = value.value
-        if value and value.startswith('tct') or value.startswith('lct') or value.startswith('dna'):
+        if value and (value.startswith('tct') or value.startswith('lct') or value.startswith('dna')):
             value = value[0:3]
         if value and value.startswith('fish'):
             value = 'fishTissue'
@@ -90,6 +90,10 @@ class AIType(BaseEnum):
         if self == AIType.ki67:
             return AIType.ki67hot.value
         return self.value
+
+    @property
+    def is_human_type(self):
+        return self in [self.human, self.human_tl, self.human_bm]
 
 
 A = TypeVar('A', bound=AIType)

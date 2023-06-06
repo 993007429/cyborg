@@ -271,6 +271,9 @@ class SliceDomainService(object):
         if not entity:
             return None
 
+        logger.debug('>>>>>>>>>>>')
+        logger.debug(status)
+        logger.debug(entity.started)
         if status == SliceStartedStatus.analyzing and entity.started != SliceStartedStatus.default:
             return None
 
@@ -483,8 +486,11 @@ class SliceDomainService(object):
             logger.warning(f'切片名为{file_name}文件损坏: {e}')
             return False
 
-    def update_record(
-            self, case_id: str, user_name: str, company_id: str,
+    def save_record(
+            self,
+            user_name: str,
+            company_id: str,
+            case_id: Optional[str] = None,
             report_info: Optional[str] = None,
             attachments: Optional[List[dict]] = None,
             record_name: Optional[str] = None,
@@ -504,9 +510,18 @@ class SliceDomainService(object):
             opinion: Optional[str] = None,
             stage: int = 0, started: int = 0, state: int = 1, report: str = '2',
             **_
-    ) -> bool:
+    ) -> Optional[CaseRecordEntity]:
+        if case_id is not None:
+            record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id)
+        else:
+            case_id = CaseRecordEntity.gen_case_id()
+            record = CaseRecordEntity(raw_data=dict(
+                caseid=case_id,
+                company=company_id,
+                create_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            ))
 
-        for attachment in attachments or []:  # 附件 比如图片 也会存在slice表中 type是attachment
+        for attachment in attachments or []:
             fileid = attachment.get('id', None)
             name = attachment.get('name', None)
             filename = attachment.get('filename', None)
@@ -517,7 +532,7 @@ class SliceDomainService(object):
                 total = attachment.get('total', 0)
                 stain = attachment.get('stain', None)
                 state = attachment.get('state', 1)
-                ajaxToken = json.dumps(attachment.get('ajaxToken', {}))
+                ajax_token = json.dumps(attachment.get('ajaxToken', {}))
                 path = attachment.get('path', '')
                 res_obj = {
                     'caseid': case_id,
@@ -531,31 +546,24 @@ class SliceDomainService(object):
                     'mppy': 0.0,
                     'height': 0,
                     'width': 0,
-                    'toolType': None,
+                    'tool_type': None,
                     'started': 0,
                     'objective_rate': '',
                     'radius': 1,  # 默认系数是1
-                    'isSolid': 1,  # 默认标注模块中显示实心
-                    "fileid": fileid,
-                    "company": company_id,
-                    "ajaxToken": ajaxToken,
-                    "path": path,
-                    "type": "attachment",
-                    "update_time": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "operator": user_name,
+                    'is_solid': 1,  # 默认标注模块中显示实心
+                    'fileid': fileid,
+                    'company': company_id,
+                    'ajax_token': ajax_token,
+                    'path': path,
+                    'type': "attachment",
+                    'update_time': datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    'operator': user_name,
                 }
                 new_slice = SliceEntity(raw_data=res_obj)
                 self.repository.save_slice(new_slice)
 
         slices = self.repository.get_slices_by_case_id(case_id=case_id, company=company_id)
         slice_count = self.repository.get_slice_count_by_case_id(case_id=case_id, company=company_id)
-        record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id)
-        if not record:
-            record = CaseRecordEntity(raw_data=dict(
-                company=company_id,
-                sample_num=slices[0].slice_number if slices else sample_num,
-                create_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-            ))
 
         record.update_data(**{
             'caseid': case_id,
@@ -565,7 +573,7 @@ class SliceDomainService(object):
             'cancer_type': cancer_type,
             'family_history': family_history,
             'medical_history': medical_history,
-            'sample_num': sample_num,
+            'sample_num': slices[0].slice_number if slices else sample_num,
             'sample_part': sample_part,
             'sample_time': sample_time,
             'sample_collect_date': sample_collect_date,
@@ -582,7 +590,10 @@ class SliceDomainService(object):
             'state': state,
             'report': report
         })
-        return self.repository.save(record)
+        if self.repository.save(record):
+            record.slices = slices
+            return record
+        return None
 
     def remove_record_files(self, record: CaseRecordEntity) -> float:
         total_size = fs.get_dir_size(record.data_dir)

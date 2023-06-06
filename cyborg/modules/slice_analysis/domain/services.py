@@ -14,6 +14,7 @@ from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkToTile
 from cyborg.modules.slice_analysis.domain.repositories import SliceMarkRepository, AIConfigRepository
 from cyborg.modules.slice_analysis.domain.value_objects import TiledSlice, AIType, AIResult, SliceMarkConfig, CellCount
 from cyborg.modules.slice_analysis.utils.polygon import is_intersected
+from cyborg.utils.id_worker import IdWorker
 from cyborg.utils.strings import camel_to_snake
 
 logger = logging.getLogger(__name__)
@@ -241,10 +242,12 @@ class SliceAnalysisDomainService(object):
                 area_mark_entity.update_data(**area_mark)
                 self.repository.save_mark(area_mark_entity)
 
-        for item in cell_marks + roi_marks:
+        id_worker = IdWorker(1, 2, 0)
+        for item in roi_marks + cell_marks:
             # TODO fishTissue算法需要获取group_id逻辑
             # group_id = self.get_group_id(ai_type=ai_type, mark=mark_params, group_id=group_id)
             item['create_time'] = int(round(time.time() * 1000))
+            item['id'] = id_worker.get_next_id() or id_worker.get_new_id()
             new_mark = MarkEntity(raw_data=item)
             if new_mark.group_id:
                 group_ids.add(new_mark.group_id)
@@ -253,18 +256,23 @@ class SliceAnalysisDomainService(object):
             else:
                 cell_mark_entities.append(new_mark)
 
+        logger.info(len(cell_mark_entities))
         saved = self.repository.batch_save_marks(cell_mark_entities)
+        logger.info('>>>>>>>>>>>>>>>444444444')
         if not saved:
             return 'create ai marks tailed', None
 
         if tiled_slice:
+            logger.info('>>>>>>>>>>>>>>>55555555')
             self.generate_ai_marks_in_pyramid(marks=cell_mark_entities, tiled_slice=tiled_slice)
             self.generate_ai_marks_in_pyramid(
                 marks=roi_mark_entities, tiled_slice=tiled_slice, downsample_ratio=2, downsample_threshold=500)
+            logger.info('>>>>>>>>>>>>>>>66666666')
 
         for group_id in group_ids:
             self.repository.update_mark_group_status(group_id=group_id, is_empty=0)
 
+        logger.info('>>>>>>>>>>>>>>>77777777')
         self.repository.backup_ai_mark_tables()
 
         return '', cell_mark_entities + roi_mark_entities
@@ -707,7 +715,10 @@ class SliceAnalysisDomainService(object):
         :param ai_type: 算法类型
         :return: roi数据
         """
-        marks = self.repository.get_marks_by_diagnosis_result(diagnosis_result=cell_type, ai_type=ai_type)
+        repository = self.repository
+        if ai_type.is_human_type:
+            repository = self.repository.manual
+        marks = repository.get_marks_by_diagnosis_result(diagnosis_result=cell_type, ai_type=ai_type)
         return {
             'data': [mark.to_roi(ai_type=ai_type) for mark in marks],
             'num': len(marks),
@@ -766,10 +777,9 @@ class SliceAnalysisDomainService(object):
 
     def get_rois(self, ai_type: AIType, ai_suggest: dict, ai_status: int):
         if ai_type in [AIType.human_tl, AIType.human_bm]:
-            print('>>>>>>>1111')
+            print('>>>>>>>>>>')
             rois = self.get_human_rois(ai_type)
         else:
-            print('>>>>>>>222222')
             _, marks = self.repository.get_marks(mark_type=3 if ai_type != AIType.human else None)
             rois = list()
             for mark in marks:
@@ -778,7 +788,6 @@ class SliceAnalysisDomainService(object):
                 if ai_type != AIType.fish_tissue or roi['aiResult']:
                     rois.append(roi)
 
-            print('>>>>>>>33333333')
             if not ai_status and ai_type not in [
                     AIType.human, AIType.label, AIType.pdl1, AIType.ki67, AIType.er, AIType.pr, AIType.ki67hot,
                     AIType.her2, AIType.fish_tissue, AIType.np]:

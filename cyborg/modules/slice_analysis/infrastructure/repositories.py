@@ -118,10 +118,7 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
 
     @transaction
     def batch_save_marks(self, entities: List[MarkEntity]) -> bool:
-        models = [self.convert_to_model(
-            entity, self.mark_model_class, id_worker=self.mark_id_worker) for entity in entities]
-        filtered_models = filter(None, models)
-        self.session.bulk_save_objects(filtered_models)
+        self.session.bulk_insert_mappings(self.mark_model_class, [entity.raw_data for entity in entities])
         return True
 
     def get_marks(
@@ -130,6 +127,7 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
             mark_ids: List[int] = None,
             mark_type: Union[List[int], int, None] = None,
             tile_ids: Optional[List[int]] = None,
+            is_export: Optional[int] = None,
             page: int = 0,
             per_page: int = sys.maxsize,
             need_total: bool = False
@@ -139,6 +137,8 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
             query = query.filter(self.mark_model_class.group_id == group_id)
         if mark_ids is not None:
             query = query.filter(self.mark_model_class.id.in_(mark_ids))
+        if is_export is not None:
+            query = query.filter(self.mark_model_class.is_export == is_export)
         if mark_type is not None:
             if isinstance(mark_type, list):
                 query = query.filter(self.mark_model_class.mark_type.in_(mark_type))

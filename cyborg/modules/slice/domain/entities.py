@@ -1,11 +1,13 @@
 import datetime
 import json
 import os
+import random
 from typing import Optional, List
 
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
 from cyborg.seedwork.domain.entities import BaseDomainEntity
+from cyborg.seedwork.domain.value_objects import AIType
 
 
 class SliceEntity(BaseDomainEntity):
@@ -97,6 +99,22 @@ class SliceEntity(BaseDomainEntity):
             'db_file_path': self.db_file_path
         }
 
+    @property
+    def ai_type(self):
+        return AIType.get_by_value(self.alg)
+
+    @property
+    def ai_diagnosis_state(self) -> Optional[int]:
+        if self.ai_type in (AIType.tct, AIType.lct, AIType.dna) and self.ai_suggest:
+            return 1 if '阳性' in self.ai_suggest else 2
+        return None
+
+    @property
+    def checked_diagnosis_state(self) -> Optional[int]:
+        if self.ai_type in (AIType.tct, AIType.lct, AIType.dna) and self.check_result:
+            return 1 if '阳性' in self.check_result else 2
+        return None
+
     def to_dict(self, all_fields: bool = False):
         d = {
             'id': self.fileid,
@@ -123,6 +141,8 @@ class SliceEntity(BaseDomainEntity):
             'ai_status': self.ai_status,
             'as_id': self.ai_id,
             "update_time": self.update_time,
+            'aiDiagnosisState': self.ai_diagnosis_state,
+            'checkedDiagnosisState': self.checked_diagnosis_state
         }
 
         d.update(self.data_paths)
@@ -150,8 +170,11 @@ class SliceEntity(BaseDomainEntity):
 
 
 class CaseRecordEntity(BaseDomainEntity):
-
     slices: Optional[List[SliceEntity]] = None
+
+    @classmethod
+    def gen_case_id(cls):
+        return datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '_' + str(random.randint(0, 1000000))
 
     @property
     def data_dir(self) -> str:
@@ -179,6 +202,89 @@ class CaseRecordEntity(BaseDomainEntity):
             }
             items.append(item)
         return items
+
+    @property
+    def report_opinion(self):
+        slice_entity = self.slices[0] if self.slices else None
+        if not slice:
+            return None
+        opinion = self.opinion
+        check_result = slice_entity.check_result
+        ai_suggest = slice_entity.ai_suggest
+        alg = slice_entity.alg if slice_entity.alg else ''
+
+        temp_dict = {"阴性": "未见上皮内病变细胞或恶性细胞（NILM）",
+                     "阳性HSIL": "高级别鳞状上皮内病变（HSIL）",
+                     "阳性ASC-H": "不除外高级别鳞状上皮内病变细胞的非典型鳞状细胞（ASC-H）",
+                     "阳性LSIL": "低级别鳞状上皮内病变（LSIL）",
+                     "阳性ASC-US": "意义不明确的非典型鳞状细胞（ASC-US）",
+                     "阳性ASCUS": "意义不明确的非典型鳞状细胞（ASC-US）",
+                     "阳性AGC": "非典型腺细胞（不能明确意义）"}
+
+        data = {'alg': alg}
+        if opinion:
+            data['opinion'] = opinion
+
+            if alg == 'dna':
+                mid_data = {}
+                if self.report_info:
+                    mid_data = self.report_info
+                if 'DNA' in mid_data and mid_data.get('DNA').get('DNAOpinion'):
+                    data['DNAOpinion'] = mid_data.get('DNA').get('DNAOpinion')
+                    return data
+
+                if check_result and ';' in check_result:
+                    if check_result.split(';')[1]:
+                        data['DNAOpinion'] = check_result.split(';')[1]
+                    else:
+                        if ai_suggest and ';' in ai_suggest:
+                            data['DNAOpinion'] = ai_suggest.split(';')[1]
+
+                if ai_suggest and ';' in ai_suggest:
+                    data['DNAOpinion'] = ai_suggest.split(';')[1]
+
+        elif check_result:
+            if ';' in check_result:
+                if check_result.split(';')[1]:
+                    data['DNAOpinion'] = check_result.split(';')[1]
+                else:
+                    if ai_suggest and ';' in ai_suggest:
+                        data['DNAOpinion'] = ai_suggest.split(';')[1]
+                check_result = check_result.split(';')[0]
+
+            check_result = check_result.replace(
+                '霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌','').replace('疱疹', '').replace(
+                '巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症', '').replace('修复', '').replace(
+                ',', '').replace(' ', '')
+
+            check_result_dict = check_result.split('+')
+            on = check_result_dict[0].split('性')[0]
+            res = ''
+            if on == '阳':
+                i = 0
+                while i <= len(check_result_dict) - 1:
+                    if i != 0:
+                        res += temp_dict.get('阳性' + check_result_dict[i], '') + '\n'
+                    else:
+                        res += temp_dict.get(check_result_dict[i], '') + '\n'
+                    i += 1
+            else:
+                res = temp_dict.get(check_result, '')
+            data['opinion'] = res
+
+        elif ai_suggest:
+            if ';' in ai_suggest:
+                data['DNAOpinion'] = ai_suggest.split(';')[1]
+                ai_suggest = ai_suggest.split(';')[0]
+
+            ai_suggest = ai_suggest.replace('霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌', ''). \
+                replace('疱疹', '').replace('巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症',
+                                                                                                             ''). \
+                replace('修复', '').replace(',', '').replace(' ', '')
+            res = temp_dict.get(ai_suggest, '')
+            data['opinion'] = res
+
+        return data
 
     @property
     def basic_info(self):

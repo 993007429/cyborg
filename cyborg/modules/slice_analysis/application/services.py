@@ -371,3 +371,79 @@ class SliceAnalysisService(object):
             view_path=view_path, tiled_slice=tiled_slice, ai_type=ai_type)
 
         return AppResponse(message='query succeed', data=data)
+
+    @connect_slice_db()
+    def get_dna_info(self) -> AppResponse:
+        dna_statics = {
+            'num_normal': 0, 'num_abnormal_high': 0, 'num_abnormal_low': 0,
+            'normal_ratio': 0, 'abnormal_high_ratio': 0, 'abnormal_low_ratio': 0,
+            'mean_di_normal': 0, 'mean_di_abnormal_high': 0, 'mean_di_abnormal_low': 0,
+            'std_di_normal': 0, 'std_di_abnormal_high': 0, 'std_di_abnormal_low': 0
+        }
+        _, marks = self.domain_service.repository.get_marks(mark_type=3)
+        if marks:
+            mark = marks[0]
+            if mark.ai_result:
+                dna_statics = mark.ai_result.get('dna_statics')
+
+        return AppResponse(data=dna_statics)
+
+    def get_report_roi(self) -> AppResponse:
+        slices = self.slice_service.get_slices(case_ids=[request_context.case_id]).data
+        data = {"human": [], 'lct': [], 'tct': [], 'dna': []}
+
+        for slice_info in slices:
+            request_context.file_id = slice_info['fileid']
+            res = self._get_slice_report_roi(slice_info)
+            for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna]:
+                data[ai_type.value].extend(res[ai_type.value])
+
+        return AppResponse(message='query succeed', data=data)
+
+    @connect_slice_db()
+    def _get_slice_report_roi(self, slice_info: dict):
+        ai_type = request_context.ai_type
+        res = {"human": [], 'lct': [], 'tct': [], 'dna': []}
+
+        _, manual_marks = self.domain_service.repository.manual.get_marks(is_export=1)
+        for manual_mark in manual_marks:
+            d = manual_mark.to_roi(ai_type=ai_type)
+            d['type'] = manual_mark.ai_type.value
+            res['human'].append(d)
+
+        _, marks = self.domain_service.repository.get_marks(mark_type=3)
+
+        ai_result = marks[0].ai_result if marks else None
+        cells = ai_result.get('cells') if ai_result else None
+        nuclei = ai_result.get('nuclei') if ai_result else None
+        if cells:
+            for d in cells:
+                roi_list = cells[d]['data']
+                for temp_roi in roi_list:
+                    if temp_roi['image'] == 1:
+                        temp_dict = {}
+                        temp_dict['id'] = temp_roi.get('id')
+                        temp_dict['path'] = temp_roi.get('path')
+                        temp_dict['filename'] = slice_info['filename']
+                        temp_dict['fileid'] = slice_info['fileid']
+                        temp_dict['remark'] = temp_roi.get('remark', '')
+                        temp_dict['ai_type'] = ai_type.value
+                        if ai_type in [AIType.lct, AIType.tct]:
+                            res['tct'].append(temp_dict)
+                        else:
+                            res[ai_type.value].append(temp_dict)
+        if nuclei:
+            for nucleus in nuclei:
+                if nucleus.get('image') == 1:
+                    temp_dict = {}
+                    temp_dict['id'] = nucleus.get('id')
+                    temp_dict['path'] = nucleus.get('path')
+                    temp_dict['filename'] = slice_info['filename']
+                    temp_dict['fileid'] = slice_info['fileid']
+                    temp_dict['remark'] = nucleus.get('remark', '')
+                    temp_dict['ai_type'] = ai_type.value
+                    temp_dict['iconType'] = 'dnaIcon'
+                    temp_dict['di'] = nucleus.get('dna_index')
+                    res[ai_type.value].append(temp_dict)
+
+        return res

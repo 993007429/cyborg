@@ -8,6 +8,7 @@ class Mark(BaseValueObject):
     position: Optional[dict] = None
     ai_result: Optional[dict] = None
     fill_color: Optional[str] = None
+    stroke_color: Optional[str] = None
     mark_type: Optional[int] = None
     diagnosis: Optional[dict] = None
     radius: Optional[float] = None
@@ -15,6 +16,7 @@ class Mark(BaseValueObject):
     editable: Optional[int] = None
     group_id: Optional[int] = None
     method: Optional[str] = None
+    is_export: Optional[int] = None
 
     def to_dict(self):
         d = super().to_dict()

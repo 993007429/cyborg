@@ -99,6 +99,7 @@ class AIService(object):
         if not task:
             return AppResponse(err_code=1, message='任务不存在')
 
+        logger.info('1111111111111111')
         self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
         self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
 
@@ -173,6 +174,7 @@ class AIService(object):
             logger.exception(e)
             result = ALGResult(ai_suggest='', err_msg='run alg error')
 
+        logger.info('>>>>>>>>>>>>>>00000000')
         if result.err_msg:
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
             return AppResponse(message=result.err_msg)
@@ -181,11 +183,13 @@ class AIService(object):
             is_error=bool(result.err_msg), ai_type=ai_type, ai_suggest=result.ai_suggest, slice_info=task.slice_info
         )
 
+        logger.info('>>>>>>>>>>>>>>11111')
         self.domain_service.update_ai_task(task, status=AITaskStatus.success)
 
         if result.prob_dict:
             self.domain_service.save_prob(slice_id=task.slice_info['uid'], prob_info=result.prob_dict)
 
+        logger.info(len(result.cell_marks))
         self.analysis_service.create_ai_marks(
             cell_marks=[mark.to_dict() for mark in result.cell_marks],
             roi_marks=[mark.to_dict() for mark in result.roi_marks],

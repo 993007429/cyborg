@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 
@@ -175,3 +176,21 @@ def upload_import_doc():
 def import_records():
     res = AppServiceFactory.slice_service.import_records()
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/records/getReportOpinion', methods=['get', 'post'])
+def get_report_opinion():
+    res = AppServiceFactory.slice_service.get_report_opinion()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/records/getLogo', methods=['get', 'post'])
+def get_logo():
+    target_path = os.path.join(request_context.current_user.data_dir, "logo.jpg")
+    if os.path.exists(target_path):
+        with open(target_path, "rb") as f:  # 转为二进制格式
+            base64_data = base64.b64encode(f.read())  # 使用base64进行加密
+            res = AppResponse(data='data:image/jpeg;base64,' + str(base64_data, encoding="utf-8"))
+            return jsonify(res.dict())
+    else:
+        return jsonify(AppResponse().dict())

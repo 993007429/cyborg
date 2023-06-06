@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 PageParams = namedtuple('PageParams', ['page', 'per_page'])
 
+seq = 0
 
 class RepoQuery(object):
     def __init__(

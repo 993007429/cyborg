@@ -55,6 +55,7 @@ class SliceMarkRepository(metaclass=ABCMeta):
             mark_ids: List[int] = None,
             mark_type: Union[List[int], int, None] = None,
             tile_ids: Optional[List[int]] = None,
+            is_export: Optional[int] = None,
             page: int = 0,
             per_page: int = sys.maxsize,
             need_total: bool = False

@@ -22,7 +22,7 @@ class BaseDomainEntity(BaseModel):
     def enum_fields(self) -> Dict[str, Type[BaseEnum]]:
         return {}
 
-    def _convert_value(self, field_name: str, value: Any) -> Any:
+    def _decode_value(self, field_name: str, value: Any) -> Any:
         if field_name in self.json_fields:
             if value and isinstance(value, str):
                 value = json.loads(value)
@@ -31,10 +31,19 @@ class BaseDomainEntity(BaseModel):
                 value = self.enum_fields[field_name].get_by_value(value)
         return value
 
+    def _encode_value(self, field_name: str, value: Any) -> Any:
+        if field_name in self.json_fields:
+            if value and isinstance(value, dict):
+                value = json.dumps(value)
+        if field_name in self.enum_fields:
+            if value and isinstance(value, BaseEnum):
+                value = value.value
+        return value
+
     def __getattr__(self, name):
         if name in self.raw_data:
             value = self.raw_data[name]
-            value = self._convert_value(name, value)
+            value = self._decode_value(name, value)
             return value
         try:
             return object.__getattribute__(self, name)
@@ -43,7 +52,7 @@ class BaseDomainEntity(BaseModel):
 
     def __setattr__(self, key, value):
         if key in self.raw_data:
-            value = self._convert_value(key, value)
+            value = self._decode_value(key, value)
             self.raw_data[key] = value
         else:
             return object.__setattr__(self, key, value)
@@ -56,6 +65,12 @@ class BaseDomainEntity(BaseModel):
 
     def update_data(self, **kwargs):
         self.raw_data.update(kwargs)
+
+    @property
+    def encoded_data(self):
+        d = self.raw_data.copy()
+        for field_name in self.json_fields:
+            d[field_name] = json
 
     def to_dict(self):
         d = self.raw_data

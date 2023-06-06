@@ -1,4 +1,5 @@
 import json
+import logging
 
 from flask import request, jsonify
 
@@ -9,6 +10,8 @@ from cyborg.app.service_factory import AppServiceFactory
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.utils.strings import camel_to_snake
+
+logger = logging.getLogger(__name__)
 
 
 @api_blueprint.route('/slice/createMark', methods=['get', 'post'])
@@ -97,9 +100,7 @@ def delete_mark():
 @api_blueprint.route('/slice/getROIList', methods=['get', 'post'])
 def get_roi_list():
     ai_type = request.form.get('ai_type')
-    print(ai_type)
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-    print(request_context.ai_type)
     res = AppServiceFactory.slice_analysis_service.get_rois()
     return jsonify(res.dict())
 

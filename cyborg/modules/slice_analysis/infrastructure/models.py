@@ -1,6 +1,6 @@
 from typing import Type
 
-from sqlalchemy import Column, Integer, Text, Float, String
+from sqlalchemy import Column, Integer, Text, Float, String, JSON
 
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.models import BaseModel
@@ -38,17 +38,21 @@ class MarkModel(BaseModel):
 
     __import_table_name__ = ''
 
+    """
+    'position', 'ai_result', 'diagnosis'
+    """
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
-    position = Column(Text, nullable=True, comment='标注点位置')
+    position = Column(JSON, nullable=True, comment='标注点位置')
     method = Column(Text, nullable=True, comment='标注工具，例如自由笔')
     is_export = Column('isExport', Integer, nullable=True, comment='导出到报告1，否则为0')
     remark = Column(Text, nullable=True, comment='判读结果')
-    ai_result = Column('aiResult', Text, nullable=True, comment='算法结果')
+    ai_result = Column('aiResult', JSON, nullable=True, comment='算法结果')
     editable = Column(Integer, nullable=True, comment='可编辑为1，不可编辑为0')
     stroke_color = Column('strokeColor', Text, nullable=True, comment='边框颜色')
     fill_color = Column('fillColor', Text, nullable=True, comment='填充颜色')
     mark_type = Column('markType', Integer, nullable=True, comment='标注类型（手动标注1、算法标注2、算法标注区域3）')
-    diagnosis = Column(Integer, nullable=True, comment="")
+    diagnosis = Column(JSON, nullable=True, comment="")
     radius = Column(Float, nullable=True, comment='标注直径')
     create_time = Column('createTime', Float, nullable=True, comment='标注创建时间')
     group_id = Column('groupId', Integer, nullable=True, comment='标注组id')

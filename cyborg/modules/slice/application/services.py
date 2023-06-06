@@ -39,6 +39,8 @@ class SliceService(object):
         record = self.domain_service.repository.get_record_by_case_id(case_id, request_context.current_company)
         if not record:
             return AppResponse(err_code=2, message='no such case')
+
+        record.slices = self.domain_service.repository.get_slices_by_case_id(case_id=case_id, company=request_context.current_company)
         return AppResponse(data=record.to_dict())
 
     def get_all_values_in_fields(self) -> AppResponse[dict]:
@@ -102,15 +104,16 @@ class SliceService(object):
             with open(os.path.join(request_context.current_user.data_dir, 'logo.jpg'), 'wb') as f:
                 f.write(base64.b64decode(logo.split(',')[1]))
 
-        if not self.domain_service.update_record(
-                case_id=case_id,
-                user_name=request_context.current_user.username,
-                company_id=company_id,
-                attachments=attachments,
-                **kwargs
-        ):
-            return AppResponse(message='更新失败')
-        return AppResponse(data='更新成功')
+        record = self.domain_service.save_record(
+            case_id=case_id,
+            user_name=request_context.current_user.username,
+            company_id=company_id,
+            attachments=attachments,
+            **kwargs
+        )
+        if not record:
+            return AppResponse(message='保存失败')
+        return AppResponse(message='保存成功', data=record.to_dict())
 
     def delete_records(self, case_ids: List[str]) -> AppResponse[str]:
         freed_size = self.domain_service.delete_records(case_ids, request_context.current_company)
@@ -121,14 +124,6 @@ class SliceService(object):
         else:
             return AppResponse(message='删除失败')
 
-        # inform_data = {
-        #     'company': request_context.current_company,
-        #     'type': 'inform',
-        #     'message': 'delete record',
-        # }
-        # requests.post(
-        #     url='http://127.0.0.1:{}/ws/inform'.format(Settings.PORT + 1),
-        #     data=inform_data)
         return AppResponse(data='删除成功')
 
     def import_records(self) -> AppResponse[dict]:
@@ -468,3 +463,64 @@ class SliceService(object):
             ai_type=request_context.ai_type, started=SliceStartedStatus.success,
             company=request_context.current_company)
         return AppResponse(data=[s.to_dict() for s in slices])
+
+    def get_report_opinion(self) -> AppResponse:
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        slices = self.domain_service.repository.get_slices_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        record.slices = slices
+
+        data = record.report_opinion
+        return AppResponse(data=data)
+
+    def create_report(self, report_id: str, report_data: str, jwt: str) -> AppResponse:
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+
+        report_dir = fs.path_join(record.data_dir, 'reports', report_id)
+        os.makedirs(report_dir)
+        pdf = fs.path_join(report_dir, 'index.pdf')
+
+        with open(fs.path_join(report_dir, "report.json"), 'w',
+                  encoding='UTF-8') as report:
+            report.write(report_data)
+
+        header_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s#/viewheader" % (
+            Settings.PORT, record.case_id, report_id, request_context.current_user.username)
+        index_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s" % (
+            Settings.PORT.config.get('PORT'), record.case_id, report_id, request_context.current_user.username)
+        footer_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s#/viewfooter" % (
+            Settings.PORT.config.get('PORT'), record.case_id, report_id, request_context.current_user.username)
+        try:
+            _to_pdf_command = 'wkhtmltopdf'
+            params = '--header-html "%s"  --footer-html "%s" --margin-left 0 --margin-top 25 --window-status 1 --cookie "jwt" "%s"' % (
+                header_target, footer_target, jwt)
+            command = '%s %s "%s" "%s"' % (_to_pdf_command, params, index_target, pdf)
+            os.system(command)
+        except Exception as e:
+            AppResponse(err_code=11, message="create pdf error: %s" % e)
+
+        return AppResponse(message=report_id, data=report_id)
+
+    def get_report_file(self, report_id: str):
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        if not record:
+            return AppResponse(err_code=1, message='病例不存在')
+
+        return os.path.join(record.data_dir, 'reports', report_id, 'index.pdf')
+
+    def get_report_data(self, report_id: str) -> AppResponse:
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        if not record:
+            return AppResponse(err_code=1, message='病例不存在')
+
+        report_path = os.path.join(record.data_dir, 'reports', report_id, 'report.json')
+        if fs.path_exists(report_path):
+            with open(report_path, 'r', encoding='UTF-8') as file:
+                data = file.read()
+                return AppResponse(data=data)
+        else:
+            return AppResponse(err_code=2, message='找不到报告数据')

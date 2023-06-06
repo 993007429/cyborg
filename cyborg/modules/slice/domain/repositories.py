@@ -39,6 +39,10 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
+    def get_record_by_id(self, record_id: int) -> Optional[CaseRecordEntity]:
+        ...
+
+    @abstractmethod
     def get_record_by_case_id(self, case_id: str, company: str) -> Optional[CaseRecordEntity]:
         ...
 

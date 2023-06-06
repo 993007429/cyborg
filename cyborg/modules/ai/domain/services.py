@@ -213,10 +213,10 @@ class AIDomainService(object):
             area_marks.append(Mark(
                 id=target_area['id'],
                 position={'x': [], 'y': []},
+                mark_type=3,
+                is_export=1,
                 ai_result=ai_result
             ))
-
-        print(area_marks)
 
         ai_result = area_marks[0].ai_result
 
@@ -255,6 +255,8 @@ class AIDomainService(object):
             area_marks.append(Mark(
                 id=target_area['id'],
                 position={'x': [], 'y': []},
+                mark_type=3,
+                is_export=1,
                 ai_result=ai_result
             ))
 
@@ -321,6 +323,8 @@ class AIDomainService(object):
             area_marks.append(Mark(
                 id=target_area['id'],
                 position={'x': x_coords, 'y': y_coords},
+                mark_type=3,
+                is_export=1,
                 ai_result=ai_result,
                 editable=1,
                 group_id=group_id
@@ -425,6 +429,8 @@ class AIDomainService(object):
             area_marks.append(Mark(
                 id=area_id,
                 position={'x': x_coords, 'y': y_coords},
+                mark_type=3,
+                is_export=1,
                 ai_result=count_summary_dict,
                 editable=1,
                 group_id=group_name_to_id.get('ROI')
@@ -519,6 +525,8 @@ class AIDomainService(object):
             area_marks.append(Mark(
                 id=target_area['id'],
                 position={'x': x_coords, 'y': y_coords},
+                mark_type=3,
+                is_export=1,
                 ai_result=ai_result
             ))
 
@@ -582,7 +590,7 @@ class AIDomainService(object):
 
         if task.target_areas:
             compute_wsi = False
-        logger.info('compute_wsi', compute_wsi)
+        logger.info(f'compute_wsi: {compute_wsi}')
 
         cell_marks = []
         roi_marks = []
@@ -609,7 +617,7 @@ class AIDomainService(object):
                     position={'x': [center_coord[0]], 'y': [center_coord[1]]},
                     fill_color=Ki67Consts.cell_color_dict[remap_cell_type],
                     mark_type=2,
-                    diagnosis=json.dumps({'type': remap_cell_type}),
+                    diagnosis={'type': remap_cell_type},
                     radius=1 / mpp,
                     area_id=roi_id,
                     group_id=group_name_to_id.get(Ki67Consts.reversed_cell_label_dict[cell_type])
@@ -642,6 +650,9 @@ class AIDomainService(object):
             roi_marks.append(Mark(
                 id=roi_id,
                 position={'x': x_coords, 'y': y_coords},
+                mark_type=3,
+                stroke_color='grey',
+                radius=5,
                 ai_result=response_count_dict,
                 editable=1,
                 group_id=group_name_to_id.get(Ki67Consts.reversed_roi_label_dict[roi_type])
@@ -732,6 +743,7 @@ class AIDomainService(object):
             ai_result=count_summary_dict,
             diagnosis=json.dumps({'type': cell_type}),
             radius=1 / mpp,
+            is_export=1,
             editable=1,
             group_id=target_area.get('ROI')
         )
@@ -815,6 +827,7 @@ class AIDomainService(object):
             id=area_id,
             position={'x': [], 'y': []},
             mark_type=3,
+            is_export=1,
             ai_result=ai_result,
             radius=1 / mpp
         )
@@ -836,9 +849,7 @@ class AIDomainService(object):
         else:
             if task.result_id:
                 try:
-                    print('AAAAAAAAAAAAA')
                     result = AsyncResult(task.result_id, app=celery_app).get()
-                    print('BBBBBBBBBBBBB')
                     if result:
                         return {'done': True, 'rank': -1}
                 except Exception as e:
