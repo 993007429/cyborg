@@ -5,11 +5,15 @@ import shutil
 import time
 from typing import Optional, Tuple, List
 
+from pubsub import pub
+
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
+from cyborg.infra.session import transaction
 from cyborg.modules.user_center.user_core.domain.entities import UserEntity, CompanyEntity
+from cyborg.modules.user_center.user_core.domain.event import CompanyAIThresholdUpdatedEvent
 from cyborg.modules.user_center.user_core.domain.repositories import UserRepository, CompanyRepository
-
+from cyborg.seedwork.domain.value_objects import AIType
 
 logger = logging.getLogger(__name__)
 
@@ -175,3 +179,178 @@ class UserCoreDomainService(object):
             ai_threshold[k]['model_name'] = model_name
         company.update_data(ai_threshold=ai_threshold)
         return self.company_repository.save(company)
+
+    ############################################
+    # for admin use
+    def create_user(self, username: str, password: str, company_id: str, role: str) -> Tuple[str, Optional[UserEntity]]:
+        user = self.repository.get_user_by_name(username=username, company=company_id)
+        if user:
+            return 'username has been used', None
+
+        company = self.company_repository.get_company_by_id(company=company_id)
+
+        new_user = UserEntity(raw_data=dict(
+            username=username,
+            model_lis=company.model_lis,
+            company=company.company,
+            password=password,
+            role=role,
+            is_test=company.is_test,
+            time_out=company.end_time
+        ))
+        if self.repository.save(new_user):
+            logger.info('%s组织下增加了用户%s' % (company_id, username))
+            return '', new_user
+        return 'create user failed', None
+
+    def update_user(self, user_id: int, username: str, password: str, role: str) -> str:
+        user = self.repository.get(user_id)
+        if not user:
+            return 'user not exist'
+
+        user.update_data(
+            username=username,
+            password=password,
+            role=role
+        )
+
+        if not self.repository.save(user):
+            return 'update user failed'
+
+        return ''
+
+    @transaction
+    def delete_user(self, username: str, company: str) -> str:
+        user = self.repository.get_user_by_name(username=username, company=company)
+        if not user:
+            return 'user not exist'
+
+        if not self.repository.delete_by_id(user.id):
+            return 'delete user failed'
+
+        user.remove_user_dir()
+
+        return ''
+
+    def create_company(
+            self, company_id: str, model_lis: str, volume: str, remark: str,
+            ai_threshold: dict, default_ai_threshold: str, on_trial: int, importable: int, export_json: int,
+            trial_times: str, is_test: int, end_time: str, **_
+    ) -> str:
+        company = self.company_repository.get_company_by_id(company_id)
+        if company:
+            return 'company id has been used'
+
+        for k, v in ai_threshold.items():
+            ai_threshold[k] = {
+                'threshold_range': 0,  # 调参范围，默认阴性和ASC-US、ASC-H切片->0，所有类型切片->1
+                'threshold_value': v,  # 参数数值
+                'all_use': False  # 已处理切片也应用新参数，默认不选
+            }
+
+        new_company = CompanyEntity(raw_data=dict(
+            company=company_id,
+            model_lis=model_lis,
+            volume=volume,
+            remark=remark,
+            ai_threshold=ai_threshold,
+            default_ai_threshold=default_ai_threshold,
+            create_time=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
+            on_trial=on_trial,
+            trial_times=trial_times,
+            importable=importable,
+            is_test=is_test,
+            end_time=end_time,
+            usage=0,
+            export_json=export_json
+        ))
+        self.company_repository.save(new_company)
+
+        logger.info('增加了%s组织' % new_company.company)
+        return ''
+
+    @transaction
+    def update_company(
+            self, uid: int, old_company_name: str, new_company_name: str, model_lis: str, volume: str, remark: str,
+            default_ai_threshold: str, on_trial: int, importable: int, export_json: int, trial_times: str, is_test: int,
+            end_time: str, **_
+    ):
+        existed_company = self.company_repository.get_company_by_id(new_company_name)
+        if existed_company and existed_company.id != uid:
+            return '组织名已存在'
+
+        company = self.company_repository.get(uid)
+        if not company:
+            return 'company not found'
+
+        old_company_data_dir = company.base_dir
+        company.update_data(
+            company=new_company_name,
+            model_lis=model_lis,
+            volume=volume,
+            remark=remark,
+            default_ai_threshold=default_ai_threshold,
+            on_trial=on_trial,
+            trial_times=trial_times,
+            importable=importable,
+            export_json=export_json,
+            is_test=is_test,
+            end_time=end_time,
+        )
+        self.company_repository.save(company)
+
+        users = self.repository.get_users(company=old_company_name)
+        for user in users:
+            user.update_data(
+                company=new_company_name,
+                model_lis=model_lis,
+                is_test=is_test,
+                time_out=end_time
+            )
+            self.repository.save(user)
+
+        new_company_data_dir = company.base_dir
+        if new_company_data_dir != old_company_data_dir:
+            if fs.path_exists(old_company_data_dir):
+                os.rename(old_company_data_dir, new_company_data_dir)
+            os.remove('clean_handle_1.bat')   # TODO what's this?
+
+        return ''
+
+    @transaction
+    async def delete_company(self, company_id: str) -> str:
+        if company_id == 'admin':
+            return 'admin can not be deleted'
+
+        company = self.company_repository.get_company_by_id(company=company_id)
+        if not company:
+            return 'company not found'
+
+        users = self.repository.get_users(company=company_id)
+        for user in users:
+            self.repository.delete_by_id(user.id)
+
+        self.company_repository.delete_by_id(company.id)
+
+        await company.remove_data_dir()
+
+        # TODO send event, 删除病例和切片记录
+        return ''
+
+    def save_ai_threshold(
+            self, company_id: str, ai_type: AIType, threshold_range: int, threshold_value: float, all_use: bool):
+        company = self.company_repository.get_company_by_id(company=company_id)
+
+        ai_threshold = company.ai_threshold
+        ai_threshold[ai_type.value].update({
+            'threshold_range': threshold_range,
+            'threshold_value': threshold_value,
+            'all_use': all_use
+        })
+        company.update_data(ai_threshold=ai_threshold)
+        if self.company_repository.save(company):
+            if all_use:
+                event = CompanyAIThresholdUpdatedEvent(threshold_range=threshold_range, threshold_value=threshold_value)
+                pub.sendMessage(event.event_name, event=event)
+            return True
+        return False

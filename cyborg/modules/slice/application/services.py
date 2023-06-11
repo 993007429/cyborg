@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 import logging
 import os
 import random
@@ -8,12 +9,14 @@ import sys
 from io import BytesIO
 from typing import Optional, List, Tuple, Union
 
+import aiohttp
 import xlsxwriter
 from PIL import Image
 from werkzeug.datastructures import FileStorage
 
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
+from cyborg.consts.common import Consts
 from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 
@@ -72,10 +75,10 @@ class SliceService(object):
         try:
             err_msg = self.domain_service.write_records_to_excel(records, headers, workbook)
             if err_msg:
-                return AppResponse(message=err_msg)
+                return AppResponse(err_code=1, message=err_msg)
         except Exception as e:
-            logger.error(f'write records to excel fail: {e}')
-            return AppResponse(message='写excel文件发生错误')
+            logger.exception(f'write records to excel fail: {e}')
+            return AppResponse(err_code=1, message='写excel文件发生错误')
         finally:
             workbook.close()
         return AppResponse(data=file_path)
@@ -453,9 +456,11 @@ class SliceService(object):
         try:
             x, y, z = slide.convert_pos(float(x_position), float(y_position))
             return AppResponse(data={'x': x, 'y': y, 'z': z})
-        except AttributeError:
+        except AttributeError as e:
+            logger.exception(e)
             return AppResponse(err_code=2, message="移动失败，找不到切片文件的扫描坐标信息。")
-        except Exception:
+        except Exception as e:
+            logger.exception(e)
             return AppResponse(err_code=1, message="移动失败，找不到切片文件的扫描坐标信息。")
 
     def get_analyzed_slices(self) -> AppResponse:
@@ -474,9 +479,48 @@ class SliceService(object):
         data = record.report_opinion
         return AppResponse(data=data)
 
-    def create_report(self, report_id: str, report_data: str, jwt: str) -> AppResponse:
+    async def sync_report(self):
+        """同步报表业务数据到报表中心
+        :return:
+        """
         record = self.domain_service.repository.get_record_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
+        if not record:
+            return AppResponse(err_code=1, message='病例不存在')
+        record.slices = self.domain_service.repository.get_slices_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        company_info = self.user_service.get_company_info(request_context.current_company).data or {}
+        template_code = company_info.get('templateCode', Consts.DEFAULT_REPORT_TEMPLATE_CODE)
+
+        report_data = record.to_dict_for_report()
+
+        # TODO 设计上这里不应该调用slice_analysis模块的服务，勾选的roi应该保存在病例模块，后续需要优化这个逻辑
+        from cyborg.app.service_factory import AppServiceFactory
+        roi_data = AppServiceFactory.slice_analysis_service.get_report_roi().data
+        roi_images = []
+        for k in ['human', 'tct', 'dna']:
+            roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])
+        report_data['roiImages'] = roi_images
+
+        async with aiohttp.ClientSession() as client:
+            params = {
+                'templateCode': template_code,
+                'bizUid': record.id,
+                'reportData': report_data
+            }
+            async with client.post(f'{Settings.REPORT_SERVER}/reports', json=params, verify_ssl=False) as resp:
+                if resp.status == 200:
+                    data = json.loads(await resp.read())
+                    if data.get('code') == 0:
+                        return AppResponse(message='发送成功')
+                    else:
+                        return AppResponse(err_code=1, message=data.get('message', '发送报告失败'))
+                else:
+                    return AppResponse(err_code=1, message='报告中心服务异常')
+
+    def create_report(self, case_id: str, report_id: str, report_data: str, jwt: str) -> AppResponse:
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=case_id, company=request_context.current_company)
 
         report_dir = fs.path_join(record.data_dir, 'reports', report_id)
         os.makedirs(report_dir)
@@ -486,30 +530,31 @@ class SliceService(object):
                   encoding='UTF-8') as report:
             report.write(report_data)
 
-        header_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s#/viewheader" % (
-            Settings.PORT, record.case_id, report_id, request_context.current_user.username)
-        index_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s" % (
-            Settings.PORT.config.get('PORT'), record.case_id, report_id, request_context.current_user.username)
-        footer_target = "http://127.0.0.1:%s/report.html?caseid=%s&reportid=%s&username=%s#/viewfooter" % (
-            Settings.PORT.config.get('PORT'), record.case_id, report_id, request_context.current_user.username)
+        header_target = "http://%s/report.html?caseid=%s&reportid=%s&username=%s#/viewheader" % (
+            Settings.REPORT_SERVER, record.caseid, report_id, request_context.current_user.username)
+        index_target = "http://%s/report.html?caseid=%s&reportid=%s&username=%s" % (
+            Settings.REPORT_SERVER, record.caseid, report_id, request_context.current_user.username)
+        footer_target = "http://%s/report.html?caseid=%s&reportid=%s&username=%s#/viewfooter" % (
+            Settings.REPORT_SERVER, record.caseid, report_id, request_context.current_user.username)
         try:
             _to_pdf_command = 'wkhtmltopdf'
             params = '--header-html "%s"  --footer-html "%s" --margin-left 0 --margin-top 25 --window-status 1 --cookie "jwt" "%s"' % (
                 header_target, footer_target, jwt)
             command = '%s %s "%s" "%s"' % (_to_pdf_command, params, index_target, pdf)
+            logger.info(command)
             os.system(command)
         except Exception as e:
             AppResponse(err_code=11, message="create pdf error: %s" % e)
 
         return AppResponse(message=report_id, data=report_id)
 
-    def get_report_file(self, report_id: str):
+    def get_report_file(self, report_id: str) -> AppResponse:
         record = self.domain_service.repository.get_record_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
         if not record:
             return AppResponse(err_code=1, message='病例不存在')
 
-        return os.path.join(record.data_dir, 'reports', report_id, 'index.pdf')
+        return AppResponse(data=os.path.join(record.data_dir, 'reports', report_id, 'index.pdf'))
 
     def get_report_data(self, report_id: str) -> AppResponse:
         record = self.domain_service.repository.get_record_by_case_id(
@@ -524,3 +569,19 @@ class SliceService(object):
                 return AppResponse(data=data)
         else:
             return AppResponse(err_code=2, message='找不到报告数据')
+
+    def apply_ai_threshold(self, threshold_range: int, threshold_value: float) -> bool:
+        return self.domain_service.apply_ai_threshold(
+            company=request_context.current_company, ai_type=request_context.ai_type,
+            threshold_range=threshold_range, threshold_value=threshold_value
+        )
+
+    def get_record_count(self, end_time: str) -> AppResponse:
+        records = self.domain_service.repository.get_records(end_time=end_time, company=request_context.current_company)
+        return AppResponse(data={'recordCount': len(records)})
+
+    async def free_up_space(self, end_time: str) -> AppResponse:
+        success = await self.domain_service.free_up_space(end_time, request_context.current_company)
+        if not success:
+            return AppResponse(err_code=1, message='free up space failed')
+        return AppResponse()

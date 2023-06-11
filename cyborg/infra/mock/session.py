@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 
-from seal.infra import session
+from cyborg.infra import session
 
 UT_DB_URL = 'sqlite:///:memory:'
 

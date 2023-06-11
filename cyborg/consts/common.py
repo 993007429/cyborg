@@ -68,3 +68,5 @@ class Consts:
         '.sdpc': ['40X', '20X', '10X', '5X'],
         'other': ['80X', '40X', '20X', '10X'],
     }
+
+    DEFAULT_REPORT_TEMPLATE_CODE = 'yxfy'

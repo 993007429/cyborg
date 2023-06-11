@@ -57,6 +57,7 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         return row[0] if row else None
 
     def get_template_id_by_ai_name(self, ai_name: str) -> Optional[int]:
+        ai_name = 'ki67hot' if ai_name == 'ki67' else ai_name
         row = self.session.query(TemplateModel.id).join(AIModel, TemplateModel.ai_id == AIModel.id).filter(
             AIModel.ai_name == ai_name).first()
         return row[0] if row else None
@@ -71,13 +72,26 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         stats.update_data(**model.raw_data)
         return True
 
-    def get_ai_stats(self, ai_type: AIType, company: str, date: str) -> Optional[AIStatisticsEntity]:
-        model = self.session.query(AIStatisticsModel).filter_by(
+    def get_ai_stats(
+            self, ai_type: AIType, company: str, date: Optional[str] = None,
+            start_date: Optional[str] = None, end_date: Optional[str] = None, version: Optional[str] = None
+    ) -> List[AIStatisticsEntity]:
+        query = self.session.query(AIStatisticsModel).filter_by(
             ai_type=ai_type.value,
             company=company,
             date=date
-        ).order_by(desc(AIStatisticsModel.id)).first()
-        return AIStatisticsEntity.from_dict(model.raw_data) if model else None
+        )
+        if date is not None:
+            query = query.filter_by(date=date)
+        if start_date is not None:
+            query = query.filter(AIStatisticsModel.date >= start_date)
+        if end_date is not None:
+            query = query.filter(AIStatisticsModel.date <= end_date)
+        if version is not None:
+            query = query.filter(AIStatisticsModel.version == version)
+
+        models = query.order_by(desc(AIStatisticsModel.id)).all()
+        return [AIStatisticsEntity.from_dict(model.raw_data) for model in models]
 
     @transaction
     def save_tct_prob(self, prob: TCTProbEntity) -> bool:

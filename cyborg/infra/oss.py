@@ -210,7 +210,7 @@ class MinIO(Oss):
 oss: Oss = MinIO(
     access_key=Settings.MINIO_ACCESS_KEY,
     secret=Settings.MINIO_ACCESS_SECRET,
-    pub_endpoint=Settings.ENDPOINT,
-    private_endpoint=Settings.ENDPOINT,
+    pub_endpoint=Settings.PUBLIC_ENDPOINT,
+    private_endpoint=Settings.PRIVATE_ENDPOINT,
     bucket_name=Settings.BUCKET_NAME
 )

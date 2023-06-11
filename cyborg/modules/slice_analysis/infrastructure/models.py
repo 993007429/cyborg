@@ -119,7 +119,7 @@ class Pdl1sCountModel(BaseModel):
 
     __tablename__ = "Pdl1sCount"
 
-    tile_id = Column(Integer, primary_key=True)
+    tile_id = Column('tileId', Integer, primary_key=True)
     pos_tumor = Column('posTumor', Integer, nullable=True)
     neg_tumor = Column('negTumor', Integer, nullable=True)
     pos_norm = Column('posNorm', Integer, nullable=True)

@@ -1,13 +1,18 @@
 import datetime
 import json
+import logging
 import os
 import random
 from typing import Optional, List
+
+import aioshutil
 
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import AIType
+
+logger = logging.getLogger(__name__)
 
 
 class SliceEntity(BaseDomainEntity):
@@ -170,7 +175,14 @@ class SliceEntity(BaseDomainEntity):
 
 
 class CaseRecordEntity(BaseDomainEntity):
-    slices: Optional[List[SliceEntity]] = None
+    slices: List[SliceEntity] = []
+    attachments: List[SliceEntity] = []
+    opinion: str = ''
+    dna_opinion: str = ''
+
+    @property
+    def json_fields(self) -> List[str]:
+        return ['report_info']
 
     @classmethod
     def gen_case_id(cls):
@@ -206,10 +218,13 @@ class CaseRecordEntity(BaseDomainEntity):
     @property
     def report_opinion(self):
         slice_entity = self.slices[0] if self.slices else None
-        if not slice:
+        if not slice_entity:
             return None
         opinion = self.opinion
         check_result = slice_entity.check_result
+
+        logger.info(slice_entity.id)
+        logger.info(check_result)
         ai_suggest = slice_entity.ai_suggest
         alg = slice_entity.alg if slice_entity.alg else ''
 
@@ -255,7 +270,7 @@ class CaseRecordEntity(BaseDomainEntity):
             check_result = check_result.replace(
                 '霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌','').replace('疱疹', '').replace(
                 '巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症', '').replace('修复', '').replace(
-                ',', '').replace(' ', '')
+                '出血', '').replace('化生', '').replace(',', '').replace(' ', '')
 
             check_result_dict = check_result.split('+')
             on = check_result_dict[0].split('性')[0]
@@ -286,6 +301,39 @@ class CaseRecordEntity(BaseDomainEntity):
 
         return data
 
+    def gen_report_info(self):
+        slice_entity = self.slices[0] if self.slices else None
+        report_info = self.report_info or {}
+        opinion_data = self.report_opinion
+
+        if opinion_data:
+            alg = 'REG'
+            if 'tct' in opinion_data['alg'] or 'lct' in opinion_data['alg']:
+                alg = 'LCT'
+            elif 'dna' in opinion_data['alg']:
+                alg = opinion_data['alg'].upper()
+                report_info['pageType'] = 'TBSPage'
+
+            report_info['reportType'] = alg
+            report_info['opinion'] = opinion_data.get('opinion')
+
+            if slice_entity:
+                report_info['isStatisfied'] = 1 if slice_entity.slideQuality else 0
+                if slice_entity.cell_num:
+                    report_info['cellNum'] = 'greater' if slice_entity.cellNum > 5000 else 'less'
+                items = slice_entity.check_result.split(' ')
+                report_info['pathogen'] = items[2].split(',') if len(items) >= 3 else []
+
+            report_info.update({
+                'opinion': opinion_data.get('opinion', ''),
+                'DNAOpinion': opinion_data.get('DNAOpinion', '')
+            })
+
+        return report_info
+
+    async def remove_data_dir(self):
+        await aioshutil.rmtree(self.data_dir)
+
     @property
     def basic_info(self):
         # 病例的一些基础信息
@@ -306,24 +354,32 @@ class CaseRecordEntity(BaseDomainEntity):
             'samplePart': self.sample_part
         }
 
+    def to_dict_for_report(self):
+        d = self.basic_info
+        d.update({
+            'attachments': [entity.to_dict() for entity in self.attachments],
+            'slices': [entity.to_dict() for entity in self.slices],
+            'reports': self.reports if self.slices else [],
+            'slices_count': self.slice_count,
+            'create_time': self.create_time,
+            'update': self.update_time,
+        })
+        report_info = self.gen_report_info()
+        if report_info:
+            d.update(report_info)
+
+        return d
+
     def to_dict(self):
         d = {
             'id': self.caseid,
             'basic': self.basic_info,
-            'attachments': [],
-            'slices': [],
-            'reports': [],
+            'attachments': [entity.to_dict() for entity in self.attachments],
+            'slices': [entity.to_dict() for entity in self.slices],
+            'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
             'update': self.update_time,
-            'reportInfo': json.loads(self.report_info) if self.report_info else None,
-
+            'reportInfo': self.report_info
         }
-
-        for entity in self.slices or []:
-            if entity.type == 'slice':
-                d['slices'].append(entity.to_dict())
-            else:
-                d['attachments'].append(entity.to_dict())
-            d['reports'] = self.reports
         return d

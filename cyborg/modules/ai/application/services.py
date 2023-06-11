@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os
@@ -34,7 +35,7 @@ class AIService(object):
         self.analysis_service = analysis_service
 
     def start_ai(
-            self, ai_name: str, target_areas: Optional[list] = None, upload_batch_number: Optional[str] = None,
+            self, ai_name: str, rois: Optional[list] = None, upload_batch_number: Optional[str] = None,
             ip_address: Optional[str] = None, is_calibrate: bool = False) -> AppResponse:
         ai_type = AIType.get_by_value(ai_name)
         request_context.ai_type = ai_type
@@ -44,7 +45,7 @@ class AIService(object):
             return res
 
         task_params = {
-            'target_areas': target_areas,
+            'rois': rois,
             'is_calibrate': is_calibrate
         }
         company_info = res.data
@@ -58,7 +59,7 @@ class AIService(object):
                 'model_type': model_type if is_tld else None
             }})
         elif is_tld:
-            ai_threshold = company_info['ai_threshold']
+            ai_threshold = company_info['aiThreshold']
             threshold_value = (ai_threshold[ai_type.value] or {}).get('threshold_value')
             model_name = (ai_threshold[ai_type.value] or {}).get('model_name')
             task_params.update({'model_info': {
@@ -99,12 +100,12 @@ class AIService(object):
         if not task:
             return AppResponse(err_code=1, message='任务不存在')
 
-        logger.info('1111111111111111')
+        request_context.case_id = task.case_id
+        request_context.file_id = task.file_id
+
         self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
         self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
 
-        request_context.case_id = task.case_id
-        request_context.file_id = task.file_id
         task.slice_info = self.slice_service.get_slice_info(
             case_id=request_context.case_id, file_id=request_context.file_id).data
         if not task.slice_info:
@@ -119,20 +120,12 @@ class AIService(object):
             os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
 
         self.analysis_service.clear_ai_result()
+        # self.analysis_service.clear_ai_result(exclude_area_marks=[int(roi['id']) for roi in task.rois if roi['x']])
 
         groups = self.analysis_service.get_mark_groups(template_id=task.template_id).data
         group_name_to_id = {group['label']: int(group['id']) for group in groups}
 
-        if ai_type not in [AIType.ki67hot] and not task.target_areas:
-            area = self.analysis_service.get_default_area().data
-            if not area:
-                return AppResponse(message='找不到ROI区域')
-            position = area['position']
-            task.target_areas = [{
-                'id': area['id'],
-                'x': position.get('x', []),
-                'y': position.get('y', []),
-            }]
+        has_manual_roi = task.rois and task.rois[0]['x']
 
         try:
             if ai_type == AIType.tct:
@@ -144,13 +137,13 @@ class AIService(object):
             elif ai_type == AIType.her2:
                 result = self.domain_service.run_her2(task, group_name_to_id)
             elif ai_type == AIType.ki67:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=True)
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
             elif ai_type == AIType.ki67hot:
                 result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=False)
             elif ai_type == AIType.er:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=True)
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
             elif ai_type == AIType.pr:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=True)
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
             elif ai_type == AIType.fish_tissue:
                 result = self.domain_service.run_fish_tissue(task, group_name_to_id)
             elif ai_type == AIType.pdl1:
@@ -174,7 +167,6 @@ class AIService(object):
             logger.exception(e)
             result = ALGResult(ai_suggest='', err_msg='run alg error')
 
-        logger.info('>>>>>>>>>>>>>>00000000')
         if result.err_msg:
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
             return AppResponse(message=result.err_msg)
@@ -183,19 +175,16 @@ class AIService(object):
             is_error=bool(result.err_msg), ai_type=ai_type, ai_suggest=result.ai_suggest, slice_info=task.slice_info
         )
 
-        logger.info('>>>>>>>>>>>>>>11111')
-        self.domain_service.update_ai_task(task, status=AITaskStatus.success)
-
         if result.prob_dict:
             self.domain_service.save_prob(slice_id=task.slice_info['uid'], prob_info=result.prob_dict)
 
-        logger.info(len(result.cell_marks))
         self.analysis_service.create_ai_marks(
             cell_marks=[mark.to_dict() for mark in result.cell_marks],
             roi_marks=[mark.to_dict() for mark in result.roi_marks],
-            area_marks=[mark.to_dict() for mark in result.area_marks],
             skip_mark_to_tile=ai_type in [AIType.bm]
         )
+
+        self.domain_service.update_ai_task(task, status=AITaskStatus.success)
 
         res = self.slice_service.finish_ai(
             status=SliceStartedStatus.failed if result.err_msg else SliceStartedStatus.success,
@@ -252,9 +241,9 @@ class AIService(object):
         return AppResponse(message='操作成功', data=data)
 
     def get_ai_task_result(self) -> AppResponse:
-        result = self.domain_service.get_ai_task_result(
+        err_msg, result = self.domain_service.get_ai_task_result(
             case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
-        return AppResponse(data=result)
+        return AppResponse(err_code=1 if err_msg else 0, message=err_msg, data=result)
 
     def cancel_task(self) -> AppResponse:
         task = self.domain_service.repository.get_latest_ai_task(
@@ -262,17 +251,13 @@ class AIService(object):
         if not task:
             return AppResponse(err_code=1, message='ai task not found')
 
-        if task.status in (AITaskStatus.success, AITaskStatus.failed):
-            return AppResponse(err_code=2, message='任务已结束，无法取消')
-
-        self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
-
-        res = self.slice_service.finish_ai(
-            status=SliceStartedStatus.default
-        )
-
-        if res.err_code:
-            return res
+        if task.status not in (AITaskStatus.success, AITaskStatus.failed):
+            self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
+            res = self.slice_service.finish_ai(
+                status=SliceStartedStatus.default
+            )
+            if res.err_code:
+                return res
 
         return AppResponse(data={'result': 'task is terminated successfully', 'status': 1})
 
@@ -295,4 +280,12 @@ class AIService(object):
         data = self.domain_service.get_analyze_threshold(
             threshold=threshold, analyse_mode=analyse_mode, slices=slices)
 
+        return AppResponse(data=data)
+
+    def get_ai_statistics(self, start_date: Optional[str], end_date: Optional[str]) -> AppResponse:
+        start_date = start_date or datetime.datetime.now().strftime('%Y-%m-%d')
+        end_date = end_date or (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+        data = self.domain_service.get_ai_statistics(
+            ai_type=request_context.ai_type, company=request_context.current_company,
+            start_date=start_date, end_date=end_date)
         return AppResponse(data=data)

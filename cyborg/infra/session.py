@@ -15,8 +15,13 @@ def json_serializer(val):
     return json.dumps(val, cls=CyborgJsonEncoder)
 
 
+def json_deserializer(val):
+    return json.loads(val) if val else None
+
+
 _engine = create_engine(
-    Settings.SQLALCHEMY_DATABASE_URI, json_serializer=json_serializer, pool_recycle=3600, echo=False)
+    Settings.SQLALCHEMY_DATABASE_URI, json_serializer=json_serializer, json_deserializer=json_deserializer,
+    pool_recycle=3600, echo=False)
 _Session = sessionmaker(autocommit=False, autoflush=True, expire_on_commit=False, bind=_engine)
 
 
@@ -25,7 +30,8 @@ def get_session() -> Session:
 
 
 def get_session_by_db_uri(uri: str):
-    engine = create_engine(uri, json_serializer=json_serializer, pool_recycle=300, echo=False)
+    engine = create_engine(
+        uri, json_serializer=json_serializer, json_deserializer=json_deserializer, pool_recycle=300, echo=False)
     return Session(autocommit=False, autoflush=True, expire_on_commit=False, bind=engine)
 
 

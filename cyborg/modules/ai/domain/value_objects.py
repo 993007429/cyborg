@@ -25,7 +25,6 @@ class Mark(BaseValueObject):
 
 class ALGResult(BaseValueObject):
     ai_suggest: str
-    area_marks: List[Mark] = []
     cell_marks: List[Mark] = []
     roi_marks: List[Mark] = []
     slide_quality: Optional[int] = None

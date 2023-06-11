@@ -88,17 +88,15 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         for model_class in [self.mark_model_class, self.mark_to_tile_model_class]:
             table_name = model_class.__tablename__
             import_table_name = model_class.__import_table_name__
-            print(table_name)
-            print(import_table_name)
             self.session.execute(f'drop table if exists {table_name}')
             self.session.execute(f'create table `{table_name}` as select * from `{import_table_name}`')
         return None
 
     @transaction
-    def clear_mark_table(self, ai_type: AIType, exclude_mark_types: Optional[List[int]] = None):
+    def clear_mark_table(self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None):
         mark_query = self.session.query(self.mark_model_class)
-        if exclude_mark_types is not None:
-            mark_query = mark_query.filter(self.mark_model_class.mark_type.not_in(exclude_mark_types))
+        if exclude_area_marks is not None:
+            mark_query = mark_query.filter(self.mark_model_class.id.not_in(exclude_area_marks))
         mark_query.delete(synchronize_session=False)
         self.session.query(self.mark_to_tile_model_class).delete(synchronize_session=False)
         if ai_type == AIType.pdl1:

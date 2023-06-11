@@ -1,13 +1,22 @@
 import os
-import sys
+from configparser import RawConfigParser
+
+
+def get_local_settings(file_path: str):
+    conf = RawConfigParser()
+    conf.read(file_path)
+    return conf
 
 
 class Settings(object):
+
     """默认配置"""
+
+    PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
     ENV = os.environ.get('CYBORG_ENV', 'DEV').upper()
 
-    APP = os.environ.get('CYBORG_ENV', 'DEV').upper()
+    LOCAL_SETTINGS = get_local_settings(f'{PROJECT_DIR}/local_settings/cyborg-{ENV.lower()}.ini')
 
     LOG_LEVEL = 'INFO'
 
@@ -19,19 +28,15 @@ class Settings(object):
 
     PORT = int(os.environ.get('CYBORG_PORT', '8080'))
 
-    PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-
     COVER_RESULT = False  # 复核结果覆盖ai计算结果设为True，反之为False
 
     INTEGRITY_CHECK = True  # 高通量上传切片完整性校验，开启为True，关闭为False
 
     MAX_AREA = 1200000  # 多选框最大支持面积，此值关系到多选返回标注数量的速度，值越大可操作范围越大，响应会变慢，不建议更改此值(单位：平方微米)
 
-    # DATA_DIR = '/data/data'
-    DATA_DIR = '/Users/zhaoyu/dipath_data'
+    DATA_DIR = LOCAL_SETTINGS['default']['data_dir']
 
-    # LOG_DIR = '/data/logs'
-    LOG_DIR = '/var/logs'
+    LOG_DIR = LOCAL_SETTINGS['default']['log_dir']
 
     APP_LOG_FILE = os.path.join(LOG_DIR, f'cyborg-app-{PORT}')
 
@@ -92,10 +97,15 @@ class Settings(object):
     CELERY_BROKER_URL = 'redis://{}:{}/2'.format(REDIS_HOST, str(REDIS_PORT))
     CELERY_BACKEND_URL = 'redis://{}:{}/3'.format(REDIS_HOST, str(REDIS_PORT))
 
-    MINIO_ACCESS_KEY = 'minioadmin'
-    MINIO_ACCESS_SECRET = 'minioadmin'
-    ENDPOINT = 'localhost:9000'
-    BUCKET_NAME = 'cyborg'
+    MINIO_ACCESS_KEY = LOCAL_SETTINGS['minio']['access_key']
+    MINIO_ACCESS_SECRET = LOCAL_SETTINGS['minio']['access_secret']
+    PRIVATE_ENDPOINT = LOCAL_SETTINGS['minio']['private_endpoint']
+    PUBLIC_ENDPOINT = LOCAL_SETTINGS['minio']['public_endpoint']
+    BUCKET_NAME = LOCAL_SETTINGS['minio']['bucket_name']
+
+    IMAGE_SERVER = LOCAL_SETTINGS['default']['image_server']
+
+    REPORT_SERVER = LOCAL_SETTINGS['default']['report_server']
 
     # 需要记录操作日志的算法模块
     ai_log_list = ['tct', 'lct', 'pdl1', 'human_tl']

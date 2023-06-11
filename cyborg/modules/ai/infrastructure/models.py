@@ -77,7 +77,7 @@ class AITaskModel(BaseModel):
     case_id = Column(String(255), nullable=False)
     file_id = Column(String(255), nullable=False)
     status = Column(SmallInteger, nullable=False, default=0)
-    target_areas = Column(JSON)
+    rois = Column(JSON)
     model_info = Column(JSON)
     is_calibrate = Column(Boolean, nullable=False, default=False)
     template_id = Column(Integer, nullable=False, default=0)

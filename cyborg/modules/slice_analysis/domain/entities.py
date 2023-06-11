@@ -10,6 +10,7 @@ from cyborg.modules.slice_analysis.domain.value_objects import SliceTile, MarkPo
     SliceMarkConfig
 from cyborg.modules.slice_analysis.utils.polygon import cal_center
 from cyborg.seedwork.domain.entities import BaseDomainEntity
+from cyborg.utils.strings import camel_to_snake
 
 
 class MarkGroupEntity(BaseDomainEntity):
@@ -64,6 +65,17 @@ class MarkEntity(BaseDomainEntity):
                 self.update_data(diagnosis=json.dumps({'type': 1}))
             elif self.stroke_color == '#00FF15':
                 self.update_data(diagnosis=json.dumps({'type': 2}))
+
+    @classmethod
+    def fix_field_name(cls, column_name: str):
+        """
+        修复跟数据库不一致，且前端不愿意修改的字段名
+        :param column_name:
+        :return:
+        """
+        if column_name == 'image':
+            column_name = 'is_export'
+        return camel_to_snake(column_name)
 
     @property
     def mark_position(self) -> MarkPosition:
@@ -228,9 +240,9 @@ class MarkEntity(BaseDomainEntity):
             'path': self.position,
             'image': item.pop('is_export'),
             'radius': self.radius * radius_ratio if self.radius else 0,
-            'area_id': str(self.area_id),
+            'area_id': str(self.area_id) if self.area_id else None,
             'fillColor': self.fill_color,
-            'strokeColor': self.stroke_coler
+            'strokeColor': self.stroke_color
         })
         if ai_type in [AIType.ki67, AIType.er, AIType.pr, AIType.celldet, AIType.pdl1, AIType.her2, AIType.ki67hot]:
             if self.mark_type == 2:
@@ -280,6 +292,14 @@ class MarkEntity(BaseDomainEntity):
                 item['doctorDiagnosis'] = None
 
         return item
+
+    @classmethod
+    def make_image_url(cls, id: str, caseid: str, fileid: str, filename: str, path: dict, **_):
+        roi = [
+            [min(path['x']), min(path['y'])],
+            [max(path['x']), max(path['y'])]
+        ]
+        return f'{Settings.IMAGE_SERVER}/files/ROI?caseid={caseid}&fileid={fileid}&filename={filename}&roi={json.dumps(roi)}&roiid={id}'
 
     def to_roi(self, ai_type: AIType, ai_suggest: Optional[dict] = None):
         d = self.to_dict()

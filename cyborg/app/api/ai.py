@@ -12,15 +12,15 @@ def start():
     other = request.form.get('other')  # 前端只在调用start接口时会传入参数 判断AI是否生成拼图供复核
     ai_name = request.form.get('type')
     try:
-        areas = json.loads(other) if other else []
+        rois = json.loads(other) if other else []
     except ValueError:
-        areas = []
+        rois = []
 
     upload_batch_number = request.form.get('uploadBatchNumber')  # 高通量批次号
     remote_ip = request.environ.get('REMOTE_ADDR')
 
     res = AppServiceFactory.ai_service.start_ai(
-        ai_name=ai_name, target_areas=areas, upload_batch_number=upload_batch_number, ip_address=remote_ip)
+        ai_name=ai_name, rois=rois, upload_batch_number=upload_batch_number, ip_address=remote_ip)
 
     return jsonify(res.dict())
 
@@ -53,7 +53,7 @@ def reset_model_calibration():
     return jsonify(res.dict())
 
 
-@api_blueprint.route('/cancelCalibration', methods=['get', 'post'])
+@api_blueprint.route('/ai/cancelCalibration', methods=['get', 'post'])
 def cancel_calibration():
     res = AppServiceFactory.ai_service.cancel_calibration()
     return jsonify(res.dict())
@@ -85,4 +85,13 @@ def analyse_threshold():
     request_context.ai_type = AIType.get_by_value(ai_type)
 
     res = AppServiceFactory.ai_service.get_analyze_threshold(threshold=threshold, analyse_mode=analyse_mode)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/ai/aiStatistics', methods=['get', 'post'])  # 获取ai计算统计结果
+def ai_statistics():
+    request_context.ai_type = AIType.get_by_value(request.form.get('aiType'))
+    start_date = request.form.get('startTime')
+    end_date = request.form.get('endTime')
+    res = AppServiceFactory.ai_service.get_ai_statistics(start_date=start_date, end_date=end_date)
     return jsonify(res.dict())

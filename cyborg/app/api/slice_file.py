@@ -22,6 +22,25 @@ logger = logging.getLogger(__name__)
 download_thread_dict = dict()
 
 
+@api_blueprint.route('/files/upload2', methods=['get', 'post'])
+def upload_slice_by_dir():
+    slide_type = request.args.get('type') + 's'
+    caseid = request.args.get('caseid')
+    fileid = request.args.get('fileid')
+    filename = os.sep.join(request.args.get('filename').split('\\'))
+
+    slide_save_path = os.path.join(request_context.current_user.data_dir, 'data', caseid, slide_type, fileid, filename)
+    os.makedirs(os.path.dirname(slide_save_path), exist_ok=True)
+    with open(slide_save_path, "wb+") as f:
+        while True:
+            chunk = request.stream.read(4096)
+            if len(chunk) == 0:
+                break
+            f.write(chunk)
+    res = AppResponse()
+    return jsonify(res.dict())
+
+
 @api_blueprint.route('/files/upload', methods=['get', 'post'])
 def upload_slice():
     slide_type = request.args.get('type') + 's'
@@ -59,7 +78,7 @@ def upload_slice():
 def update_slice_info():
     case_id = request.form.get('caseid')
     file_id = request.form.get('fileid')
-    high_through = request.form.get('high_through')  # 是否是高通量上传
+    high_through = bool(request.form.get('high_through'))  # 是否是高通量上传
     content = request.form.get('content')
     content = json.loads(content)
     res = AppServiceFactory.slice_service.update_slice_info(
@@ -102,7 +121,7 @@ def get_label():
     if os.path.exists(os.path.join(content_full_path, 'label.png')):
         resp = make_response(send_from_directory(
             directory=content_full_path,
-            filename='label.png',
+            path='label.png',
             mimetype="images/png",
             as_attachment=False
         ))
@@ -122,7 +141,7 @@ def ocr_label():
     if fs.path_exists(slice_label_path) and fs.get_file_size(slice_label_path):
         resp = make_response(send_from_directory(
             directory=fs.path_dirname(slice_label_path),
-            filename='slice_label.jpg',
+            path='slice_label.jpg',
             mimetype="image/png",
             as_attachment=False
         ))
@@ -130,7 +149,7 @@ def ocr_label():
     else:
         resp = make_response(send_from_directory(
             directory=os.path.join(Settings.PROJECT_DIR, 'resources', 'ocr'),
-            filename='default.png',
+            path='default.png',
             mimetype="image/png",
             as_attachment=False
         ))
@@ -153,7 +172,7 @@ def get_image():
     if os.path.exists(img_path) and os.path.getsize(img_path):
         resp = make_response(send_from_directory(
             directory=fs.path_dirname(img_path),
-            filename=fs.path_basename(img_path),
+            path=fs.path_basename(img_path),
             mimetype="image/png",
             as_attachment=False
         ))
@@ -161,7 +180,7 @@ def get_image():
     else:
         resp = make_response(send_from_directory(
             directory=os.path.join(Settings.PROJECT_DIR, 'static'),
-            filename='default.png',
+            path='default.png',
             mimetype="image/png",
             as_attachment=False
         ))
@@ -195,14 +214,14 @@ def attachment():
 
     resp = make_response(send_from_directory(
         directory=os.path.split(res.data)[0],
-        filename=os.path.split(res.data)[1],
+        path=os.path.split(res.data)[1],
         mimetype=mimetypes.guess_type(res.data)[0],
         as_attachment=True
     ))
     return resp
 
 
-@api_blueprint.route('/ROI', methods=['get', 'post'])
+@api_blueprint.route('/files/ROI', methods=['get', 'post'])
 def get_roi():
     case_id = request.args.get('caseid')
     file_id = request.args.get('fileid')
@@ -236,7 +255,7 @@ def screenshot():
 
     resp = make_response(send_from_directory(
         directory=dir_path,
-        filename=file_name,
+        path=file_name,
         mimetype=mimetypes.guess_type(file_name)[0],
         as_attachment=True
     ))
@@ -258,7 +277,7 @@ def get_slice_image():
     if 'tile_path' in res.data:
         resp = make_response(send_from_directory(
             directory=os.path.split(res.data['tile_path'])[0],
-            filename=os.path.split(res.data['tile_path'])[1],
+            path=os.path.split(res.data['tile_path'])[1],
             mimetype='image/jpeg',
             as_attachment=False
         ))

@@ -1,10 +1,13 @@
 import json
+import logging
 from typing import TypeVar, List, Dict, Type, Any
 
 from pydantic import BaseModel
 
 from cyborg.seedwork.domain.value_objects import BaseEnum
 from cyborg.utils.strings import camel_to_snake
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDomainEntity(BaseModel):
@@ -65,12 +68,6 @@ class BaseDomainEntity(BaseModel):
 
     def update_data(self, **kwargs):
         self.raw_data.update(kwargs)
-
-    @property
-    def encoded_data(self):
-        d = self.raw_data.copy()
-        for field_name in self.json_fields:
-            d[field_name] = json
 
     def to_dict(self):
         d = self.raw_data

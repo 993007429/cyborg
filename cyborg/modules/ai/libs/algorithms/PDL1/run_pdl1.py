@@ -81,7 +81,7 @@ def cal_pdl1(slide_path: str, x_coords: List[float], y_coords: List[float]):
     gpu_num = torch.cuda.device_count()
     num_process_per_gpu = 1
     command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu), sys.executable, '-m',
-               'Algorithms.PDL1.run_pdl1']
+               'algorithms.PDL1.run_pdl1']
     command.insert(1, '--allow-run-as-root')
     command.append('--slide_path {}'.format(slide_path))
     command.append('--roi_coords')

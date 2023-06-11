@@ -1,3 +1,6 @@
+import re
+
+
 def camel_to_snake(camel_str: str):
     """
     将驼峰字符串转换成蛇形字符串的函数
@@ -9,3 +12,7 @@ def camel_to_snake(camel_str: str):
         else:
             snake_str += char.lower()
     return snake_str
+
+
+def snake_to_camel(snake_str: str, is_big_camel: bool = False):
+    return re.sub('_([a-zA-Z0-9])', lambda m: m.group(1).upper(), f'_{snake_str}' if is_big_camel else snake_str)

@@ -233,9 +233,9 @@ def compute_pdl1_s(slide_path=None, x_coords=None, y_coords=None, fitting_model=
                 'neg_norm': cell_count[0], 'neg_tumor': cell_count[1],
                 'pos_norm': cell_count[2], 'pos_tumor': cell_count[3],
                 'total': int(remap_changed_cls_labels.size),
-                'tps': round(float(cell_count[Pdl1Consts.cell_label_dict['pdl1_positive_tumor']] / (
-                        cell_count[Pdl1Consts.cell_label_dict['pdl1_positive_tumor']] +
-                        cell_count[Pdl1Consts.cell_label_dict['pdl1_negative_tumor']] + 1e-10)), 4)}
+                'tps': round(float(cell_count[Pdl1Consts.cell_label_dict['pos_tumor']] / (
+                        cell_count[Pdl1Consts.cell_label_dict['pos_tumor']] +
+                        cell_count[Pdl1Consts.cell_label_dict['neg_tumor']] + 1e-10)), 4)}
 
             roi_center = center_coords_np.tolist()
             cls_labels = remap_changed_cls_labels.tolist()
@@ -245,5 +245,5 @@ def compute_pdl1_s(slide_path=None, x_coords=None, y_coords=None, fitting_model=
         return count_summary_dict, roi_center, ori_labels, cls_labels, probs, annot_cls_labels
 
     except Exception as e:
-        logger.error(str(e))
+        logger.exception(e)
         return count_summary_dict, roi_center, ori_labels, cls_labels, probs, annot_cls_labels

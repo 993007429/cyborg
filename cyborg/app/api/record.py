@@ -44,10 +44,10 @@ def _get_query_records_params() -> dict:
 
     report = json.loads(request.form.get("reports")) if (request.form.get("reports") and request.form.get(
         "reports") != '[]') else None  # 报告的有无   1有  2无   [1, 2]
-    update_min = request.form.get("update_min") if request.form.get("update_min") else None
-    update_max = request.form.get("update_max") if request.form.get("update_max") else None
-    create_time_min = request.form.get("create_min") if request.form.get("create_min") else None
-    create_time_max = request.form.get("create_max") if request.form.get("create_max") else None
+    update_min = request.form.get("update_min").strip('"') if request.form.get("update_min") else None
+    update_max = request.form.get("update_max").strip('"') if request.form.get("update_max") else None
+    create_time_min = request.form.get("create_min").strip('"') if request.form.get("create_min") else None
+    create_time_max = request.form.get("create_max").strip('"') if request.form.get("create_max") else None
     gender = json.loads(request.form.get("gender")) if (
             request.form.get("gender") and request.form.get("gender") != '[]') else None
     age_min = request.form.get('age_min', type=int)
@@ -89,6 +89,8 @@ def export_records():
     res = AppServiceFactory.slice_service.export_records(**_get_query_records_params())
     if res.data:
         return send_file(res.data)
+    else:
+        return jsonify(res.dict())
 
 
 @api_blueprint.route('/records/delete', methods=['get', 'post'])
@@ -146,7 +148,7 @@ def update_case_record():
         sample_type=basic.get('sampleType', None),
         inspection_hospital=basic.get('inspectionHospital', None),
         inspection_doctor=basic.get('inspectionDoctor', None),
-        report_info=json.dumps(content.get('reportInfo', None)),
+        report_info=content.get('reportInfo', None),
         opinion=content.get('opinion', None),
         stage=int(content.get('stage', 0) or 0),
         started=0,
@@ -181,6 +183,12 @@ def import_records():
 @api_blueprint.route('/records/getReportOpinion', methods=['get', 'post'])
 def get_report_opinion():
     res = AppServiceFactory.slice_service.get_report_opinion()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/records/report/sync', methods=['get', 'post'])
+async def sync_report():
+    res = await AppServiceFactory.slice_service.sync_report()
     return jsonify(res.dict())
 
 

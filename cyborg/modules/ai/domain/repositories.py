@@ -44,7 +44,10 @@ class AIRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def get_ai_stats(self, ai_type: AIType, company: str, date: str) -> Optional[AIStatisticsEntity]:
+    def get_ai_stats(
+            self, ai_type: AIType, company: str, date: Optional[str] = None,
+            start_date: Optional[str] = None, end_date: Optional[str] = None, version: Optional[str] = None
+    ) -> List[AIStatisticsEntity]:
         ...
 
     @abstractmethod

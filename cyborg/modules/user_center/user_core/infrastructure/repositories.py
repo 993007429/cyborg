@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional, Type, List
 
 from cyborg.modules.user_center.user_core.domain.entities import UserEntity, CompanyEntity
 from cyborg.modules.user_center.user_core.domain.repositories import UserRepository, CompanyRepository
@@ -16,6 +16,13 @@ class SQLAlchemyUserRepository(UserRepository, SQLAlchemySingleModelRepository[U
         model = self.session.query(UserModel).filter_by(username=username, company=company).first()
         return UserEntity.from_dict(model.raw_data) if model else None
 
+    def get_users(self, company: Optional[str] = None) -> List[UserEntity]:
+        query = self.session.query(UserModel)
+        if company is not None:
+            query = query.filter_by(company=company)
+        models = query.all()
+        return [UserEntity.from_dict(model.raw_data) for model in models]
+
 
 class SQLAlchemyCompanyRepository(CompanyRepository, SQLAlchemySingleModelRepository[CompanyEntity]):
 
@@ -26,3 +33,7 @@ class SQLAlchemyCompanyRepository(CompanyRepository, SQLAlchemySingleModelReposi
     def get_company_by_id(self, company: str) -> Optional[CompanyEntity]:
         model = self.session.query(CompanyModel).filter_by(company=company).first()
         return CompanyEntity.from_dict(model.raw_data) if model else None
+
+    def get_all_companies(self) -> List[CompanyEntity]:
+        models = self.session.query(CompanyModel).all()
+        return [CompanyEntity.from_dict(model.raw_data) for model in models]

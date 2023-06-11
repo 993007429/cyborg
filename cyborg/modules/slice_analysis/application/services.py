@@ -145,7 +145,7 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def create_ai_marks(
-            self, cell_marks: List[dict], roi_marks: List[dict], area_marks: List[dict], skip_mark_to_tile: bool = False
+            self, cell_marks: List[dict], roi_marks: List[dict], skip_mark_to_tile: bool = False
     ) -> AppResponse[dict]:
 
         case_id = request_context.case_id
@@ -155,7 +155,7 @@ class SliceAnalysisService(object):
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id) if not skip_mark_to_tile else None
 
         err_msg, new_marks = self.domain_service.create_ai_marks(
-            cell_marks=cell_marks, roi_marks=roi_marks, area_marks=area_marks, tiled_slice=tiled_slice)
+            cell_marks=cell_marks, roi_marks=roi_marks, tiled_slice=tiled_slice)
 
         if err_msg:
             return AppResponse(err_code=1, message=err_msg)
@@ -250,8 +250,8 @@ class SliceAnalysisService(object):
         return AppResponse(message='backup mark table succeed')
 
     @connect_slice_db()
-    def clear_ai_result(self) -> AppResponse:
-        self.domain_service.clear_ai_result(ai_type=request_context.ai_type, exclude_area_marks=True)
+    def clear_ai_result(self, exclude_area_marks: Optional[List[int]] = None) -> AppResponse:
+        self.domain_service.clear_ai_result(ai_type=request_context.ai_type, exclude_area_marks=exclude_area_marks)
         res = self.slice_service.delete_ai_image_files(case_id=request_context.case_id, file_id=request_context.file_id)
         if res.err_code:
             return res
@@ -394,7 +394,9 @@ class SliceAnalysisService(object):
 
         for slice_info in slices:
             request_context.file_id = slice_info['fileid']
+            request_context.ai_type = AIType.get_by_value(slice_info['alg'])
             res = self._get_slice_report_roi(slice_info)
+
             for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna]:
                 data[ai_type.value].extend(res[ai_type.value])
 
@@ -411,7 +413,7 @@ class SliceAnalysisService(object):
             d['type'] = manual_mark.ai_type.value
             res['human'].append(d)
 
-        _, marks = self.domain_service.repository.get_marks(mark_type=3)
+        _, marks = self.domain_service.repository.get_marks(mark_type=[2, 3])
 
         ai_result = marks[0].ai_result if marks else None
         cells = ai_result.get('cells') if ai_result else None
@@ -428,6 +430,7 @@ class SliceAnalysisService(object):
                         temp_dict['fileid'] = slice_info['fileid']
                         temp_dict['remark'] = temp_roi.get('remark', '')
                         temp_dict['ai_type'] = ai_type.value
+                        temp_dict['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], **temp_dict)
                         if ai_type in [AIType.lct, AIType.tct]:
                             res['tct'].append(temp_dict)
                         else:
@@ -444,6 +447,7 @@ class SliceAnalysisService(object):
                     temp_dict['ai_type'] = ai_type.value
                     temp_dict['iconType'] = 'dnaIcon'
                     temp_dict['di'] = nucleus.get('dna_index')
+                    temp_dict['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], **temp_dict)
                     res[ai_type.value].append(temp_dict)
 
         return res

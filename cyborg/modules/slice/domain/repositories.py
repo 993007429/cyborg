@@ -2,6 +2,7 @@ import sys
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Type, Tuple, List, Any
 
+from cyborg.modules.ai.domain.entities import TCTProbEntity
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.seedwork.domain.value_objects import AIType
@@ -44,6 +45,10 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_record_by_case_id(self, case_id: str, company: str) -> Optional[CaseRecordEntity]:
+        ...
+
+    @abstractmethod
+    def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
         ...
 
     @abstractmethod
@@ -100,4 +105,8 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def delete_slice(self, file_id: str, company_id: str) -> bool:
+        ...
+
+    @abstractmethod
+    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
         ...

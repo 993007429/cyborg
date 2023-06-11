@@ -229,18 +229,11 @@ class SliceAnalysisDomainService(object):
             self,
             cell_marks: List[dict],
             roi_marks: List[dict],
-            area_marks: List[dict],
             tiled_slice: Optional[TiledSlice] = None,
     ) -> Tuple[str, Optional[List[MarkEntity]]]:
 
         cell_mark_entities, roi_mark_entities = [], []
         group_ids = set()
-        for area_mark in area_marks:
-            area_id = area_mark.pop('id')
-            if area_id:
-                area_mark_entity = self.repository.get_mark(area_id)
-                area_mark_entity.update_data(**area_mark)
-                self.repository.save_mark(area_mark_entity)
 
         id_worker = IdWorker(1, 2, 0)
         for item in roi_marks + cell_marks:
@@ -248,6 +241,15 @@ class SliceAnalysisDomainService(object):
             # group_id = self.get_group_id(ai_type=ai_type, mark=mark_params, group_id=group_id)
             item['create_time'] = int(round(time.time() * 1000))
             item['id'] = id_worker.get_next_id() or id_worker.get_new_id()
+            if not item['position']['x']:
+                whole_slide_roi = self.repository.get_mark(item['id'])
+                if whole_slide_roi:
+                    whole_slide_roi.update_data(**item)
+                else:
+                    whole_slide_roi = MarkEntity(raw_data=item)
+                self.repository.save_mark(whole_slide_roi)
+                continue
+
             new_mark = MarkEntity(raw_data=item)
             if new_mark.group_id:
                 group_ids.add(new_mark.group_id)
@@ -256,23 +258,22 @@ class SliceAnalysisDomainService(object):
             else:
                 cell_mark_entities.append(new_mark)
 
+        logger.info(len(roi_mark_entities))
         logger.info(len(cell_mark_entities))
-        saved = self.repository.batch_save_marks(cell_mark_entities)
-        logger.info('>>>>>>>>>>>>>>>444444444')
+
+        saved = self.repository.batch_save_marks(
+            roi_mark_entities) and self.repository.batch_save_marks(cell_mark_entities)
         if not saved:
             return 'create ai marks tailed', None
 
         if tiled_slice:
-            logger.info('>>>>>>>>>>>>>>>55555555')
             self.generate_ai_marks_in_pyramid(marks=cell_mark_entities, tiled_slice=tiled_slice)
             self.generate_ai_marks_in_pyramid(
                 marks=roi_mark_entities, tiled_slice=tiled_slice, downsample_ratio=2, downsample_threshold=500)
-            logger.info('>>>>>>>>>>>>>>>66666666')
 
         for group_id in group_ids:
             self.repository.update_mark_group_status(group_id=group_id, is_empty=0)
 
-        logger.info('>>>>>>>>>>>>>>>77777777')
         self.repository.backup_ai_mark_tables()
 
         return '', cell_mark_entities + roi_mark_entities
@@ -379,91 +380,95 @@ class SliceAnalysisDomainService(object):
         marks_for_ai_result = []
         err_code, message = 0, 'modify marks succeed'
 
-        _, area_marks = self.repository.get_marks(mark_type=3, per_page=1)
-        area_mark = area_marks[0] if area_marks else None
-        wsi_ai_result = area_mark.ai_result if area_mark else None
         for mark_item in marks_data:
-            mark_item = {camel_to_snake(k): v for k, v in mark_item.items()}
-            mark_id = int(mark_item.pop('id'))
-
+            mark_id = int(mark_item['id'])
             manual_mark = self.repository.manual.get_mark(mark_id)
+
+            if ai_type in [AIType.tct, AIType.lct, AIType.dna] and not manual_mark:
+                ############################################################################################
+                # tct, lct, dna的mark数据存储在一个roi mark的ai_result里面，这里需要用一段单独的逻辑处理mark的修改
+                ############################################################################################
+                _, area_marks = self.repository.get_marks(mark_type=3, per_page=1)
+                area_mark = area_marks[0] if area_marks else None
+                logger.info(area_mark)
+                wsi_ai_result = area_mark.ai_result if area_mark else None
+                if wsi_ai_result:
+                    for cell_type, value in wsi_ai_result['cells'].items():
+                        data_list = value['data']
+                        for idx, item in enumerate(data_list):
+                            if str(item['id']) == str(mark_id):
+                                for k, v in mark_item.items():
+                                    wsi_ai_result['cells'][cell_type]['data'][idx][k] = v
+
+                    for idx, item in enumerate(wsi_ai_result.get('nuclei', [])):
+                        if str(item['id']) == str(mark_id):
+                            for k, v in mark_item.items():
+                                wsi_ai_result['nuclei'][idx][k] = v
+
+                    area_mark.update_data(ai_result=wsi_ai_result)
+                    self.repository.save_mark(area_mark)
+
+            mark_item = {MarkEntity.fix_field_name(k): v for k, v in mark_item.items()}
+
             is_ai = False if manual_mark else True
             mark = self.repository.get_mark(mark_id) or manual_mark
             if not mark:
                 continue
 
-            if ai_type in [AIType.tct, AIType.lct, AIType.dna] and not manual_mark and wsi_ai_result:
-                for cell_type, value in wsi_ai_result['cells'].items():
-                    data_list = value['data']
-                    for idx, item in enumerate(data_list):
-                        if str(item['id']) == str(mark_id):
-                            for k, v in mark_item.items():
-                                wsi_ai_result['cells'][cell_type]['data'][idx][k] = v
+            if mark.is_area_diagnosis_type(ai_type=ai_type):
+                err_code, message = 1, '操作涉及区域标注，区域标注不支持修改'
+                continue
 
-                for idx, item in enumerate(wsi_ai_result.get('nuclei', [])):
-                    if str(item['id']) == str(mark_id):
-                        for k, v in mark_item.items():
-                            wsi_ai_result['nuclei'][idx][k] = v
+            mark.pre_diagnosis = mark.diagnosis
 
-            if mark is not None:
-                if mark.is_area_diagnosis_type(ai_type=ai_type):
-                    err_code, message = 1, '操作涉及区域标注，区域标注不支持修改'
-                    continue
+            mark.update_data(**mark_item)
 
-                mark.pre_diagnosis = mark.diagnosis
+            if ai_type == AIType.label and target_group_id:
+                if target_group_id != mark.group_id:
+                    involved_groups.add(mark.group_id)
+                    involved_groups.add(target_group_id)
+                    target_group = self.repository.get_mark_group_by_id(target_group_id)
+                    if target_group:
+                        mark.update_data(
+                            group_id=target_group.id,
+                            fill_color=target_group.color if mark.fill_color else None,
+                            stroke_color=target_group.color if mark.stroke_color else None
+                        )
 
-                mark.update_data(**mark_item)
+            if 'position' in mark_item:  # 修改标注位置（形状）
+                if not mark_item.get('area_id'):
+                    # 算法区域支持修改位置（形状），一旦修改需要删除算法区域内的点，并且清空算法区域的计算结果
+                    self.repository.delete_marks(area_id=mark_id)
+                    empty_ai_result = AIResult.initialize(ai_type=ai_type)
+                    mark.update_data(ai_result=empty_ai_result.to_string() if empty_ai_result else None)
 
-                if ai_type == AIType.label and target_group_id:
-                    if target_group_id != mark.group_id:
-                        involved_groups.add(mark.group_id)
-                        involved_groups.add(target_group_id)
-                        target_group = self.repository.get_mark_group_by_id(target_group_id)
-                        if target_group:
-                            mark.update_data(
-                                group_id=target_group.id,
-                                fill_color=target_group.color if mark.fill_color else None,
-                                stroke_color=target_group.color if mark.stroke_color else None
-                            )
-
-                if 'position' in mark_item:  # 修改标注位置（形状）
-                    if not mark_item.get('area_id'):
-                        # 算法区域支持修改位置（形状），一旦修改需要删除算法区域内的点，并且清空算法区域的计算结果
-                        self.repository.delete_marks(area_id=mark_id)
-                        empty_ai_result = AIResult.initialize(ai_type=ai_type)
-                        mark.update_data(ai_result=empty_ai_result.to_string() if empty_ai_result else None)
-
-                    if not mark.cal_tiles(tiled_slice=tiled_slice):  # 修改后的标注超出切片范围
-                        if is_ai:
-                            marks_for_ai_result.append(mark)
-                        else:
-                            self.repository.manual.delete_mark_by_id(mark.id)
-                    else:
-                        self.generate_mark_in_pyramid(mark=mark, tiled_slice=tiled_slice)
-
-                if 'type' in mark_item:
-                    if not mark.is_area_diagnosis_type(ai_type=ai_type):
-                        mark.fix_diagnosis(ai_type=ai_type)
+                if not mark.cal_tiles(tiled_slice=tiled_slice):  # 修改后的标注超出切片范围
+                    if is_ai:
                         marks_for_ai_result.append(mark)
+                    else:
+                        self.repository.manual.delete_mark_by_id(mark.id)
+                else:
+                    self.generate_mark_in_pyramid(mark=mark, tiled_slice=tiled_slice)
 
-                if 'doctor_diagnosis' in mark_item:
-                    if self.repository.manual.mark_table_suffix:
-                        mark.update_data(doctor_diagnosis=mark_item['doctor_diagnosis'])
-
+            if 'type' in mark_item:
                 if not mark.is_area_diagnosis_type(ai_type=ai_type):
-                    if 'stroke_color' in mark_item:
-                        mark.update_data(stroke_color=mark_item['stroke_color'])
-                    if 'fill_color' in mark_item:
-                        mark.update_data(fill_color=mark_item['fill_color'])
+                    mark.fix_diagnosis(ai_type=ai_type)
+                    marks_for_ai_result.append(mark)
+
+            if 'doctor_diagnosis' in mark_item:
+                if self.repository.manual.mark_table_suffix:
+                    mark.update_data(doctor_diagnosis=mark_item['doctor_diagnosis'])
+
+            if not mark.is_area_diagnosis_type(ai_type=ai_type):
+                if 'stroke_color' in mark_item:
+                    mark.update_data(stroke_color=mark_item['stroke_color'])
+                if 'fill_color' in mark_item:
+                    mark.update_data(fill_color=mark_item['fill_color'])
 
             if is_ai:
                 self.repository.save_mark(mark)
             else:
                 self.repository.manual.save_mark(mark)
-
-        if area_mark:
-            area_mark.update_data(ai_result=wsi_ai_result)
-            self.repository.save_mark(area_mark)
 
         for group_id in involved_groups:
             count = self.repository.get_mark_count(group_id=group_id)
@@ -777,7 +782,6 @@ class SliceAnalysisDomainService(object):
 
     def get_rois(self, ai_type: AIType, ai_suggest: dict, ai_status: int):
         if ai_type in [AIType.human_tl, AIType.human_bm]:
-            print('>>>>>>>>>>')
             rois = self.get_human_rois(ai_type)
         else:
             _, marks = self.repository.get_marks(mark_type=3 if ai_type != AIType.human else None)
@@ -1252,7 +1256,7 @@ class SliceAnalysisDomainService(object):
             z = tiled_slice.max_level
         is_maxlvl = (z == tiled_slice.max_level)
 
-        if ai_type not in (AIType.pdl1, AIType.np):
+        if ai_type not in (AIType.pdl1, AIType.np) or not (x_coords and y_coords):
             return {'isMaxlvl': is_maxlvl, 'result': {}}
 
         xmin, xmax, xcent = int(min(x_coords)), int(max(x_coords)), int((min(x_coords) + max(x_coords)) / 2)
@@ -1275,6 +1279,7 @@ class SliceAnalysisDomainService(object):
             if ai_result.get('whole_slide') == 1:
                 is_whole_slide = True
             roi_res_list.append(ai_result)
+
         if is_maxlvl or (not is_whole_slide):
             cell_count = CellCount(tile_id=-1, ai_type=ai_type)
             if full_screen:
@@ -1298,6 +1303,7 @@ class SliceAnalysisDomainService(object):
                 c2.cell_count_dict = whole_slide_res.get('2')
                 c3.cell_count_dict = whole_slide_res.get('3')
                 c4.cell_count_dict = whole_slide_res.get('4')
+                logger.info(c1.cell_count_dict)
             else:  # regional image count
                 r1 = tiled_slice.cal_tiles_in_quadrant(x_coords=[xmin, xcent], y_coords=[ymin, ycent], level=z)
                 r2 = tiled_slice.cal_tiles_in_quadrant(x_coords=[xcent, xmax], y_coords=[ymin, ycent], level=z)
@@ -1322,9 +1328,9 @@ class SliceAnalysisDomainService(object):
         return {'isMaxlvl': is_maxlvl, 'result': res_dict}
 
     @transaction
-    def clear_ai_result(self, ai_type: AIType, exclude_area_marks: bool = False) -> bool:
+    def clear_ai_result(self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None) -> bool:
         self.repository.clear_mark_table(
-            ai_type=ai_type, exclude_mark_types=[3, 4] if exclude_area_marks else None)
+            ai_type=ai_type, exclude_area_marks=exclude_area_marks)
 
         if exclude_area_marks:
             _, marks = self.repository.get_marks(mark_type=[3, 4])

@@ -6,6 +6,7 @@ import shutil
 import time
 from typing import List, Optional, Tuple
 
+import numpy as np
 import openpyxl
 from PIL import Image
 from xlsxwriter import Workbook
@@ -14,6 +15,7 @@ from xlsxwriter.format import Format
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
 from cyborg.consts.common import Consts
+from cyborg.consts.tct import TCTConsts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.infra.session import transaction
@@ -24,6 +26,7 @@ from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.modules.slice.utils.clarify import blur_check
+from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
 
 logger = logging.getLogger(__name__)
@@ -140,19 +143,18 @@ class SliceDomainService(object):
         if high_through:
             record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id)
             if not record:  # 高通量模式, 若未创建病例则要创建病例文件夹并且在数据库中插入病例信息
-                os.makedirs(os.path.dirname(record.data_dir), exist_ok=True)
-                record = CaseRecordEntity(
+                record = CaseRecordEntity(raw_data=dict(
                     caseid=case_id,
                     company=company_id,
                     sample_num=case_id if cover_slice_number else (label_text or case_id),
                     stage=0,
                     slice_count=0,
-                    status=0,
+                    started=0,
                     state=1,
                     report=2,
                     create_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                )
+                    update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                ))
             else:
                 record.update_data(update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
@@ -214,13 +216,14 @@ class SliceDomainService(object):
 
                 elif v is not None:
                     if isinstance(v, dict) or isinstance(v, list):
-                        slice.update_data(k=json.dumps(v))
+                        slice.update_data(**{k: json.dumps(v)})
                     elif isinstance(v, str):
-                        slice.update_data(k=v.strip())
+                        slice.update_data(**{k: v.strip()})
                     else:
-                        slice.update_data(k=v)
+                        slice.update_data(**{k: v})
             if cover:
                 slice.update_data(check_result='')
+            self.repository.save_slice(slice)
 
         else:  # 新建切片信息
             slice = SliceEntity(**info)
@@ -271,9 +274,6 @@ class SliceDomainService(object):
         if not entity:
             return None
 
-        logger.debug('>>>>>>>>>>>')
-        logger.debug(status)
-        logger.debug(entity.started)
         if status == SliceStartedStatus.analyzing and entity.started != SliceStartedStatus.default:
             return None
 
@@ -285,7 +285,7 @@ class SliceDomainService(object):
         if ai_name is not None:
             ai_dict = json.loads(entity.ai_dict)
             ai_dict[ai_name + 'Started'] = True
-            entity.update_data(ai_dict=ai_dict)
+            entity.update_data(ai_dict=ai_dict, alg=ai_name)
         if upload_batch_number is not None:
             entity.update_data(upload_batch_number=upload_batch_number)
         if template_id is not None:
@@ -428,7 +428,7 @@ class SliceDomainService(object):
                 elif title == '切片文件夹':
                     write_label = slice.user_file_folder
                 elif title == 'AI模块':
-                    write_label = Consts.ALGOR_DICT.get(slice.alg) if slice.alg in Settings.ALGOR_DICT else slice.alg
+                    write_label = Consts.ALGOR_DICT.get(slice.alg) if slice.alg in Consts.ALGOR_DICT else slice.alg
                 elif title == 'AI建议':
                     write_label = slice.ai_suggest
                     cell_format = auto_cell_format(write_label)
@@ -511,10 +511,9 @@ class SliceDomainService(object):
             stage: int = 0, started: int = 0, state: int = 1, report: str = '2',
             **_
     ) -> Optional[CaseRecordEntity]:
-        if case_id is not None:
-            record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id)
-        else:
-            case_id = CaseRecordEntity.gen_case_id()
+        record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id) if case_id else None
+        if not record:
+            case_id = case_id or CaseRecordEntity.gen_case_id()
             record = CaseRecordEntity(raw_data=dict(
                 caseid=case_id,
                 company=company_id,
@@ -564,6 +563,8 @@ class SliceDomainService(object):
 
         slices = self.repository.get_slices_by_case_id(case_id=case_id, company=company_id)
         slice_count = self.repository.get_slice_count_by_case_id(case_id=case_id, company=company_id)
+        if sample_num is None:
+            sample_num = slices[0].slice_number if slices else ''
 
         record.update_data(**{
             'caseid': case_id,
@@ -573,7 +574,7 @@ class SliceDomainService(object):
             'cancer_type': cancer_type,
             'family_history': family_history,
             'medical_history': medical_history,
-            'sample_num': slices[0].slice_number if slices else sample_num,
+            'sample_num': sample_num,
             'sample_part': sample_part,
             'sample_time': sample_time,
             'sample_collect_date': sample_collect_date,
@@ -670,3 +671,50 @@ class SliceDomainService(object):
             'failure_count': failure_count,
             'skip_count': skip_count
         }
+
+    def apply_ai_threshold(self, company: str, ai_type: AIType, threshold_range: int, threshold_value: float) -> bool:
+        for prob, slice in self.repository.get_prob_list(company=company, ai_type=ai_type):
+            ai_suggest = slice.ai_suggest.split(" ")
+            if len(ai_suggest) == 1:
+                pre_tbs_label, pre_else = '', ['']
+            elif len(ai_suggest) == 2:
+                pre_tbs_label, pre_else = ai_suggest[1].strip(), ['']
+            elif len(ai_suggest) > 2:
+                pre_tbs_label, pre_else = ai_suggest[1].strip(), ai_suggest[2:]
+            else:
+                continue
+
+            prob_np = np.array(prob.to_list())
+            pred_tbs = np.argmax(prob_np)
+            tbs_label = TCTConsts.tct_multi_wsi_cls_dict_reverse[pred_tbs]
+            if threshold_range == 0 and ('LSIL' in tbs_label or 'HSIL' in tbs_label or 'AGC' in tbs_label):
+                continue
+            else:
+                diagnosis = '阳性' if 1 - prob_np[0] > threshold_value else '阴性'
+                if tbs_label == 'NILM' and diagnosis == '阳性':
+                    tbs_label = 'ASC-US'
+                tbs_label = '' if diagnosis == '阴性' else tbs_label
+
+                if '不满意' in pre_tbs_label:
+                    tbs_label = tbs_label + '-样本不满意'
+                pre_else = [pre_else] if not isinstance(pre_else, list) else pre_else
+                new_ai_suggest = ' '.join([diagnosis, tbs_label]) + ' ' + ' '.join(pre_else)
+                new_ai_suggest = new_ai_suggest.strip()
+                slice.update_data(ai_suggest=new_ai_suggest)
+                self.repository.save_slice(slice)
+        return True
+
+    @transaction
+    async def free_up_space(self, end_time: str, company: str) -> bool:
+        records = self.repository.get_records(end_time=end_time, company=request_context.current_company)
+        for record in records:
+            self.repository.delete_record(record.caseid, company_id=company)
+
+        slices = self.repository.get_slices(case_ids=[record.caseid for record in records])
+        for slice_entity in slices:
+            self.repository.delete_slice(slice_entity.fileid, company_id=company)
+
+        for record in records:
+            await record.remove_data_dir()
+
+        return True

@@ -126,3 +126,88 @@ class UserCoreService(object):
         if company:
             self.domain_service.update_company_ai_threshold(company, model_name, threshold_value, use_default_threshold)
         return AppResponse()
+
+    ####################################
+    # for admin below
+    ####################################
+
+    def get_users_by_company(self, company: str) -> AppResponse:
+        users = self.domain_service.repository.get_users(company=company)
+        return AppResponse(data=[user.to_dict() for user in users])
+
+    def get_user(self, username: str, company: str) -> AppResponse:
+        user = self.domain_service.repository.get_user_by_name(username=username, company=company)
+        if not user:
+            return AppResponse(err_code=1, message='no such user')
+        return AppResponse(data=user.to_dict())
+
+    def create_user(self, username: str, password: str, company_id: str, role: str) -> AppResponse:
+        err_msg, new_user = self.domain_service.create_user(username, password, company_id, role)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
+        return AppResponse(data={'status': 1, 'user': new_user.to_dict()})
+
+    def update_user(self, user_id: int, username: str, password: str, role: str):
+        err_msg = self.domain_service.update_user(user_id=user_id, username=username, password=password, role=role)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg)
+
+        return AppResponse(message='update success', data={'message': '修改成功', 'status': 1})
+
+    def delete_user(self, username: str, company: str):
+        err_msg = self.domain_service.delete_user(username, company)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg)
+
+        return AppResponse(message='delete success', data={'status': 1})
+
+    def get_all_comanies(self) -> AppResponse:
+        companies = self.domain_service.company_repository.get_all_companies()
+        return AppResponse(data=[company.to_dict() for company in companies])
+
+    def get_company_detail(self, company_id: str) -> AppResponse:
+        company = self.domain_service.company_repository.get_company_by_id(company=company_id)
+        if not company:
+            return AppResponse(err_code=1, message='no such company')
+        return AppResponse(data=company.to_dict())
+
+    def create_company(self, **kwargs) -> AppResponse:
+        err_msg = self.domain_service.create_company(**kwargs)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
+
+        return AppResponse(data={'status': 1})
+
+    def update_company(self, **kwargs) -> AppResponse:
+        err_msg = self.domain_service.update_company(**kwargs)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
+
+        # TODO send event, 修改文件夹
+
+        return AppResponse(data={'status': 1})
+
+    async def delete_company(self, company_id: str):
+        err_msg = await self.domain_service.delete_company(company_id)
+        if err_msg:
+            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
+        return AppResponse(data={'status': 1})
+
+    def save_ai_threshold(self, threshold_range: int, threshold_value: float, all_use: bool):
+        saved = self.domain_service.save_ai_threshold(
+            company_id=request_context.current_company, ai_type=request_context.ai_type,
+            threshold_range=threshold_range, threshold_value=threshold_value, all_use=all_use
+        )
+        if not saved:
+            return AppResponse(err_code=1, message='modify ai threshold failed')
+        return AppResponse(message='modify ai threshold succeed')
+
+    def get_ai_threshold(self):
+        company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
+        ai_threshold = company.ai_threshold if company else {}
+        return AppResponse(message='query succeed', data=ai_threshold.get(request_context.ai_type.value))
+
+    def get_default_ai_threshold(self):
+        company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
+        default_ai_threshold = company.default_ai_threshold if company else {}
+        return AppResponse(message='query succeed', data=default_ai_threshold.get(request_context.ai_type.value, 0.5))

@@ -86,3 +86,7 @@ class IdWorker:
         while timestamp <= last_timestamp:
             timestamp = self._gen_timestamp()
         return timestamp
+
+    @classmethod
+    def new_mark_id_worker(cls):
+        return cls(1, 2, 0)

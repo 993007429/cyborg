@@ -2,7 +2,7 @@ import sys
 import math
 from enum import Enum
 from threading import Lock
-from ctypes import windll, cdll, c_void_p, c_bool, c_int, POINTER, c_ubyte, c_float, Structure, c_longlong
+from ctypes import c_void_p, c_bool, c_int, POINTER, c_ubyte, c_float, Structure, c_longlong
 
 import cv2
 import numpy as np
@@ -11,9 +11,11 @@ from PIL import Image
 from ..SlideBase import SlideBase
 
 if sys.platform == 'win32':
+    from ctypes import windll
     cur_encoding = 'gbk'
     lib = windll.LoadLibrary('iViewerSDK.dll')
 else:
+    from ctypes import cdll
     cur_encoding = 'utf-8'
     lib = cdll.LoadLibrary('libiViewerSDK2.so')
 

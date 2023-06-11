@@ -1,17 +1,23 @@
 import json
+import logging
 import math
 import sys
 from typing import Optional, Type, Tuple, List, Any
 
-from sqlalchemy import desc, or_, func, distinct
+from sqlalchemy import desc, or_, func, distinct, and_
 
 from cyborg.infra.session import transaction
+from cyborg.modules.ai.domain.entities import TCTProbEntity
+from cyborg.modules.ai.infrastructure.models import TCTProbModel
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
+from cyborg.utils.strings import camel_to_snake
+
+logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModelRepository[CaseRecordEntity]):
@@ -72,13 +78,18 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         model = self.session.query(CaseRecordModel).filter_by(caseid=case_id, company=company).first()
         return CaseRecordEntity.from_dict(model.raw_data) if model else None
 
+    def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
+        models = self.session.query(CaseRecordModel).filter(
+            CaseRecordModel.create_time < end_time, CaseRecordModel.company == company).all()
+        return [CaseRecordEntity.from_dict(model.raw_data) for model in models]
+
     def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id, company=company).first()
         return SliceEntity.from_dict(model.raw_data) if model else None
 
     def get_slice_by_local_filename(self, user_file_path: str, file_name: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(
-            company=company, user_file_path=user_file_path, file_name=file_name).first()
+            company=company, user_file_path=user_file_path, filename=file_name).first()
         return SliceEntity.from_dict(model.raw_data) if model else None
 
     def get_slices_by_ids(self, slice_ids: List[int]) -> List[SliceEntity]:
@@ -90,7 +101,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         return slices
 
     def get_all_sample_types(self, company_id: str) -> List[dict]:
-        rows = self.session.query(distinct(CaseRecordModel.sample_part)).filter_by(company=company_id).all()
+        rows = self.session.query(distinct(CaseRecordModel.sample_type)).filter_by(company=company_id).all()
         return [{"text": row[0], "value": row[0]} for row in rows] if rows else [{"text": '无', "value": ""}]
 
     def get_all_sample_parts(self, company_id: str) -> List[dict]:
@@ -137,10 +148,9 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         is_slice_search_key = not is_record_search_key
 
         query = self.session.query(
-            CaseRecordModel, func.group_concat(SliceModel.id.op("ORDER BY")(SliceModel.id.desc()))).join(
+            CaseRecordModel, func.group_concat(SliceModel.id.op("ORDER BY")(SliceModel.id.desc()))).outerjoin(
             SliceModel, CaseRecordModel.caseid == SliceModel.caseid).filter(
-                CaseRecordModel.company == company_id,
-                SliceModel.type == 'slice'
+                CaseRecordModel.company == company_id
         )
 
         if search_key is not None and is_record_search_key and search_value:
@@ -156,7 +166,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(CaseRecordModel.age.between(age_min, age_max))
 
         if sample_type is not None:
-            query = query.filter(CaseRecordModel.sampleType.in_(sample_type))
+            query = query.filter(CaseRecordModel.sample_type.in_(sample_type))
 
         if sample_part is not None:
             query = query.filter(CaseRecordModel.sample_part.in_(sample_part))
@@ -170,8 +180,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(CaseRecordModel.update_time.between(update_min, update_max))
 
         if create_time_min is not None and create_time_max is not None:
-            query = query.filter(CaseRecordModel.create_time.between(
-                json.loads(create_time_min), json.loads(create_time_max)))
+            query = query.filter(CaseRecordModel.create_time.between(create_time_min, create_time_max))
 
         if search_key is not None and is_slice_search_key and search_value:
             if search_key == 'filename':
@@ -179,10 +188,10 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             elif search_key == 'userFilePath':
                 query = query.filter(SliceModel.user_file_folder == search_value)
             else:
-                query = query.filter(getattr(SliceModel, search_key) == search_value)
+                query = query.filter(getattr(SliceModel, camel_to_snake(search_key)) == search_value)
 
         if statuses is not None:
-            query = query.filter(SliceModel.ai_status.in_(statuses))
+            query = query.filter(SliceModel.started.in_(statuses))
 
         if alg is not None:
             query = query.filter(SliceModel.alg.in_(alg))
@@ -193,9 +202,9 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(SliceModel.slice_number != '')
 
         if is_has_label == [0]:  # 无切片标签
-            query = query.filter(SliceModel.isHasLabel == 0)
+            query = query.filter(SliceModel.is_has_label == 0)
         elif is_has_label == [1]:  # 有切片标签
-            query = query.filter(SliceModel.isHasLabel == 1)
+            query = query.filter(SliceModel.is_has_label == 1)
 
         if ai_suggest is not None:
             temp = (1 == 0)
@@ -227,10 +236,11 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             # TODO 前段传参HACK
             if seq_key == 'slice_num':
                 seq_key = 'slice_count'
-            _order_by = getattr(CaseRecordModel, seq_key)
-            if seq == '1':  # 倒序
-                _order_by = desc(_order_by)
-            query = query.order_by(_order_by)
+            _order_by = getattr(CaseRecordModel, camel_to_snake(seq_key), None)
+            if _order_by:
+                if seq == '1':  # 倒序
+                    _order_by = desc(_order_by)
+                query = query.order_by(_order_by)
         else:
             query = query.order_by(desc(CaseRecordModel.id))
 
@@ -243,9 +253,14 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         records = []
         for model, slice_ids in query.all():
             entity = CaseRecordEntity.from_dict(model.raw_data)
-            slice_id_list = slice_ids.split(',')
-            if slice_id_list:
-                entity.slices = self.get_slices_by_ids(slice_id_list)
+            if slice_ids:
+                slice_id_list = slice_ids.split(',')
+                for s in self.get_slices_by_ids(slice_id_list):
+                    if s.type == 'slice':
+                        entity.slices.append(s)
+                    elif s.type == 'attachment':
+                        entity.attachments.append(s)
+
             records.append(entity)
         return total, records
 
@@ -258,3 +273,11 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
     def delete_slice(self, file_id: str, company_id: str) -> bool:
         self.session.query(SliceModel).filter_by(fileid=file_id, company=company_id).delete()
         return True
+
+    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+        models = self.session.query(TCTProbModel, SliceModel).join(
+            SliceModel, TCTProbModel.slice_id == SliceModel.id).filter(
+            and_(SliceModel.company == company, SliceModel.alg.contains(ai_type.value), SliceModel.started == 2)
+        ).all()
+        return [(TCTProbEntity.from_dict(prob_model.raw_data), SliceEntity.from_dict(slice_model.raw_data))
+                for prob_model, slice_model in models]

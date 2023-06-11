@@ -2,11 +2,12 @@ import datetime
 import json
 import logging
 from collections import Counter
-from typing import Optional, List, Type
+from typing import Optional, List, Type, Tuple
 
 import cv2
 import numpy as np
 from celery.result import AsyncResult
+from celery.exceptions import TimeoutError as CeleryTimeoutError
 
 from cyborg.app.settings import Settings
 from cyborg.celery.app import app as celery_app
@@ -35,6 +36,7 @@ from cyborg.modules.ai.utils.pdl1 import fitting_target_tps_update, compute_pdl1
 from cyborg.modules.ai.utils.prob import save_prob_to_file
 from cyborg.modules.ai.utils.tct import generate_ai_result, generate_dna_ai_result
 from cyborg.seedwork.domain.value_objects import AIType
+from cyborg.utils.id_worker import IdWorker
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ class AIDomainService(object):
             ai_type: AIType,
             case_id: str,
             file_id: str,
-            target_areas: Optional[list] = None,
+            rois: Optional[list] = None,
             model_info: Optional[dict] = None,
             template_id: Optional[int] = None,
             is_calibrate: bool = False
@@ -60,7 +62,7 @@ class AIDomainService(object):
             'ai_type': ai_type,
             'case_id': case_id,
             'file_id': file_id,
-            'target_areas': target_areas,
+            'rois': rois,
             'model_info': model_info,
             'template_id': template_id,
             'is_calibrate': is_calibrate
@@ -110,6 +112,15 @@ class AIDomainService(object):
         else:
             return []
 
+    def get_ai_statistics(self, ai_type: AIType, company: str, start_date: str, end_date: str) -> List[dict]:
+        stats_list = self.repository.get_ai_stats(
+            ai_type=ai_type, company=company, start_date=start_date, end_date=end_date, version=Settings.VERSION)
+        data = [stats.to_dict() for stats in stats_list]
+        total = dict(sum([Counter(item) for item in data], start=Counter()))
+        total['date'] = '总计'
+        data.insert(0, total)
+        return data
+
     def refresh_ai_statistics(
             self, ai_suggest: str, ai_type: AIType, slice_info: dict, is_error: bool
     ) -> Optional[AIStatisticsEntity]:
@@ -119,7 +130,8 @@ class AIDomainService(object):
         company = slice_info['company']
         current_stats_id = slice_info['as_id']
         current_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        stats = self.repository.get_ai_stats(ai_type=ai_type, company=company, date=current_date)
+        stats_list = self.repository.get_ai_stats(ai_type=ai_type, company=company, date=current_date)
+        stats = stats_list[0] if stats_list else None
         if not stats:
             stats = AIStatisticsEntity(raw_data=dict(
                 date=current_date,
@@ -201,28 +213,31 @@ class AIDomainService(object):
 
         slide = open_slide(task.slide_path)
 
-        area_marks = []
+        roi_marks = []
         prob_dict = None
-        for idx, target_area in enumerate(task.target_areas):
+        for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
             result = alg_class(threshold).cal_tct(slide)
 
             prob_dict = save_prob_to_file(slide_path=task.slide_path, result=result, alg_name=alg_class.__name__)
 
-            ai_result = generate_ai_result(result=result, roiid=target_area['id'])
+            ai_result = generate_ai_result(result=result, roiid=roi['id'])
 
-            area_marks.append(Mark(
-                id=target_area['id'],
+            roi_marks.append(Mark(
+                id=roi['id'],
                 position={'x': [], 'y': []},
+                method='rectangle',
                 mark_type=3,
+                radius=5,
                 is_export=1,
+                stroke_color='grey',
                 ai_result=ai_result
             ))
 
-        ai_result = area_marks[0].ai_result
+        ai_result = roi_marks[0].ai_result
 
         return ALGResult(
+            roi_marks=roi_marks,
             ai_suggest=' '.join(ai_result['diagnosis']) + ' ' + ','.join(ai_result['microbe']),
-            area_marks=area_marks,
             slide_quality=ai_result['slide_quality'],
             cell_num=ai_result['cell_num'],
             prob_dict=prob_dict
@@ -241,31 +256,34 @@ class AIDomainService(object):
 
         slide = open_slide(task.slide_path)
 
-        area_marks = []
+        roi_marks = []
         prob_dict = None
-        for idx, target_area in enumerate(task.target_areas):
+        for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
             tbs_result = alg_class(threshold).cal_tct(slide)
             dna_result = dna_alg_class().dna_test(slide)
 
             prob_dict = save_prob_to_file(slide_path=task.slide_path, result=tbs_result, alg_name=alg_class.__name__)
 
-            ai_result = generate_ai_result(result=tbs_result, roiid=target_area['id'])
-            ai_result.update(generate_dna_ai_result(result=dna_result, roiid=target_area['id']))
+            ai_result = generate_ai_result(result=tbs_result, roiid=roi['id'])
+            ai_result.update(generate_dna_ai_result(result=dna_result, roiid=roi['id']))
 
-            area_marks.append(Mark(
-                id=target_area['id'],
+            roi_marks.append(Mark(
+                id=roi['id'],
                 position={'x': [], 'y': []},
                 mark_type=3,
+                method='rectangle',
+                radius=5,
                 is_export=1,
-                ai_result=ai_result
+                stroke_color='grey',
+                ai_result=ai_result,
             ))
 
-        ai_result = area_marks[0].ai_result
+        ai_result = roi_marks[0].ai_result
 
         ai_suggest = f"{' '.join(ai_result['diagnosis'])} {','.join(ai_result['microbe'])};{ai_result['dna_diagnosis']}"
         return ALGResult(
             ai_suggest=ai_suggest,
-            area_marks=area_marks,
+            roi_marks=roi_marks,
             slide_quality=ai_result['slide_quality'],
             cell_num=ai_result['cell_num'],
             prob_dict=prob_dict
@@ -273,19 +291,20 @@ class AIDomainService(object):
 
     def run_her2(self, task: AITaskEntity, group_name_to_id: dict):
         cell_marks = []
-        area_marks = []
+        roi_marks = []
         ai_result = {}
 
         slide = open_slide(task.slide_path)
         mpp = slide.mpp or 0.242042
 
+        rois = task.rois or [task.new_default_roi()]
         center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
-            slide_path=task.slide_path, roi_list=task.target_areas)
-        for target_area in task.target_areas:
-            area_id, x_coords, y_coords = target_area['id'], target_area['x'], target_area['y']
+            slide_path=task.slide_path, roi_list=rois)
+        for roi in rois:
+            roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
             center_coords, cls_labels = roi_filter(
-                center_coords_np_with_id[area_id],
-                cls_labels_np_with_id[area_id],
+                center_coords_np_with_id[roi_id],
+                cls_labels_np_with_id[roi_id],
                 x_coords,
                 y_coords
             )
@@ -307,7 +326,7 @@ class AIDomainService(object):
                     radius=1 / mpp,
                     editable=0,
                     group_id=group_name_to_id.get(Her2Consts.idx_to_label[int(cls_labels[idx])]),
-                    area_id=area_id,
+                    area_id=roi_id,
                     method='spot'
                 )
                 cell_marks.append(mark)
@@ -320,9 +339,10 @@ class AIDomainService(object):
                 '分级结果': Her2Consts.level[int(lvl)]
             })
 
-            area_marks.append(Mark(
-                id=target_area['id'],
+            roi_marks.append(Mark(
+                id=roi_id,
                 position={'x': x_coords, 'y': y_coords},
+                method='rectangle',
                 mark_type=3,
                 is_export=1,
                 ai_result=ai_result,
@@ -332,9 +352,8 @@ class AIDomainService(object):
 
         return ALGResult(
             ai_suggest=ai_result['分级结果'],
-            area_marks=area_marks,
             cell_marks=cell_marks,
-            roi_marks=[]
+            roi_marks=roi_marks,
         )
 
     def run_pdl1(self, task: AITaskEntity, group_name_to_id: dict, fitting_data_dir: str):
@@ -359,10 +378,10 @@ class AIDomainService(object):
             fitting_model = None
             smooth = None
 
-        area_marks, cell_marks = [], []
+        roi_marks, cell_marks = [], []
 
-        for idx, target_area in enumerate(task.target_areas):
-            area_id, x_coords, y_coords = target_area['id'], target_area['x'], target_area['y']
+        for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
+            roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
 
             whole_slide = 1 if len(x_coords) == 0 else 0
 
@@ -370,6 +389,7 @@ class AIDomainService(object):
                 slide_path=task.slide_path,
                 x_coords=x_coords,
                 y_coords=y_coords, fitting_model=fitting_model, smooth=smooth)
+
             total_pos_tumor_num += count_summary_dict['pos_tumor']
             total_neg_tumor_num += count_summary_dict['neg_tumor']
 
@@ -396,7 +416,7 @@ class AIDomainService(object):
                         counter = Counter(cells)
                         neg_norm = counter[Pdl1Consts.cell_label_dict['neg_norm']]
                         neg_tumor = counter[Pdl1Consts.cell_label_dict['neg_tumor']]
-                        pos_norm, = counter[Pdl1Consts.cell_label_dict['pos_norm']]
+                        pos_norm = counter[Pdl1Consts.cell_label_dict['pos_norm']]
                         pos_tumor = counter[Pdl1Consts.cell_label_dict['pos_tumor']]
                         total = neg_tumor + neg_norm + pos_tumor + pos_norm
                         tps = round(float(pos_tumor / (pos_tumor + neg_tumor + 1e-10)), 4)
@@ -416,9 +436,10 @@ class AIDomainService(object):
                     position={'x': [center_coords[0]], 'y': [center_coords[1]]},
                     fill_color=Pdl1Consts.display_color_dict[cell_type],
                     mark_type=2,
-                    diagnosis=json.dumps({'type': cell_type}),
+                    method='spot',
+                    diagnosis={'type': cell_type},
                     radius=1 / mpp,
-                    area_id=area_id,
+                    area_id=roi_id,
                     editable=0,
                     group_id=group_name_to_id.get(Pdl1Consts.reversed_annot_clss_map_dict[annot_type]),
                 )
@@ -426,13 +447,13 @@ class AIDomainService(object):
 
             count_summary_dict['center_coords'] = [xcent, ycent]
 
-            area_marks.append(Mark(
-                id=area_id,
+            roi_marks.append(Mark(
+                id=roi_id,
                 position={'x': x_coords, 'y': y_coords},
                 mark_type=3,
+                method='rectangle',
                 is_export=1,
                 ai_result=count_summary_dict,
-                editable=1,
                 group_id=group_name_to_id.get('ROI')
             ))
 
@@ -441,9 +462,8 @@ class AIDomainService(object):
 
         return ALGResult(
             ai_suggest=tps,
-            area_marks=area_marks,
+            roi_marks=roi_marks,
             cell_marks=cell_marks,
-            roi_marks=[]
         )
 
     def run_np(self, task: AITaskEntity, group_name_to_id: dict) -> ALGResult:
@@ -459,10 +479,9 @@ class AIDomainService(object):
         all_cell_types = []
 
         whole_slide = 0
-        area_marks = []
 
-        for target_area in task.target_areas:
-            area_id, x_coords, y_coords = target_area['id'], target_area['x'], target_area['y']
+        for roi in task.rois or [task.new_default_roi()]:
+            roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
             if len(x_coords) == 0:
                 whole_slide = 1
 
@@ -522,12 +541,14 @@ class AIDomainService(object):
                     'total_area': round(total_area * mpp ** 2, 2)
                 }
 
-            area_marks.append(Mark(
-                id=target_area['id'],
+            roi_marks.append(Mark(
+                id=roi_id,
                 position={'x': x_coords, 'y': y_coords},
                 mark_type=3,
+                method='rectangle',
+                ai_result=ai_result,
                 is_export=1,
-                ai_result=ai_result
+                group_id=group_name_to_id.get('ROI'),
             ))
 
             for coord, label in zip(list(cell_coords), list(cell_labels)):
@@ -537,7 +558,7 @@ class AIDomainService(object):
                     mark_type=2,
                     diagnosis={'type': NPConsts.return_diagnosis_type[NPConsts.reversed_cell_label_dict[label]]},
                     radius=1 / mpp,
-                    area_id=area_id,
+                    area_id=roi_id,
                     editable=1,
                     group_id=group_name_to_id.get(NPConsts.reversed_cell_label_dict[label]),
                     method='spot'
@@ -552,12 +573,12 @@ class AIDomainService(object):
                     },
                     stroke_color=NPConsts.display_color_dict[NPConsts.reversed_roi_label_dict[contour_label]],
                     mark_type=2,
+                    method='freepen',
                     diagnosis={'type': NPConsts.return_diagnosis_type[NPConsts.reversed_roi_label_dict[contour_label]]},
                     radius=1 / mpp,
-                    area_id=area_id,
+                    area_id=roi_id,
                     editable=1,
-                    group_id=group_name_to_id.get(NPConsts.reversed_roi_label_dict[contour_label]),
-                    method='freepen'
+                    group_id=group_name_to_id.get(NPConsts.reversed_roi_label_dict[contour_label])
                 )
                 roi_marks.append(roi_mark)
 
@@ -572,34 +593,40 @@ class AIDomainService(object):
 
         return ALGResult(
             ai_suggest=ai_suggest,
-            area_marks=area_marks,
             cell_marks=cell_marks,
             roi_marks=roi_marks
         )
 
     def run_ki67(self, task: AITaskEntity, group_name_to_id: dict, compute_wsi: bool = False):
+
         all_center_coords_list = []
 
         slide = open_slide(task.slide_path)
         mpp = slide.mpp if slide.mpp is not None else 0.242042
 
-        whole_slide = 1 if (compute_wsi and not task.target_areas) else 0
+        whole_slide = 1 if compute_wsi else 0
         pos_num = 0
         total_cell_num = 0
         total_normal_cell = 0
 
-        if task.target_areas:
-            compute_wsi = False
         logger.info(f'compute_wsi: {compute_wsi}')
 
         cell_marks = []
         roi_marks = []
 
-        result_df = WSITester().run(slide, compute_wsi=compute_wsi, roi_list=task.target_areas)
+        roi_list = task.rois
+        if not roi_list and compute_wsi:
+            roi_list = [task.new_default_roi()]
+
+        result_df = WSITester().run(slide, compute_wsi=compute_wsi, roi_list=roi_list)
+        id_worker = IdWorker.new_mark_id_worker()
+
         for idx in range(len(result_df)):
             item = result_df.iloc[idx]
 
-            roi_id = item.get('id')
+            roi_id = int(item.get('id', 0))
+            if roi_id <= 0:
+                roi_id = id_worker.new_mark_id_worker().get_new_id()
 
             x_coords, y_coords = list(map(int, item['x_coords'])), list(map(int, item['y_coords']))
             roi_type = item['类别'] if not roi_id else 4
@@ -617,6 +644,7 @@ class AIDomainService(object):
                     position={'x': [center_coord[0]], 'y': [center_coord[1]]},
                     fill_color=Ki67Consts.cell_color_dict[remap_cell_type],
                     mark_type=2,
+                    method='spot',
                     diagnosis={'type': remap_cell_type},
                     radius=1 / mpp,
                     area_id=roi_id,
@@ -628,16 +656,7 @@ class AIDomainService(object):
             total_cell_num += item['肿瘤细胞']
             total_normal_cell += int(np.sum(np.array(remap_cls_labels) == Ki67Consts.display_cell_dict['非肿瘤']))
 
-            if compute_wsi:
-                response_count_dict = {
-                    'total': int(total_cell_num),
-                    'pos_tumor': int(pos_num),
-                    'neg_tumor': int(total_cell_num) - int(pos_num),
-                    'normal_cell': int(total_normal_cell),
-                    'index': round(float(pos_num / (total_cell_num + 1e-4)), 4),
-                    'whole_slide': whole_slide
-                }
-            else:
+            if not compute_wsi:
                 response_count_dict = {
                     'total': int(item['肿瘤细胞']),
                     'pos_tumor': int(item['阳性肿瘤']),
@@ -646,16 +665,40 @@ class AIDomainService(object):
                     'index': float(item['ki67指数']),
                     'whole_slide': whole_slide
                 }
+                roi_marks.append(Mark(
+                    id=roi_id,
+                    position={'x': x_coords, 'y': y_coords},
+                    mark_type=3,
+                    method='rectangle',
+                    stroke_color='grey',
+                    radius=5,
+                    ai_result=response_count_dict,
+                    editable=1,
+                    is_export=1,
+                    group_id=group_name_to_id.get(Ki67Consts.reversed_roi_label_dict[roi_type])
+                ))
 
+        if compute_wsi:
+            response_count_dict = {
+                'total': int(total_cell_num),
+                'pos_tumor': int(pos_num),
+                'neg_tumor': int(total_cell_num) - int(pos_num),
+                'normal_cell': int(total_normal_cell),
+                'index': round(float(pos_num / (total_cell_num + 1e-4)), 4),
+                'whole_slide': whole_slide
+            }
+            whole_slide_roi = roi_list[0]
             roi_marks.append(Mark(
-                id=roi_id,
-                position={'x': x_coords, 'y': y_coords},
+                id=whole_slide_roi['id'],
+                position={'x': [], 'y': []},
                 mark_type=3,
+                method='rectangle',
                 stroke_color='grey',
                 radius=5,
                 ai_result=response_count_dict,
                 editable=1,
-                group_id=group_name_to_id.get(Ki67Consts.reversed_roi_label_dict[roi_type])
+                is_export=1,
+                group_id=group_name_to_id.get('ROI')
             ))
 
         return ALGResult(
@@ -670,18 +713,15 @@ class AIDomainService(object):
         green_group_id = group_name_to_id['绿色信号点']
 
         type_color_dict = {0: 'white', 1: 'red', 2: '#00ff15'}
-        slide = open_slide(task.slide_path)
         mpp = 0.5
 
         whole_slide = 1
-        target_area = task.target_areas[0]
-        target_area.update({
-            'x': [0, slide.width - 1, slide.width - 1, 0], 'y': [0, 0, slide.height - 1, slide.height - 1]})
+        roi = task.rois[0]
 
-        area_id = target_area['id']
+        roi_id = roi['id']
         cell_type = 0
 
-        area_marks = []
+        roi_marks = []
         cell_marks = []
 
         nucleus_coords, red_signal_coords, green_signal_coords = cal_fish_tissue.run_fish(slide=task.slide_path)
@@ -702,7 +742,7 @@ class AIDomainService(object):
                     mark_type=2,
                     diagnosis={'type': cell_type},
                     radius=1 / mpp,
-                    area_id=area_id,
+                    area_id=roi_id,
                     group_id=group_id)
                 cell_marks.append(this_mark)
 
@@ -715,7 +755,7 @@ class AIDomainService(object):
                 mark_type=2,
                 diagnosis=json.dumps({'type': cell_type}),
                 radius=4 * 1 / mpp,
-                area_id=area_id,
+                area_id=roi_id,
                 group_id=group_id
             )
             cell_marks.append(this_mark)
@@ -729,15 +769,15 @@ class AIDomainService(object):
                 mark_type=2,
                 diagnosis=json.dumps({'type': cell_type}),
                 radius=4 * 1 / mpp,
-                area_id=area_id,
+                area_id=roi_id,
                 group_id=group_id
             )
             cell_marks.append(this_mark)
 
             count_summary_dict['whole_slide'] = whole_slide
 
-        area_mark = Mark(
-            id=area_id,
+        roi_mark = Mark(
+            id=roi_id,
             position={'x': [], 'y': []},
             mark_type=3,
             ai_result=count_summary_dict,
@@ -745,9 +785,9 @@ class AIDomainService(object):
             radius=1 / mpp,
             is_export=1,
             editable=1,
-            group_id=target_area.get('ROI')
+            group_id=group_name_to_id.get('ROI')
         )
-        area_marks.append(area_mark)
+        roi_marks.append(roi_mark)
 
         ai_suggest = '细胞核：{} 绿色信号点：{} 红色信号点：{}'.format(
             count_summary_dict.get('nuclues_num'),
@@ -756,7 +796,7 @@ class AIDomainService(object):
         )
         return ALGResult(
             ai_suggest=ai_suggest,
-            area_marks=area_marks,
+            roi_marks=roi_marks,
             cell_marks=cell_marks
         )
 
@@ -768,9 +808,10 @@ class AIDomainService(object):
 
         bboxes, scores, labels = BM1115().cal_bm(slide)
 
-        area_id = task.target_areas[0]['id']
+        roi = task.rois[0] if task.rois else task.new_default_roi()
+        roi_id = roi['id']
 
-        area_marks = []
+        roi_marks = []
         cell_marks = []
         for idx in range(bboxes.shape[0]):
             box, score, label = map(int, list(bboxes[idx])), float(scores[idx]), int(labels[idx])
@@ -780,14 +821,14 @@ class AIDomainService(object):
             BMConsts.label1_num_dict[BMConsts.label_map_dict[label_name]] += 1
             if BMConsts.label2_num_dict[label_name] <= 100:
                 BMConsts.label2_data_dict[label_name].append({
-                    "id": idx,
+                    # "id": idx,
                     "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
                     "image": 0,
                     "editable": 0,
                     "dashed": 0,
                     "fillColor": "",
                     "mark_type": 2,
-                    "area_id": area_id,
+                    "area_id": roi_id,
                     "method": "rectangle",
                     "strokeColor": "red",
                     "radius": 0,
@@ -795,14 +836,14 @@ class AIDomainService(object):
                 })
 
                 cell_mark = Mark(
-                    id=idx,
+                    # id=idx,
                     position=json.dumps({'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]}),
                     stroke_color='red',
                     mark_type=2,
                     method='rectangle',
                     diagnosis=json.dumps({'type': label}),
                     radius=1 / mpp,
-                    area_id=area_id,
+                    area_id=roi_id,
                     editable=0,
                     group_id=group_name_to_id.get(BMConsts.bm_class_list[label]))
                 cell_marks.append(cell_mark)
@@ -823,47 +864,51 @@ class AIDomainService(object):
             'whole_slide': 1
         }
 
-        area_mark = Mark(
-            id=area_id,
+        roi_mark = Mark(
+            id=roi_id,
             position={'x': [], 'y': []},
             mark_type=3,
+            method='rectangle',
             is_export=1,
             ai_result=ai_result,
-            radius=1 / mpp
+            radius=1 / mpp,
+            group_id=group_name_to_id.get('ROI')
         )
-        area_marks.append(area_mark)
+        roi_marks.append(roi_mark)
 
         return ALGResult(
             ai_suggest='',
-            area_marks=area_marks,
+            roi_marks=roi_marks,
             cell_marks=cell_marks
         )
 
-    def get_ai_task_result(self, case_id: int, file_id: int, ai_type: AIType) -> Optional[dict]:
+    def get_ai_task_result(self, case_id: int, file_id: int, ai_type: AIType) -> Tuple[str, Optional[dict]]:
         task = self.repository.get_latest_ai_task(case_id=case_id, file_id=file_id, ai_type=ai_type)
         if not task:
-            return {'done': True, 'rank': -2}
+            return '', {'done': True, 'rank': -2}
 
         if task.status in (AITaskStatus.success, AITaskStatus.failed):
-            return {'done': True, 'rank': -1}
+            return '', {'done': True, 'rank': -1}
         else:
             if task.result_id:
                 try:
-                    result = AsyncResult(task.result_id, app=celery_app).get()
-                    if result:
-                        return {'done': True, 'rank': -1}
+                    result = AsyncResult(task.result_id, app=celery_app)
+                    if result.ready() and result.get(timeout=0.001):
+                        return '', {'done': True, 'rank': -1}
+                except CeleryTimeoutError:
+                    pass
                 except Exception as e:
                     logger.exception(e)
                     self.update_ai_task(task, status=AITaskStatus.failed)
-                    return {'done': True, 'rank': -1, 'message': 'AI处理发生异常'}
+                    return 'AI处理发生异常', {'done': True, 'rank': -1}
 
             if task.status == AITaskStatus.analyzing:
-                return {'done': False, 'rank': 0}
+                return '', {'done': False, 'rank': 0}
             else:
                 ranking = self.repository.get_ai_task_ranking(task.id)
                 if ranking is not None:
-                    return {'done': False, 'rank': ranking + 1}
-                return {'done': True, 'rank': -2}
+                    return '', {'done': False, 'rank': ranking + 1}
+                return '', {'done': True, 'rank': -2}
 
     def get_analyze_threshold(self, threshold: float, analyse_mode: str, slices: List[dict]) -> dict:
         tbs_dict = TCTConsts.tct_multi_wsi_cls_dict.copy()
