@@ -2,16 +2,13 @@ import json
 
 from sqlalchemy import Column, String, Integer, Text, Float
 
-from cyborg.modules.user_center.user_core.domain.entities import CompanyEntity, COMPANY_AI_THRESHOLD, \
-    COMPANY_DEFAULT_AI_THRESHOLD
+from cyborg.modules.user_center.user_core.domain.entities import COMPANY_AI_THRESHOLD, COMPANY_DEFAULT_AI_THRESHOLD
 from cyborg.seedwork.infrastructure.models import BaseModel
 
 
 class UserModel(BaseModel):
 
     __tablename__ = 'user'
-
-    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True, comment='主键ID')
     username = Column(String(255), comment='姓名')
@@ -30,8 +27,6 @@ class UserModel(BaseModel):
 class CompanyModel(BaseModel):
 
     __tablename__ = 'company'
-
-    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, comment='主键ID')
     company = Column(String(255), nullable=True, comment='名字')

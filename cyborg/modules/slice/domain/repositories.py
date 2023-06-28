@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Type, Tuple, List, Any
 
 from cyborg.modules.ai.domain.entities import TCTProbEntity
-from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
+from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SingleModelRepository
@@ -49,6 +49,9 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
+        ...
+
+    def get_new_slices(self, start_id: int, upload_batch_number: Optional[int] = None) -> Tuple[int, int, List[dict]]:
         ...
 
     @abstractmethod
@@ -109,4 +112,15 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+        ...
+
+
+class ReportConfigRepository(SingleModelRepository[ReportConfigEntity], metaclass=ABCMeta):
+
+    @property
+    def entity_class(self) -> Type[ReportConfigEntity]:
+        return ReportConfigEntity
+
+    @abstractmethod
+    def get_by_company(self, company: str) -> Optional[ReportConfigEntity]:
         ...

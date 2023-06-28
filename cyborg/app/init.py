@@ -4,7 +4,6 @@ from logging.config import dictConfig
 from flask import Flask, Response
 from flask.json.provider import DefaultJSONProvider
 
-from cyborg.app.api_v2 import api_v2_blueprint
 from cyborg.app.limiter import limiter
 from cyborg.app.settings import Settings
 from cyborg.app.logging import gen_logging_config
@@ -45,7 +44,6 @@ def init_app():
 
     # 注册蓝图 解耦
     app.register_blueprint(api_blueprint, url_prefix='/aipath/api')
-    app.register_blueprint(api_v2_blueprint, url_prefix='/aipath/api/v2')
 
     subscribe_events()
 

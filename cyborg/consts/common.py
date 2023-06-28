@@ -69,4 +69,4 @@ class Consts:
         'other': ['80X', '40X', '20X', '10X'],
     }
 
-    DEFAULT_REPORT_TEMPLATE_CODE = 'yxfy'
+    REPORT_BIZ_TYPE = 'znbl'   # 在报告中心注册的业务代码，用于识别业务方身份

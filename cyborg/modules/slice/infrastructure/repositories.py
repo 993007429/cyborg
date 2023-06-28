@@ -1,4 +1,3 @@
-import json
 import logging
 import math
 import sys
@@ -9,10 +8,10 @@ from sqlalchemy import desc, or_, func, distinct, and_
 from cyborg.infra.session import transaction
 from cyborg.modules.ai.domain.entities import TCTProbEntity
 from cyborg.modules.ai.infrastructure.models import TCTProbModel
-from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
-from cyborg.modules.slice.domain.repositories import CaseRecordRepository
+from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
+from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel
+from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel, ReportConfigModel
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
 from cyborg.utils.strings import camel_to_snake
@@ -82,6 +81,21 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         models = self.session.query(CaseRecordModel).filter(
             CaseRecordModel.create_time < end_time, CaseRecordModel.company == company).all()
         return [CaseRecordEntity.from_dict(model.raw_data) for model in models]
+
+    def get_new_slices(self, start_id: int, upload_batch_number: Optional[int] = None) -> Tuple[int, int, List[dict]]:
+        query = self.session.query(SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg).filter(
+            SliceModel.id > start_id).order_by(SliceModel.id.desc())
+        if upload_batch_number is not None:
+            rows = query.filter(SliceModel.upload_batch_number == upload_batch_number).all()
+            increased = len(rows)
+            last_id = rows[0][0] if rows else 0
+            slices = [{'caseid': row[1], 'fileid': row[2], 'ai_type': AIType.get_by_value(row[3])} for row in rows]
+            return last_id, increased, slices
+        else:
+            row = query.first()
+            last_id = row[0] if row else 0
+            increased = query.count()
+            return last_id, increased, []
 
     def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id, company=company).first()
@@ -281,3 +295,14 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         ).all()
         return [(TCTProbEntity.from_dict(prob_model.raw_data), SliceEntity.from_dict(slice_model.raw_data))
                 for prob_model, slice_model in models]
+
+
+class SQLAlchemyReportConfigRepository(ReportConfigRepository, SQLAlchemySingleModelRepository[ReportConfigEntity]):
+
+    @property
+    def model_class(self) -> Type[ReportConfigModel]:
+        return ReportConfigModel
+
+    def get_by_company(self, company: str) -> Optional[ReportConfigEntity]:
+        model = self.session.query(ReportConfigModel).filter_by(company=company).one_or_none()
+        return ReportConfigEntity.from_dict(model.raw_data) if model else None

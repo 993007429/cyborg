@@ -5,6 +5,8 @@ from typing import Optional, Callable, TypeVar, Any
 
 from pydantic import BaseModel
 
+from cyborg.consts.common import Consts
+
 
 class BaseEnum(enum.Enum):
 
@@ -80,6 +82,7 @@ class AIType(BaseEnum):
     her2 = 'her2'
     ki67 = 'ki67'
     pdl1 = 'pdl1'
+    cd30 = 'cd30'
     ki67hot = 'ki67hot'
     celldet = 'celldet'
     fish_tissue = 'fishTissue'
@@ -90,6 +93,10 @@ class AIType(BaseEnum):
         if self == AIType.ki67:
             return AIType.ki67hot.value
         return self.value
+
+    @property
+    def display_name(self) -> str:
+        return Consts.ALGOR_DICT.get(self.value, '')
 
     @property
     def is_human_type(self):

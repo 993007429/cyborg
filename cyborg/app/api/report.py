@@ -50,3 +50,15 @@ def view_report():
     report_id = request.args.get('reportid')
     res = AppServiceFactory.slice_service.get_report_file(report_id=report_id)
     return send_file(res.data)
+
+
+@api_blueprint.route('/report/config', methods=['get', 'post'])
+def report():
+    if request.method == 'GET':
+        res = AppServiceFactory.slice_service.get_report_config()
+        return jsonify(res.dict())
+    elif request.method == 'POST':
+        res = AppServiceFactory.slice_service.save_report_config(
+            template_config=request.json
+        )
+        return jsonify(res.dict())

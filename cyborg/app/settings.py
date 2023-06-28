@@ -107,6 +107,8 @@ class Settings(object):
 
     REPORT_SERVER = LOCAL_SETTINGS['default']['report_server']
 
+    ELECTRON_UPLOAD_SERVER = 'http://{}:3000/download'
+
     # 需要记录操作日志的算法模块
     ai_log_list = ['tct', 'lct', 'pdl1', 'human_tl']
 

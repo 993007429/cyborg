@@ -10,6 +10,7 @@ from io import BytesIO
 from typing import Optional, List, Tuple, Union
 
 import aiohttp
+import requests
 import xlsxwriter
 from PIL import Image
 from werkzeug.datastructures import FileStorage
@@ -171,7 +172,7 @@ class SliceService(object):
             # 上传切片文件完整性校验
             if Settings.INTEGRITY_CHECK:
                 uploaded_size = fs.get_dir_size(upload_path)
-                if uploaded_size < int(total_upload_size):
+                if uploaded_size < total_upload_size:
                     return AppResponse(err_code=1, message='1')
             # 切片文件损坏校验
                 is_valid = self.domain_service.validate_slice_file(upload_path, file_name)
@@ -288,7 +289,8 @@ class SliceService(object):
             case_id=case_id, file_id=file_id, company_id=request_context.current_company)
         return AppResponse(err_code=err_code, message=message, data=entity.data_paths if entity else None)
 
-    def get_slice_files(self, case_ids: List[str], path: str, need_db_file: bool = False) -> AppResponse[list]:
+    def export_slice_files(self, client_ip: str, case_ids: List[str], path: str, need_db_file: bool = False) -> AppResponse[list]:
+        url = Settings.ELECTRON_UPLOAD_SERVER.format(client_ip)
         file_path_list = list()  # 待发送的文件路径列表
         for case_id in case_ids:
             slices = self.domain_service.repository.get_slices_by_case_id(
@@ -308,7 +310,26 @@ class SliceService(object):
                     if need_db_file:  # 下载切片db文件
                         file_path_list.append([slice.db_file_path, params, 0, case_id, slice.filename])
                     file_path_list.append([slice.slice_file_path, params, 1, case_id, slice.filename])
-        return AppResponse(data=file_path_list)
+
+        for i in file_path_list:
+            file = {'file': open(i[0], 'rb')}
+            try:
+                res = requests.request("POST", url=url, files=file, timeout=600, params=i[1])
+                if res.text == '保存成功':
+                    if i[2] == 1:
+                        logger.info('caseid为<{}>下名为<{}>切片文件下载成功'.format(i[-2], i[-1]))
+                    else:
+                        logger.info('caseid为<{}>下名为<{}>切片数据库文件下载成功'.format(i[-2], i[-1]))
+                elif res.text == '磁盘空间不足':
+                    if i[2] == 1:
+                        logger.info('caseid为<{}>下名为<{}>切片文件下载失败'.format(i[-2], i[-1]))
+                    else:
+                        logger.info('caseid为<{}>下名为<{}>切片数据库文件下载失败'.format(i[-2], i[-1]))
+                    return AppResponse(err_code=1, message='磁盘空间不足')
+            except requests.exceptions.ConnectionError:
+                return AppResponse(err_code=1, message='导出失败。请检查本机ip地址是否正常。')
+
+        return AppResponse(message='导出完成')
 
     def get_slice_angle(self, file_id: str):
         err_code, message, entity = self.domain_service.get_slice(
@@ -320,9 +341,9 @@ class SliceService(object):
         data = {'aiAngle': entity.ai_angle, 'currentAngle': entity.current_angle}
         return AppResponse(data=data)
 
-    def update_slice_angle(self, file_id: str, current_angle: float) -> AppResponse:
+    def update_slice_angle(self, case_id: str, file_id: str, current_angle: float) -> AppResponse:
         err_code, message, entity = self.domain_service.get_slice(
-            file_id=file_id, company_id=request_context.current_company)
+            case_id=case_id, file_id=file_id, company_id=request_context.current_company)
         if err_code:
             return AppResponse(err_code=err_code, message=message)
 
@@ -489,8 +510,8 @@ class SliceService(object):
             return AppResponse(err_code=1, message='病例不存在')
         record.slices = self.domain_service.repository.get_slices_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
-        company_info = self.user_service.get_company_info(request_context.current_company).data or {}
-        template_code = company_info.get('templateCode', Consts.DEFAULT_REPORT_TEMPLATE_CODE)
+        report_config = self.domain_service.get_report_config(company=request_context.current_company)
+        template_codes = record.get_report_template_codes(template_config=report_config.template_config)
 
         report_data = record.to_dict_for_report()
 
@@ -500,19 +521,23 @@ class SliceService(object):
         roi_images = []
         for k in ['human', 'tct', 'dna']:
             roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])
+
         report_data['roiImages'] = roi_images
+        report_data['dnaStatics'] = roi_data.get('dnaStatics')
+        report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
 
         async with aiohttp.ClientSession() as client:
             params = {
-                'templateCode': template_code,
+                'bizType': Consts.REPORT_BIZ_TYPE,
                 'bizUid': record.id,
                 'reportData': report_data
             }
+            logger.info(params)
             async with client.post(f'{Settings.REPORT_SERVER}/reports', json=params, verify_ssl=False) as resp:
                 if resp.status == 200:
                     data = json.loads(await resp.read())
                     if data.get('code') == 0:
-                        return AppResponse(message='发送成功')
+                        return AppResponse(message='发送成功', data={'templateCodes': template_codes})
                     else:
                         return AppResponse(err_code=1, message=data.get('message', '发送报告失败'))
                 else:
@@ -580,8 +605,28 @@ class SliceService(object):
         records = self.domain_service.repository.get_records(end_time=end_time, company=request_context.current_company)
         return AppResponse(data={'recordCount': len(records)})
 
+    def get_new_slices(self, start_id: int, upload_batch_number: Optional[str] = None) -> AppResponse:
+        last_id, increased, slices = self.domain_service.repository.get_new_slices(
+            start_id=start_id, upload_batch_number=upload_batch_number)
+        data = {'lastId': last_id, 'increased': increased}
+        if upload_batch_number:
+            data.update({'newRecords': slices})
+        return AppResponse(data=data)
+
     async def free_up_space(self, end_time: str) -> AppResponse:
         success = await self.domain_service.free_up_space(end_time, request_context.current_company)
         if not success:
             return AppResponse(err_code=1, message='free up space failed')
         return AppResponse()
+
+    def get_report_config(self) -> AppResponse:
+        config = self.domain_service.get_report_config(company=request_context.current_company)
+        return AppResponse(data=config.to_dict_v2() if config else None)
+
+    def save_report_config(self, template_config: List[dict]):
+        config = self.domain_service.get_report_config(company=request_context.current_company)
+        if config:
+            config.update_data(template_config=template_config)
+            if self.domain_service.report_config_repository.save(config):
+                return AppResponse(message='保存成功')
+        return AppResponse(err_code=1, message='保存失败')

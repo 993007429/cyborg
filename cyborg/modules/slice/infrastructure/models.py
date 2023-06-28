@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float
+from sqlalchemy import Column, Integer, String, Text, Float, JSON
 
 from cyborg.seedwork.infrastructure.models import BaseModel
 
@@ -93,3 +93,12 @@ class SliceModel(BaseModel):
     as_id = Column('asId', Integer, comment='用量统计记录id，用于算法用量统计去重')
     ai_angle = Column('aiAngle', Float, default=0, comment='算法给出的旋转角度')
     current_angle = Column('currentAngle', Float, default=0, comment='当前的旋转角度')
+
+
+class ReportConfigModel(BaseModel):
+
+    __tablename__ = 'report_config'
+
+    id = Column(Integer, primary_key=True, comment='主键ID')
+    company = Column(String(255), nullable=True, unique=True, comment='名字')
+    template_config = Column(JSON, nullable=True, default=[], comment='报告模版配置')

@@ -7,7 +7,8 @@ from cyborg.modules.ai.infrastructure.repositories import SQLAlchemyAIRepository
 
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice.domain.services import SliceDomainService
-from cyborg.modules.slice.infrastructure.repositories import SQLAlchemyCaseRecordRepository
+from cyborg.modules.slice.infrastructure.repositories import SQLAlchemyCaseRecordRepository, \
+    SQLAlchemyReportConfigRepository
 from cyborg.modules.slice_analysis.application.services import SliceAnalysisService
 from cyborg.modules.slice_analysis.domain.services import SliceAnalysisDomainService
 from cyborg.modules.slice_analysis.infrastructure.repositories import SQLAlchemySliceMarkRepository, \
@@ -63,9 +64,14 @@ class SliceContainer(containers.DeclarativeContainer):
         SQLAlchemyCaseRecordRepository, session=core.request_context.provided.db_session
     )
 
+    report_config_repository = providers.Factory(
+        SQLAlchemyReportConfigRepository, session=core.request_context.provided.db_session
+    )
+
     slice_domain_service = providers.Factory(
         SliceDomainService,
         repository=case_record_repository,
+        report_config_repository=report_config_repository
     )
 
     slice_service = providers.Factory(

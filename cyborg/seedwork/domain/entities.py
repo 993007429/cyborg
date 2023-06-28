@@ -5,7 +5,7 @@ from typing import TypeVar, List, Dict, Type, Any
 from pydantic import BaseModel
 
 from cyborg.seedwork.domain.value_objects import BaseEnum
-from cyborg.utils.strings import camel_to_snake
+from cyborg.utils.strings import camel_to_snake, snake_to_camel
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,10 @@ class BaseDomainEntity(BaseModel):
         for field_name in self.enum_fields.keys():
             d[field_name] = self.__getattr__(field_name)
         return d
+
+    def to_dict_v2(self):
+        d = self.to_dict()
+        return {snake_to_camel(k): v for k, v in d.items()}
 
     def to_index_doc(self):
         return self.raw_data

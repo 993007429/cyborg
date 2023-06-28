@@ -49,6 +49,10 @@ app.conf.update(
         {'cyborg.modules.slice.application.tasks.create_report': {
             'queue': QUEUE_NAME_DEFAULT,
             'routing_key': ROUTING_KEY_DEFAULT,
+        }},
+        {'cyborg.modules.slice.application.tasks.export_slice_files': {
+            'queue': QUEUE_NAME_DEFAULT,
+            'routing_key': ROUTING_KEY_DEFAULT,
         }}
     )
 )

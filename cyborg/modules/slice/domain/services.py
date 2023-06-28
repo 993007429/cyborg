@@ -22,8 +22,8 @@ from cyborg.infra.session import transaction
 from cyborg.libs.label_ocr.label_rec import label_recognition
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.slice.application.tasks import update_clarity
-from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity
-from cyborg.modules.slice.domain.repositories import CaseRecordRepository
+from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
+from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.modules.slice.utils.clarify import blur_check
 from cyborg.seedwork.domain.value_objects import AIType
@@ -35,9 +35,10 @@ logger = logging.getLogger(__name__)
 class SliceDomainService(object):
 
     def __init__(
-            self, repository: CaseRecordRepository):
+            self, repository: CaseRecordRepository, report_config_repository: ReportConfigRepository):
         super(SliceDomainService, self).__init__()
         self.repository = repository
+        self.report_config_repository = report_config_repository
 
     def recognize_label_text(self, label_path: str, slice_label_path: Optional[str], label_rec_mode: int):
         if os.path.exists(label_path) and label_rec_mode is not None and label_rec_mode > 1:
@@ -718,3 +719,12 @@ class SliceDomainService(object):
             await record.remove_data_dir()
 
         return True
+
+    def get_report_config(self, company: str) -> Optional[ReportConfigEntity]:
+        config = self.report_config_repository.get_by_company(company=company)
+        if not config:
+            config = ReportConfigEntity.new_entity(company=company)
+            if not self.report_config_repository.save(config):
+                return None
+
+        return config

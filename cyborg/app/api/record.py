@@ -84,6 +84,15 @@ def get_all_values_in_fields():
     return jsonify(res.dict())
 
 
+@api_blueprint.route('/records/polling', methods=['get', 'post'])
+def get_new_records():
+    res = AppServiceFactory.slice_service.get_new_slices(
+        start_id=int(request.form.get('startId', 0)),
+        upload_batch_number=request.form.get('uploadBatchNumber')
+    )
+    return jsonify(res.dict())
+
+
 @api_blueprint.route('/records/export', methods=['get', 'post'])
 def export_records():
     res = AppServiceFactory.slice_service.export_records(**_get_query_records_params())

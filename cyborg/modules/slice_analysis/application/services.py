@@ -372,8 +372,13 @@ class SliceAnalysisService(object):
 
         return AppResponse(message='query succeed', data=data)
 
-    @connect_slice_db()
     def get_dna_info(self) -> AppResponse:
+        request_context.ai_type = AIType.dna
+        dna_statics = self._get_dna_info()
+        return AppResponse(data=dna_statics)
+
+    @connect_slice_db()
+    def _get_dna_info(self) -> dict:
         dna_statics = {
             'num_normal': 0, 'num_abnormal_high': 0, 'num_abnormal_low': 0,
             'normal_ratio': 0, 'abnormal_high_ratio': 0, 'abnormal_low_ratio': 0,
@@ -385,8 +390,7 @@ class SliceAnalysisService(object):
             mark = marks[0]
             if mark.ai_result:
                 dna_statics = mark.ai_result.get('dna_statics')
-
-        return AppResponse(data=dna_statics)
+        return dna_statics
 
     def get_report_roi(self) -> AppResponse:
         slices = self.slice_service.get_slices(case_ids=[request_context.case_id]).data
@@ -395,10 +399,11 @@ class SliceAnalysisService(object):
         for slice_info in slices:
             request_context.file_id = slice_info['fileid']
             request_context.ai_type = AIType.get_by_value(slice_info['alg'])
-            res = self._get_slice_report_roi(slice_info)
-
-            for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna]:
-                data[ai_type.value].extend(res[ai_type.value])
+            if request_context.ai_type:
+                res = self._get_slice_report_roi(slice_info)
+                for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna]:
+                    data[ai_type.value].extend(res[ai_type.value])
+                data['dnaStatics'] = res.get('dnaStatics')
 
         return AppResponse(message='query succeed', data=data)
 
@@ -410,7 +415,7 @@ class SliceAnalysisService(object):
         _, manual_marks = self.domain_service.repository.manual.get_marks(is_export=1)
         for manual_mark in manual_marks:
             d = manual_mark.to_roi(ai_type=ai_type)
-            d['type'] = manual_mark.ai_type.value
+            d['type'] = ai_type.value
             res['human'].append(d)
 
         _, marks = self.domain_service.repository.get_marks(mark_type=[2, 3])
@@ -418,6 +423,7 @@ class SliceAnalysisService(object):
         ai_result = marks[0].ai_result if marks else None
         cells = ai_result.get('cells') if ai_result else None
         nuclei = ai_result.get('nuclei') if ai_result else None
+        dna_statics = ai_result.get('dna_statics') if ai_result else None
         if cells:
             for d in cells:
                 roi_list = cells[d]['data']
@@ -449,5 +455,8 @@ class SliceAnalysisService(object):
                     temp_dict['di'] = nucleus.get('dna_index')
                     temp_dict['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], **temp_dict)
                     res[ai_type.value].append(temp_dict)
+
+        if dna_statics:
+            res['dnaStatics'] = dna_statics
 
         return res

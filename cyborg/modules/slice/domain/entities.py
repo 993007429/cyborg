@@ -8,7 +8,9 @@ from typing import Optional, List
 import aioshutil
 
 from cyborg.app.settings import Settings
+from cyborg.consts.common import Consts
 from cyborg.infra.fs import fs
+from cyborg.modules.slice.domain.value_objects import SliceImageType
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import AIType
 
@@ -56,6 +58,9 @@ class SliceEntity(BaseDomainEntity):
     @property
     def slice_label_path(self):
         return fs.path_join(self.slice_dir, 'slice_label.jpg')
+
+    def get_image_url(self, image_type: SliceImageType):
+        return f'{Settings.IMAGE_SERVER}/files/getImage?caseid={self.caseid}&fileid={self.fileid}&type={image_type.value}'
 
     def get_tile_path(self, x: int, y: int, z: int) -> str:
         return os.path.join(
@@ -215,6 +220,21 @@ class CaseRecordEntity(BaseDomainEntity):
             items.append(item)
         return items
 
+    def get_report_template_codes(self, template_config: List[dict]):
+        if not self.slices:
+            return []
+
+        ai_types = [AIType.get_by_value(s.alg) for s in self.slices]
+        template_codes = []
+        for item in template_config:
+            template_id = item['templateId']
+            if template_id == 'reg':
+                if len(self.slices) > 1:
+                    template_codes.insert(0, 'REG')
+            elif template_id in ai_types:
+                template_codes.append(item.get('templateCode'))
+        return template_codes
+
     @property
     def report_opinion(self):
         slice_entity = self.slices[0] if self.slices else None
@@ -244,6 +264,8 @@ class CaseRecordEntity(BaseDomainEntity):
                 mid_data = {}
                 if self.report_info:
                     mid_data = self.report_info
+
+                data['uniteOpinion'] = ''
                 if 'DNA' in mid_data and mid_data.get('DNA').get('DNAOpinion'):
                     data['DNAOpinion'] = mid_data.get('DNA').get('DNAOpinion')
                     return data
@@ -320,7 +342,7 @@ class CaseRecordEntity(BaseDomainEntity):
             if slice_entity:
                 report_info['isStatisfied'] = 1 if slice_entity.slideQuality else 0
                 if slice_entity.cell_num:
-                    report_info['cellNum'] = 'greater' if slice_entity.cellNum > 5000 else 'less'
+                    report_info['cellNum'] = 'greater' if slice_entity.cellNum or 0 > 5000 else 'less'
                 items = slice_entity.check_result.split(' ')
                 report_info['pathogen'] = items[2].split(',') if len(items) >= 3 else []
 
@@ -358,12 +380,20 @@ class CaseRecordEntity(BaseDomainEntity):
         d = self.basic_info
         d.update({
             'attachments': [entity.to_dict() for entity in self.attachments],
-            'slices': [entity.to_dict() for entity in self.slices],
+            # 'slices': [entity.to_dict() for entity in self.slices],
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
             'update': self.update_time,
         })
+        slice_entity = self.slices[0] if self.slices else None
+        if slice_entity:
+            d.update({
+                'sliceNumber': slice_entity.slice_number,
+                'histplot': slice_entity.get_image_url(image_type=SliceImageType.histplot),
+                'scatterplot': slice_entity.get_image_url(image_type=SliceImageType.scatterplot)
+            })
+
         report_info = self.gen_report_info()
         if report_info:
             d.update(report_info)
@@ -380,6 +410,38 @@ class CaseRecordEntity(BaseDomainEntity):
             'slices_count': self.slice_count,
             'create_time': self.create_time,
             'update': self.update_time,
-            'reportInfo': self.report_info
+            'reportInfo': self.report_info,
+            'reportTemplateCode': Consts.DEFAULT_REPORT_TEMPLATE_CODE,
+            'reportUid': self.id
         }
         return d
+
+
+class ReportConfigEntity(BaseDomainEntity):
+
+    @classmethod
+    def new_entity(cls, company: str):
+        return ReportConfigEntity(raw_data={
+            'company': company,
+            'template_config': ReportConfigEntity.new_template_config()
+        })
+
+    @classmethod
+    def new_template_config(cls):
+        template_config = [{'templateId': 'reg', 'templateCode': ''}]
+        template_config.extend(
+            [{'templateId': ai_type.value, 'templateCode': ''} for ai_type in [
+                AIType.tct, AIType.dna, AIType.pdl1, AIType.ki67, AIType.ki67hot, AIType.er, AIType.pr, AIType.her2,
+                AIType.fish_tissue, AIType.np, AIType.cd30
+        ]])
+        return template_config
+
+    @classmethod
+    def format_template_config_item(cls, template_config_item: dict):
+        ai_type = AIType.get_by_value(template_config_item['templateId'])
+        template_config_item['templateName'] = ai_type.display_name if ai_type else '通用模板'
+
+    def to_dict(self):
+        for item in self.template_config:
+            self.format_template_config_item(item)
+        return super().to_dict()
