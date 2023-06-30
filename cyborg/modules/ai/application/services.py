@@ -1,11 +1,8 @@
 import datetime
-import json
 import logging
 import os
 import time
 from typing import List, Optional
-
-import torch.cuda
 
 from cyborg.app.request_context import request_context
 from cyborg.modules.ai.application import tasks
@@ -115,6 +112,7 @@ class AIService(object):
         ai_type = task.ai_type
         request_context.ai_type = ai_type
 
+        import torch.cuda
         if torch.cuda.is_available():
             gpu_list = self.domain_service.check_available_gpu(task)
             os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)

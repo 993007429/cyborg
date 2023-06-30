@@ -411,7 +411,6 @@ class CaseRecordEntity(BaseDomainEntity):
             'create_time': self.create_time,
             'update': self.update_time,
             'reportInfo': self.report_info,
-            'reportTemplateCode': Consts.DEFAULT_REPORT_TEMPLATE_CODE,
             'reportUid': self.id
         }
         return d

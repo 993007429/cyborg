@@ -1,8 +1,5 @@
 Flask==2.3.2
 Flask-Limiter==1.5
-Jinja2==2.11.2
-MarkupSafe==1.1.1
-itsdangerous==1.1.0
 uWSGI==2.0.20
 requests==2.27.1
 dependency_injector==4.39.1
@@ -17,7 +14,6 @@ PyJWT==1.6.4
 PyMySQL==0.10.1
 redis==4.3.4
 minio==7.1.14
-Werkzeug==1.0.1
 csaps==1.1.0
 idna==3.3
 imageio==2.15.0

@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 from cyborg.app.auth import LoginUser
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
-
+from cyborg.seedwork.application.responses import AppResponse
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +36,15 @@ def api_before_request():
         if companyid:
             request_context.company = companyid
     else:
-        try:
-            login_user = LoginUser.get_from_cookie()
-            if login_user.role in ['check', 'sa'] and request.args.get('companyid') is not None:
-                request_context.company = request.args.get('companyid')
-            else:
-                request_context.company = login_user.company
-            request_context.current_user = login_user
-        except Exception as e:
-            return jsonify(code=400, message='unauthorized access')
+        login_user = LoginUser.get_from_cookie()
+        if not login_user:
+            return jsonify(AppResponse(err_code=400, message='请登录').dict())
+
+        if login_user.role in ['check', 'sa'] and request.args.get('companyid') is not None:
+            request_context.company = request.args.get('companyid')
+        else:
+            request_context.company = login_user.company
+        request_context.current_user = login_user
 
 
 def api_after_request(response):

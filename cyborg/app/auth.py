@@ -61,10 +61,11 @@ class LoginUser(BaseValueObject):
 
     @classmethod
     def get_from_cookie(cls) -> Optional['LoginUser']:
-        payload = jwt.decode(request.cookies.get('jwt'), Settings.JWT_SECRET, algorithm='HS256')
-        login_user = LoginUser.from_dict(payload)
-        if not request.path.endswith('upload2') and login_user.is_expired:
-            raise Exception(400, "unauthorized access")
+        token = request.cookies.get('jwt')
+        payload = jwt.decode(token, Settings.JWT_SECRET, algorithm='HS256') if token else None
+        login_user = LoginUser.from_dict(payload) if payload else None
+        if not login_user or (not request.path.endswith('upload2') and login_user.is_expired):
+            return None
 
         from cyborg.app.service_factory import AppServiceFactory
         res = AppServiceFactory.user_service.check_user(login_user.username, login_user.company)

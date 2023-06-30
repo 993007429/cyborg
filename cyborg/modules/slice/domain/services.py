@@ -19,13 +19,12 @@ from cyborg.consts.tct import TCTConsts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.infra.session import transaction
-from cyborg.libs.label_ocr.label_rec import label_recognition
+# from cyborg.libs.label_ocr.label_rec import label_recognition
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.slice.application.tasks import update_clarity
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.utils.clarify import blur_check
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
 
@@ -47,7 +46,7 @@ class SliceDomainService(object):
                 if label_img.mode == "RGBA":
                     label_img.convert('RGB')
                     label_img.save(label_path)
-                return label_recognition(label_path, slice_label_path, mode=label_rec_mode)
+                # return label_recognition(label_path, slice_label_path, mode=label_rec_mode)
             except Exception as e:
                 logger.error('label ocr error :' + str(e))
                 return ''
@@ -55,6 +54,7 @@ class SliceDomainService(object):
 
     def update_clarity(self, slice_id: int, slice_file_path: str):
         try:
+            from cyborg.modules.slice.utils.clarify import blur_check
             logger.info('计算清晰度: %s' % slice_file_path)
             slide = open_slide(slice_file_path)
             clarity_score = blur_check(slide)
