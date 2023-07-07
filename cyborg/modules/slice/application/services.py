@@ -190,7 +190,8 @@ class SliceService(object):
                     label_rec_mode=company['label'], user_file_path=user_file_path, cover_slice_number=cover_slice_number,
                     operator=operator, high_through=high_through
                 )
-                return AppResponse(data=slice_info)
+                if slice_info:
+                    return AppResponse(data=slice_info)
         else:
             slide_save_name = os.path.join(upload_path, file_name)
             slide_size = fs.get_file_size(slide_save_name) / 1024 ** 3
@@ -274,9 +275,9 @@ class SliceService(object):
             data=slice_entity.to_dict() if slice_entity else None
         )
 
-    def get_slice_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
+    def get_slice_info(self, case_id: str, file_id: str, company_id: str = '') -> AppResponse[dict]:
         err_code, message, entity = self.domain_service.get_slice(
-            case_id=case_id, file_id=file_id, company_id=request_context.current_company)
+            case_id=case_id, file_id=file_id, company_id=company_id or request_context.current_company)
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
@@ -511,7 +512,7 @@ class SliceService(object):
         record.slices = self.domain_service.repository.get_slices_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
         report_config = self.domain_service.get_report_config(company=request_context.current_company)
-        template_codes = record.get_report_template_codes(template_config=report_config.template_config)
+        report_templates = record.get_report_templates(template_config=report_config.template_config)
 
         report_data = record.to_dict_for_report()
 
@@ -525,6 +526,7 @@ class SliceService(object):
         report_data['roiImages'] = roi_images
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
+        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign'
 
         async with aiohttp.ClientSession() as client:
             params = {
@@ -532,12 +534,11 @@ class SliceService(object):
                 'bizUid': record.id,
                 'reportData': report_data
             }
-            logger.info(params)
             async with client.post(f'{Settings.REPORT_SERVER}/reports', json=params, verify_ssl=False) as resp:
                 if resp.status == 200:
                     data = json.loads(await resp.read())
                     if data.get('code') == 0:
-                        return AppResponse(message='发送成功', data={'templateCodes': template_codes})
+                        return AppResponse(message='发送成功', data={'reportTemplates': report_templates})
                     else:
                         return AppResponse(err_code=1, message=data.get('message', '发送报告失败'))
                 else:
@@ -619,12 +620,20 @@ class SliceService(object):
             return AppResponse(err_code=1, message='free up space failed')
         return AppResponse()
 
-    def get_report_config(self) -> AppResponse:
-        config = self.domain_service.get_report_config(company=request_context.current_company)
+    def get_report_config(self, company: str) -> AppResponse:
+        company = company or request_context.current_company
+        company_info = self.user_service.get_company_info(company_id=company).data if company else None
+        if not company_info:
+            return AppResponse(err_code=1, message='找不到组织')
+        config = self.domain_service.get_report_config(company=company)
         return AppResponse(data=config.to_dict_v2() if config else None)
 
-    def save_report_config(self, template_config: List[dict]):
-        config = self.domain_service.get_report_config(company=request_context.current_company)
+    def save_report_config(self, company: str, template_config: List[dict]):
+        company = company or request_context.current_company
+        company_info = self.user_service.get_company_info(company_id=company).data if company else None
+        if not company_info:
+            return AppResponse(err_code=1, message='找不到组织')
+        config = self.domain_service.get_report_config(company=company)
         if config:
             config.update_data(template_config=template_config)
             if self.domain_service.report_config_repository.save(config):

@@ -67,6 +67,11 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
 
         if ai_type == AIType.np:
             tables.append(NPCountModel.__table__)
+        elif ai_type == AIType.pdl1:
+            tables.append(Pdl1sCountModel.__table__)
+
+        tables.append(MarkGroupModel.__table__)
+        tables.append(ChangeRecordModel.__table__)
 
         BaseModel.metadata.create_all(engine, tables=tables)
 

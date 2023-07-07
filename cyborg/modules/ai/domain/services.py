@@ -1,4 +1,5 @@
 import datetime
+import gc
 import json
 import logging
 from collections import Counter
@@ -23,18 +24,6 @@ from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
 from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus
-from cyborg.modules.ai.libs.algorithms.BM.bm_alg import BM1115
-from cyborg.modules.ai.libs.algorithms.DNA1.dna_alg import DNA_1020
-from cyborg.modules.ai.libs.algorithms.FISH_deployment import cal_fish_tissue
-from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
-from cyborg.modules.ai.libs.algorithms.Ki67.main import WSITester
-from cyborg.modules.ai.libs.algorithms.NP.run_np import cal_np
-from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v2_2.tct_alg import LCT_mobile_micro0324, LCT40k_convnext_nofz, \
-    LCT40k_convnext_HDX, LCT_mix80k0417_8
-from cyborg.modules.ai.utils.gpu import get_gpu_status
-from cyborg.modules.ai.utils.pdl1 import fitting_target_tps_update, compute_pdl1_s
-from cyborg.modules.ai.utils.prob import save_prob_to_file
-from cyborg.modules.ai.utils.tct import generate_ai_result, generate_dna_ai_result
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.id_worker import IdWorker
 
@@ -88,6 +77,7 @@ class AIDomainService(object):
         return self.repository.save_ai_task(task)
 
     def check_available_gpu(self, task: AITaskEntity):
+        from cyborg.modules.ai.utils.gpu import get_gpu_status
         gpu_status = get_gpu_status()
         required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[task.ai_type.value]
         if isinstance(required_gpu_num, tuple):
@@ -96,6 +86,7 @@ class AIDomainService(object):
             min_gpu_num, max_gpu_num = required_gpu_num, required_gpu_num
 
         slide_path = task.slide_path
+        logger.info(slide_path)
         # single gpu for small images is enough
         if isinstance(slide_path, str) and fs.path_splitext(slide_path.lower())[1] in ['.jpg', '.png', '.jpeg', '.bmp']:
             min_gpu_num, max_gpu_num = 1, 1
@@ -176,6 +167,8 @@ class AIDomainService(object):
     def select_alg(
             self, ai_type: AIType, model_type: Optional[str] = None, model_name: Optional[str] = None
     ) -> Optional[Type]:
+        from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v2_2.tct_alg import (
+            LCT_mobile_micro0324, LCT40k_convnext_nofz, LCT40k_convnext_HDX, LCT_mix80k0417_8)
         if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             models = {
                 "1": LCT_mobile_micro0324,
@@ -215,11 +208,14 @@ class AIDomainService(object):
 
         roi_marks = []
         prob_dict = None
+        alg_obj = alg_class(threshold)
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
-            result = alg_class(threshold).cal_tct(slide)
+            result = alg_obj.cal_tct(slide)
 
+            from cyborg.modules.ai.utils.prob import save_prob_to_file
             prob_dict = save_prob_to_file(slide_path=task.slide_path, result=result, alg_name=alg_class.__name__)
 
+            from cyborg.modules.ai.utils.tct import generate_ai_result
             ai_result = generate_ai_result(result=result, roiid=roi['id'])
 
             roi_marks.append(Mark(
@@ -252,18 +248,23 @@ class AIDomainService(object):
         model_type = model_info.get('model_type')
 
         alg_class = self.select_alg(task.ai_type, model_type)
+
+        from cyborg.modules.ai.libs.algorithms.DNA1.dna_alg import DNA_1020
         dna_alg_class = DNA_1020
 
         slide = open_slide(task.slide_path)
 
         roi_marks = []
         prob_dict = None
+
+        from cyborg.modules.ai.utils.prob import save_prob_to_file
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
             tbs_result = alg_class(threshold).cal_tct(slide)
             dna_result = dna_alg_class().dna_test(slide)
 
             prob_dict = save_prob_to_file(slide_path=task.slide_path, result=tbs_result, alg_name=alg_class.__name__)
 
+            from cyborg.modules.ai.utils.tct import generate_ai_result, generate_dna_ai_result
             ai_result = generate_ai_result(result=tbs_result, roiid=roi['id'])
             ai_result.update(generate_dna_ai_result(result=dna_result, roiid=roi['id']))
 
@@ -298,6 +299,8 @@ class AIDomainService(object):
         mpp = slide.mpp or 0.242042
 
         rois = task.rois or [task.new_default_roi()]
+
+        from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
         center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
             slide_path=task.slide_path, roi_list=rois)
         for roi in rois:
@@ -368,6 +371,7 @@ class AIDomainService(object):
         ycent = int(slide.height / 2)
         total_pos_tumor_num, total_neg_tumor_num = 0, 0
 
+        from cyborg.modules.ai.utils.pdl1 import fitting_target_tps_update, compute_pdl1_s
         if fs.path_exists(fs.path_join(fitting_data_dir, "fittingCurve.xlsx")) and fs.path_exists(
                 fs.path_join(fitting_data_dir, "smooth.json")):
             excel_path = fs.path_join(fitting_data_dir, "fittingCurve.xlsx")
@@ -485,6 +489,7 @@ class AIDomainService(object):
             if len(x_coords) == 0:
                 whole_slide = 1
 
+            from cyborg.modules.ai.libs.algorithms.NP.run_np import cal_np
             cell_coords, cell_labels, contour_coords, contour_labels, total_area = cal_np(
                 slide_path=task.slide_path, x_coords=x_coords, y_coords=y_coords)
 
@@ -618,6 +623,7 @@ class AIDomainService(object):
         if not roi_list and compute_wsi:
             roi_list = [task.new_default_roi()]
 
+        from cyborg.modules.ai.libs.algorithms.Ki67.main import WSITester
         result_df = WSITester().run(slide, compute_wsi=compute_wsi, roi_list=roi_list)
         id_worker = IdWorker.new_mark_id_worker()
 
@@ -724,6 +730,7 @@ class AIDomainService(object):
         roi_marks = []
         cell_marks = []
 
+        from cyborg.modules.ai.libs.algorithms.FISH_deployment import cal_fish_tissue
         nucleus_coords, red_signal_coords, green_signal_coords = cal_fish_tissue.run_fish(slide=task.slide_path)
         count_summary_dict = {
             'nuclues_num': len(red_signal_coords),
@@ -806,6 +813,7 @@ class AIDomainService(object):
         slide = open_slide(task.slide_path)
         mpp = slide.mpp if slide.mpp is not None else 0.242042
 
+        from cyborg.modules.ai.libs.algorithms.BM.bm_alg import BM1115
         bboxes, scores, labels = BM1115().cal_bm(slide)
 
         roi = task.rois[0] if task.rois else task.new_default_roi()

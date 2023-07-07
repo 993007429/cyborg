@@ -13,11 +13,12 @@ def batch_import_model_from_modules():
     project_root_dir = os.path.dirname(os.path.dirname(__file__))
     sys.path.append(project_root_dir)
     for root, dirs, files in os.walk(os.path.join(project_root_dir, 'cyborg/modules')):
-        if ''
         for name in files:
             if name == 'models.py':
                 module = os.path.join(root, name).replace('.py', '').replace('/', '.')
-                importlib.import_module(module)
+                # 跳过slice_analysis模块中的model
+                if 'slice_analysis' not in module:
+                    importlib.import_module(module)
 
 
 batch_import_model_from_modules()

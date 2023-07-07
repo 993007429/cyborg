@@ -9,8 +9,8 @@ from cyborg.app.settings import Settings
 from cyborg.celery.app import app, QUEUE_NAME_AI_TASK, ROUTING_KEY_AI_TASK
 from cyborg.modules.ai.utils.gpu import get_gpu_status
 
-is_debug = not Settings.ENV or Settings.ENV == 'DEV'
-dictConfig(gen_logging_config(logging_filename=Settings.APP_LOG_FILE, is_debug=is_debug))
+is_debug = not Settings.ENV or Settings.ENV == 'LOCAL'
+dictConfig(gen_logging_config(logging_filename=Settings.APP_LOG_FILE))
 logger = logging.getLogger('cyborg.celery.control')
 
 

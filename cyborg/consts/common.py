@@ -8,6 +8,7 @@ class Consts:
         'er': 'ER',
         'pr': 'PR',
         'fish': 'FISH',
+        'fishTissue': 'FISH',
         'cellseg': '细胞分割',
         'celldet': '细胞检测',
         'lct': 'LCT',
@@ -15,7 +16,8 @@ class Consts:
         'her2': 'Her-2',
         'np': '鼻息肉',
         'dna': 'TBS+DNA',
-        'bm': '骨髓血细胞'
+        'bm': '骨髓血细胞',
+        'cd30': 'CD30'
     }
 
     # 系统可用的模型占用显存大小  单位G

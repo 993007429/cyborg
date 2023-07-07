@@ -4,7 +4,7 @@ import time
 
 class LRUCache(object):
 
-    def __init__(self, expiration=10 * 60, maxsize=12):
+    def __init__(self, expiration=10 * 60, maxsize=6):
         self.expiration = expiration
         self.maxsize = maxsize
         self.__expire_times = OrderedDict()

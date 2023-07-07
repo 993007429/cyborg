@@ -12,7 +12,7 @@ class Settings(object):
 
     """默认配置"""
 
-    PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     ENV = os.environ.get('CYBORG_ENV', 'DEV').upper()
 
@@ -72,7 +72,7 @@ class Settings(object):
     LAST_SHOW_GROUPS = [266, ]
 
     # 是否为公有云版本，默认为私有云版本
-    CLOUD = False
+    CLOUD = True
 
     # mysql配置
     user = 'root'
@@ -94,8 +94,8 @@ class Settings(object):
     CACHE_REDIS_URI = ''
 
     # celery配置
-    CELERY_BROKER_URL = 'redis://{}:{}/2'.format(REDIS_HOST, str(REDIS_PORT))
-    CELERY_BACKEND_URL = 'redis://{}:{}/3'.format(REDIS_HOST, str(REDIS_PORT))
+    CELERY_BROKER_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['broker_db'])
+    CELERY_BACKEND_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['backend_db'])
 
     MINIO_ACCESS_KEY = LOCAL_SETTINGS['minio']['access_key']
     MINIO_ACCESS_SECRET = LOCAL_SETTINGS['minio']['access_secret']

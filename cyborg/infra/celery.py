@@ -31,8 +31,8 @@ def make_default_config():
         accept_content=['pickle', 'json'],
         result_expires=120,
         worker_prefetch_multiplier=1,
-        worker_max_tasks_per_child=50,
-        worker_max_memory_per_child=4000000,
+        # worker_max_tasks_per_child=1,
+        worker_max_memory_per_child=10000000,
         worker_send_task_events=True,
         task_send_sent_event=True,
     )

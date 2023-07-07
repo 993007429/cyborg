@@ -20,7 +20,7 @@ def apply_clahe(gray_img):
 
 def seg_tissue(slide):
     height, width = slide.height, slide.width
-    slide_img = np.array(slide.getThumbnail(1024))
+    slide_img = np.array(slide.get_thumbnail(1024))
     h, w = slide_img.shape[0:2]
     ratio_x, ratio_y = width/w, height/h
 
@@ -38,7 +38,7 @@ def seg_tissue(slide):
 
 def slide_cls(slide):
     model = joblib.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'clf.pkl'))
-    slide_img = np.array(slide.getThumbnail(512))
+    slide_img = np.array(slide.get_thumbnail(512))
     slide_img = cv2.resize(slide_img, (512, 512))
     gray = cv2.cvtColor(slide_img, cv2.COLOR_RGB2GRAY)
     fd = hog(gray, orientations=8, pixels_per_cell=(64, 64),

@@ -110,12 +110,13 @@ class SliceAnalysisDomainService(object):
 
     def show_marks(
             self, ai_type: AIType, marks: List[MarkEntity], radius_ratio: float = 1, is_max_level: bool = False,
-            mark_config: Optional[SliceMarkConfig] = None, show_groups: Optional[List[int]] = None
+            mark_config: Optional[SliceMarkConfig] = None, show_groups: Optional[List[int]] = None,
+            is_manual: bool = False
     ) -> List[dict]:
         mark_list = []
         if not marks:
             return mark_list
-        if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
+        if not is_manual and ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             """show_marks
             tct lct所有标注点不分层，不根据视野，在任何视野返回所有的点信息，标注点存储在aiResulit中
             """
@@ -130,7 +131,7 @@ class SliceAnalysisDomainService(object):
                     nucleus['mark_type'] = 1
                     nucleus['iconType'] = 'dnaIcon'
                     mark_list.append(nucleus)
-        elif ai_type == AIType.bm:
+        elif is_manual and ai_type == AIType.bm:
             area_mark = marks[0]
             ai_result = area_mark.ai_result
             if ai_result:
@@ -257,9 +258,6 @@ class SliceAnalysisDomainService(object):
                 roi_mark_entities.append(new_mark)
             else:
                 cell_mark_entities.append(new_mark)
-
-        logger.info(len(roi_mark_entities))
-        logger.info(len(cell_mark_entities))
 
         saved = self.repository.batch_save_marks(
             roi_mark_entities) and self.repository.batch_save_marks(cell_mark_entities)
@@ -390,7 +388,6 @@ class SliceAnalysisDomainService(object):
                 ############################################################################################
                 _, area_marks = self.repository.get_marks(mark_type=3, per_page=1)
                 area_mark = area_marks[0] if area_marks else None
-                logger.info(area_mark)
                 wsi_ai_result = area_mark.ai_result if area_mark else None
                 if wsi_ai_result:
                     for cell_type, value in wsi_ai_result['cells'].items():
@@ -521,7 +518,7 @@ class SliceAnalysisDomainService(object):
             _, manual_marks = self.repository.manual.get_marks()
             manual_mark_list = self.show_marks(
                 ai_type=ai_type, marks=manual_marks, radius_ratio=radius_ratio,
-                mark_config=mark_config, show_groups=group_ids)
+                mark_config=mark_config, show_groups=group_ids, is_manual=True)
             mark_list += manual_mark_list
 
         return mark_list
@@ -1303,7 +1300,6 @@ class SliceAnalysisDomainService(object):
                 c2.cell_count_dict = whole_slide_res.get('2')
                 c3.cell_count_dict = whole_slide_res.get('3')
                 c4.cell_count_dict = whole_slide_res.get('4')
-                logger.info(c1.cell_count_dict)
             else:  # regional image count
                 r1 = tiled_slice.cal_tiles_in_quadrant(x_coords=[xmin, xcent], y_coords=[ymin, ycent], level=z)
                 r2 = tiled_slice.cal_tiles_in_quadrant(x_coords=[xcent, xmax], y_coords=[ymin, ycent], level=z)

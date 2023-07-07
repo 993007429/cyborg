@@ -67,7 +67,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
     def get_slice_count_by_case_id(self, case_id: str, company: str) -> int:
         return self.session.query(
-            SliceModel).filter_by(caseid=case_id, company=company).order_by(desc(SliceModel.id)).count()
+            SliceModel).filter_by(caseid=case_id, company=company, type='slice').order_by(desc(SliceModel.id)).count()
 
     def get_record_by_id(self, record_id: int) -> Optional[CaseRecordEntity]:
         model = self.session.query(CaseRecordModel).get(record_id)
@@ -123,7 +123,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         return [{"text": row[0], "value": row[0]} for row in rows] if rows else [{"text": '无', "value": ""}]
 
     def get_all_user_folders(self, company_id: str) -> List[dict]:
-        rows = self.session.query(SliceModel.user_file_folder).filter_by(company=company_id).order_by(
+        rows = self.session.query(distinct(SliceModel.user_file_folder)).filter_by(company=company_id).order_by(
                 SliceModel.id.desc()).limit(20).all()
         user_folders = list(set(filter(None, [r[0] for r in rows])))
         return [{
@@ -169,7 +169,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
         if search_key is not None and is_record_search_key and search_value:
             if search_key == 'sampleNum':
-                query = query.filter(CaseRecordModel.sampleNum.contains(search_value))
+                query = query.filter(CaseRecordModel.sample_num.contains(search_value))
             else:
                 query = query.filter(getattr(CaseRecordModel, search_key) == search_value)
 

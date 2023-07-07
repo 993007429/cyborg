@@ -25,7 +25,6 @@ from cyborg.modules.slice.application.tasks import update_clarity
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.utils.clarify import blur_check
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
 
@@ -55,10 +54,12 @@ class SliceDomainService(object):
 
     def update_clarity(self, slice_id: int, slice_file_path: str):
         try:
+            from cyborg.modules.slice.utils.clarify import blur_check
             logger.info('计算清晰度: %s' % slice_file_path)
             slide = open_slide(slice_file_path)
             clarity_score = blur_check(slide)
         except Exception as e:
+            logger.exception(e)
             logger.info(f'清晰度计算失败: {e}')
             clarity_score = 0
 
@@ -108,8 +109,12 @@ class SliceDomainService(object):
 
         slide_size = os.path.getsize(slide_save_name)
 
-        thumbnail_image = slide.get_thumbnail(Settings.THUMBNAIL_BOUNDING)
-        thumbnail_image.save(os.path.join(slide_path, "thumbnail.jpeg"))
+        try:
+            thumbnail_image = slide.get_thumbnail(Settings.THUMBNAIL_BOUNDING)
+            thumbnail_image.save(os.path.join(slide_path, "thumbnail.jpeg"))
+        except ValueError:
+            logger.warning(f'获取缩略图失败: {case_id}-{file_id}')
+            pass
 
         slice_entity = SliceEntity(raw_data={
             'fileid': file_id,
@@ -222,6 +227,7 @@ class SliceDomainService(object):
                         slice.update_data(**{k: v.strip()})
                     else:
                         slice.update_data(**{k: v})
+
             if cover:
                 slice.update_data(check_result='')
             self.repository.save_slice(slice)
@@ -334,7 +340,6 @@ class SliceDomainService(object):
     @transaction
     def delete_slice(self, slice: SliceEntity) -> float:
         self.repository.delete_slice(file_id=slice.fileid, company_id=slice.company)
-        # Slice.query.filter(and_(Slice.caseid == caseid, Slice.fileid == fileid)).delete()
         record = self.repository.get_record_by_case_id(case_id=slice.caseid, company=slice.company)
         if record and record.slice_count is not None:
             record.slice_count -= 1
@@ -728,3 +733,10 @@ class SliceDomainService(object):
                 return None
 
         return config
+
+
+if __name__ == '__main__':
+    path = '/Users/zhaoyu/dipath_data/company1/data/2023_05_19_16_05_11_102179/slices/8271014/鼻息肉.jpg'
+    slide = open_slide(path)
+    from cyborg.modules.slice.utils.clarify import blur_check
+    blur_check(slide)
