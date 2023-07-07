@@ -220,7 +220,7 @@ class CaseRecordEntity(BaseDomainEntity):
             items.append(item)
         return items
 
-    def get_report_template_codes(self, template_config: List[dict]):
+    def get_report_templates(self, template_config: List[dict]):
         if not self.slices:
             return []
 
@@ -230,9 +230,9 @@ class CaseRecordEntity(BaseDomainEntity):
             template_id = item['templateId']
             if template_id == 'reg':
                 if len(self.slices) > 1:
-                    template_codes.insert(0, 'REG')
+                    template_codes.insert(0, item)
             elif template_id in ai_types:
-                template_codes.append(item.get('templateCode'))
+                template_codes.append(item)
         return template_codes
 
     @property
@@ -243,8 +243,6 @@ class CaseRecordEntity(BaseDomainEntity):
         opinion = self.opinion
         check_result = slice_entity.check_result
 
-        logger.info(slice_entity.id)
-        logger.info(check_result)
         ai_suggest = slice_entity.ai_suggest
         alg = slice_entity.alg if slice_entity.alg else ''
 

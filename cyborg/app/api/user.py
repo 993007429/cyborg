@@ -6,6 +6,7 @@ from cyborg.app.auth import login_required, LoginUser
 from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import AppServiceFactory
 from cyborg.app.settings import Settings
+from cyborg.infra.fs import fs
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,9 @@ def sign():  # 电子签名
     res = AppServiceFactory.user_service.get_current_user()
     user_info = res.data
     sign_image_path = user_info.get('sign_image_path') if user_info else ''
-    if sign_image_path:
+    if sign_image_path and fs.path_exists(sign_image_path):
         return send_file(sign_image_path)
-    return ''
+    return '', 404
 
 
 @api_blueprint.route('/user/updateSign', methods=['post'])

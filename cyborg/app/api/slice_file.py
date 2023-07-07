@@ -89,9 +89,11 @@ def update_slice_info():
 
 @api_blueprint.route('/files/getInfo', methods=['get', 'post'])
 def get_slice_info():
-    case_id = request.form.get('caseid')
-    file_id = request.form.get('fileid')
-    res = AppServiceFactory.slice_service.get_slice_info(case_id=case_id, file_id=file_id)
+    company_id = request.args.get('companyid')
+    res = AppServiceFactory.slice_service.get_slice_info(
+        case_id=request_context.case_id, file_id=request_context.file_id, company_id=company_id)
+    if res.err_code:
+        return jsonify(res.dict())
 
     res.data['group'] = AppServiceFactory.slice_analysis_service.get_selected_mark_group().data
 
@@ -171,7 +173,6 @@ def get_image():
     else:
         img_path = ''
 
-    logger.info(img_path)
     if os.path.exists(img_path) and os.path.getsize(img_path):
         resp = make_response(send_from_directory(
             directory=fs.path_dirname(img_path),

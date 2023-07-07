@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyborg-web-deployment
+  namespace: cyborg
+spec:
+  selector:
+    matchLabels:
+      app: cyborg-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: cyborg-web
+    spec:
+      containers:
+        - image: dipath/cyborg:1.0.0
+          env:
+            - name: isK8s
+              value: "1"
+            - name: C_FORCE_ROOT
+              value: "true"
+            - name: TZ
+              value: Asia/Shanghai
+          imagePullPolicy: Always
+          name: cyborg-web
+          workingDir: /data/www/cyborg/
+          command: ["/usr/local/python3/bin/python3"]
+          args:
+          - app.py
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - sleep 4
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 4
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 4
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2048Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          volumeMounts:
+            - name: settings
+              mountPath: /data/www/cyborg/local_settings
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: settings
+          configMap:
+            name: cyborg-settings

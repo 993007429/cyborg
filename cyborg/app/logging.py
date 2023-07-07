@@ -1,7 +1,7 @@
 _logging_config: dict = {}
 
 
-def gen_logging_config(logging_filename, is_debug):
+def gen_logging_config(logging_filename):
     global _logging_config
     if not _logging_config:
         _logging_config = {
@@ -32,7 +32,7 @@ def gen_logging_config(logging_filename, is_debug):
             },
             'loggers': {
                 'cyborg': {
-                    'handlers': ['console' if is_debug else 'file'],
+                    'handlers': ['console'],
                     'level': 'INFO',
                     'propagate': True,
                 }

@@ -1,4 +1,4 @@
-Flask==2.3.2
+Flask[async]==2.3.2
 Flask-Limiter==1.5
 uWSGI==2.0.20
 requests==2.27.1
@@ -30,6 +30,7 @@ pyzbar==0.1.9
 psutil==5.9.5
 scikit-image==0.19.1
 scipy==1.8.0
+scikit-learn==1.0.2
 Shapely==1.8.0
 six==1.16.0
 tifffile==2022.2.2

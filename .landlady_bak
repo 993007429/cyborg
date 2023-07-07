@@ -1,0 +1,10 @@
+[Credentials]
+project_id=1
+token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE4NDYzMTY4MjgsInVpZCI6MiwibmFtZSI6ImN1aWNhbiJ9.nRuOjuvyi6JRlqebI_UCnUL4nlFq3WBJefkbcejwbXQ
+endpoint=http://deploy.uat.dipath.cn/api
+
+[Deploy]
+backend_include=cyborg,resources,app.py,requirements.txt,local_settings
+fe_dist=
+exclude_dirs=.git,local_settings/.git,__pycache__,tests
+exclude_suffix=.pyc,__pycache__

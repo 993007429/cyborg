@@ -72,7 +72,7 @@ class Settings(object):
     LAST_SHOW_GROUPS = [266, ]
 
     # 是否为公有云版本，默认为私有云版本
-    CLOUD = False
+    CLOUD = True
 
     # mysql配置
     user = 'root'

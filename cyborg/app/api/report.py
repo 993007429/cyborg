@@ -54,11 +54,13 @@ def view_report():
 
 @api_blueprint.route('/report/config', methods=['get', 'post'])
 def report():
+    company = request.args.get('company')
     if request.method == 'GET':
-        res = AppServiceFactory.slice_service.get_report_config()
+        res = AppServiceFactory.slice_service.get_report_config(company=company)
         return jsonify(res.dict())
     elif request.method == 'POST':
         res = AppServiceFactory.slice_service.save_report_config(
+            company=company,
             template_config=request.json
         )
         return jsonify(res.dict())

@@ -5,6 +5,7 @@ import time
 from typing import List, Optional
 
 from cyborg.app.request_context import request_context
+from cyborg.celery.app import app
 from cyborg.modules.ai.application import tasks
 from cyborg.modules.ai.domain.services import AIDomainService
 from cyborg.modules.ai.domain.value_objects import ALGResult, AITaskStatus
@@ -99,23 +100,28 @@ class AIService(object):
 
         request_context.case_id = task.case_id
         request_context.file_id = task.file_id
-
-        self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
-        self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
-
         task.slice_info = self.slice_service.get_slice_info(
             case_id=request_context.case_id, file_id=request_context.file_id).data
         if not task.slice_info:
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
             return AppResponse(err_code=2, message='找不到切片信息')
 
-        ai_type = task.ai_type
-        request_context.ai_type = ai_type
-
         import torch.cuda
         if torch.cuda.is_available():
-            gpu_list = self.domain_service.check_available_gpu(task)
-            os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
+            gpu_list = []
+            while not gpu_list:
+                gpu_list = self.domain_service.check_available_gpu(task)
+                if gpu_list:
+                    os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
+                else:
+                    logger.info('显卡忙或者不可用, 等待5s...')
+                    time.sleep(5)
+
+        self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
+        self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
+
+        ai_type = task.ai_type
+        request_context.ai_type = ai_type
 
         self.analysis_service.clear_ai_result()
         # self.analysis_service.clear_ai_result(exclude_area_marks=[int(roi['id']) for roi in task.rois if roi['x']])
@@ -248,6 +254,8 @@ class AIService(object):
             case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
         if not task:
             return AppResponse(err_code=1, message='ai task not found')
+
+        ret = app.control.revoke(task.result_id, terminate=True)
 
         if task.status not in (AITaskStatus.success, AITaskStatus.failed):
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)

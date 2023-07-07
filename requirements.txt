@@ -21,6 +21,8 @@ alembic==1.4.3
     # via -r requirements.in
 amqp==5.1.1
     # via kombu
+asgiref==3.7.2
+    # via flask
 astor==0.8.1
     # via paddlepaddle
 async-timeout==4.0.2
@@ -70,7 +72,7 @@ deprecated==1.2.13
     #   redis
 et-xmlfile==1.1.0
     # via openpyxl
-flask==2.3.2
+flask[async]==2.3.2
     # via
     #   -r requirements.in
     #   flask-limiter
@@ -300,6 +302,7 @@ tqdm==4.64.1
 typing-extensions==4.5.0
     # via
     #   aioshutil
+    #   asgiref
     #   limits
     #   pydantic
 urllib3==1.26.15

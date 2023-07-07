@@ -1,4 +1,5 @@
 import datetime
+import gc
 import json
 import logging
 from collections import Counter
@@ -85,6 +86,7 @@ class AIDomainService(object):
             min_gpu_num, max_gpu_num = required_gpu_num, required_gpu_num
 
         slide_path = task.slide_path
+        logger.info(slide_path)
         # single gpu for small images is enough
         if isinstance(slide_path, str) and fs.path_splitext(slide_path.lower())[1] in ['.jpg', '.png', '.jpeg', '.bmp']:
             min_gpu_num, max_gpu_num = 1, 1
@@ -206,8 +208,9 @@ class AIDomainService(object):
 
         roi_marks = []
         prob_dict = None
+        alg_obj = alg_class(threshold)
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
-            result = alg_class(threshold).cal_tct(slide)
+            result = alg_obj.cal_tct(slide)
 
             from cyborg.modules.ai.utils.prob import save_prob_to_file
             prob_dict = save_prob_to_file(slide_path=task.slide_path, result=result, alg_name=alg_class.__name__)
@@ -253,6 +256,8 @@ class AIDomainService(object):
 
         roi_marks = []
         prob_dict = None
+
+        from cyborg.modules.ai.utils.prob import save_prob_to_file
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
             tbs_result = alg_class(threshold).cal_tct(slide)
             dna_result = dna_alg_class().dna_test(slide)

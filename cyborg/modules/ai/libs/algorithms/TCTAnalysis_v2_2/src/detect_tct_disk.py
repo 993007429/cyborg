@@ -180,7 +180,7 @@ def apply_dilation(bw_remove, iterations=3):
 def locate_tct_disk(slide, iterations=2):
     # Step1. get small slide image
     H, W = slide.height, slide.width
-    slide_img = np.array(slide.getThumbnail(1024))
+    slide_img = np.array(slide.get_thumbnail(1024))
     h, w = slide_img.shape[0:2]
     ratio_x, ratio_y = W/w, H/h
 
