@@ -75,19 +75,19 @@ class Settings(object):
     CLOUD = True
 
     # mysql配置
-    user = 'root'
-    password = 'dyj123'
-    host = '127.0.0.1'
-    port = 3306
-    database = 'dipath'
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(user, password, host, port, database)
+    MYSQL_USER = LOCAL_SETTINGS['mysql']['user']
+    MYSQL_PASSWORD = LOCAL_SETTINGS['mysql']['password']
+    MYSQL_HOST = LOCAL_SETTINGS['mysql']['host']
+    MYSQL_PORT = LOCAL_SETTINGS['mysql']['port']
+    MYSQL_DATABASE = 'dipath'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(
+        MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_COMMIT_ON_TEARDOWN = False
 
     # redis配置
-    REDIS_HOST = '127.0.0.1'
-    REDIS_PORT = 6379
-    LOCK_DB = 4  # 分布式锁所在db
+    REDIS_HOST = LOCAL_SETTINGS['redis']['host']
+    REDIS_PORT = LOCAL_SETTINGS['redis']['port']
     LOCK_EXPIRATION_TIME = 10  # 分布式锁过期时间
 
     # CACHE_REDIS_URI = 'redis://{}:{}'.format(REDIS_HOST, str(REDIS_PORT))
