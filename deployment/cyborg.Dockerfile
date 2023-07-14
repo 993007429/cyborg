@@ -2,7 +2,6 @@ FROM dipath/cyborg:0.0.1
 
 WORKDIR /data/www/cyborg/
 ADD ./cyborg ./cyborg
-ADD ./tools ./tools
 ADD ./app.py ./app.py
 ADD ./requirements.txt ./requirements.txt
 RUN mkdir -p ./local_settings \
