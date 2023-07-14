@@ -109,7 +109,9 @@ itsdangerous==2.1.2
 jinja2==3.1.2
     # via flask
 joblib==1.2.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   scikit-learn
 kiwisolver==1.4.4
     # via matplotlib
 kombu==5.2.4
@@ -138,7 +140,7 @@ minio==7.1.14
     # via -r requirements.in
 mmcv==1.4.0
     # via -r requirements.in
-mmcv-full==1.4.0
+mmcv-full==1.4.1
     # via -r requirements.in
 mmdet==2.25.2
     # via -r requirements.in
@@ -170,6 +172,7 @@ numpy==1.23.3
     #   pycocotools
     #   pywavelets
     #   scikit-image
+    #   scikit-learn
     #   scipy
     #   seaborn
     #   tifffile
@@ -178,7 +181,6 @@ opencv-python==4.5.5.62
     #   -r requirements.in
     #   imgaug
     #   mmcv
-    #   mmcv-full
 openpyxl==3.0.9
     # via -r requirements.in
 opt-einsum==3.3.0
@@ -263,12 +265,15 @@ scikit-image==0.19.1
     # via
     #   -r requirements.in
     #   imgaug
+scikit-learn==1.0.2
+    # via -r requirements.in
 scipy==1.8.0
     # via
     #   -r requirements.in
     #   csaps
     #   imgaug
     #   scikit-image
+    #   scikit-learn
 seaborn==0.12.0
     # via -r requirements.in
 shapely==1.8.0
@@ -291,6 +296,8 @@ sqlalchemy==1.4.22
     #   alembic
 terminaltables==3.1.10
     # via mmdet
+threadpoolctl==3.2.0
+    # via scikit-learn
 tifffile==2022.2.2
     # via
     #   -r requirements.in

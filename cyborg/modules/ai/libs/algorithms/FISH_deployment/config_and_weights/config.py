@@ -1,9 +1,12 @@
+import os
+
 dataset_type = 'CocoDataset'
 classes = ('a', )
 custom_imports = dict(
     imports=[
-        'Algorithms.FISH_deployment.Swim_Fish.datasets.pipelines', 'Algorithms.FISH_deployment.Swim_Fish.datasets.FishDataset',
-        'Algorithms.FISH_deployment.Swim_Fish.models'
+        'cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.datasets.pipelines',
+        'cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.datasets.FishDataset',
+        'cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.models'
     ],
     allow_failed_imports=False)
 data = dict(

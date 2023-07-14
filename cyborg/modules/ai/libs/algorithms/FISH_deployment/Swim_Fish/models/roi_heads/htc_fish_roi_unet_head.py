@@ -9,7 +9,7 @@ from mmdet.models.builder import HEADS, build_head, build_roi_extractor
 from mmdet.models.utils.brick_wrappers import adaptive_avg_pool2d
 
 from .cascade_fish_roi_head import CascadeSignalRoIHead
-from Algorithms.FISH_deployment.Swim_Fish.core.post_processing.signal_aug import get_aug_signals
+from cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.core.post_processing.signal_aug import get_aug_signals
 
 
 @HEADS.register_module()

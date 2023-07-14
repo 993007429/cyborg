@@ -10,7 +10,7 @@ from imageio import imsave
 import cv2
 from mmdet.models.roi_heads.mask_heads.fcn_mask_head import FCNMaskHead
 
-from Algorithms.FISH_deployment.Swim_Fish.utils.signal_head_utils import abs_img_point_to_rel_roi_point
+from cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.utils.signal_head_utils import abs_img_point_to_rel_roi_point
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""

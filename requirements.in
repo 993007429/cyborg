@@ -40,7 +40,7 @@ joblib==1.2.0
 mpi4py==3.0.3
 seaborn==0.12.0
 mmcv==1.4.0
-mmcv-full==1.4.0
+mmcv-full==1.4.1
 mmdet==2.25.2
 tqdm==4.64.1
 pynvml==11.4.1

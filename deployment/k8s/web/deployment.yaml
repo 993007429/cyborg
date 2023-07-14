@@ -20,8 +20,8 @@ spec:
       containers:
         - image: dipath/cyborg:1.0.0
           env:
-            - name: isK8s
-              value: "1"
+            - name: CYBORG_ENV
+              value: "roche"
             - name: C_FORCE_ROOT
               value: "true"
             - name: TZ
@@ -29,7 +29,7 @@ spec:
           imagePullPolicy: Always
           name: cyborg-web
           workingDir: /data/www/cyborg/
-          command: ["/usr/local/python3/bin/python3"]
+          command: ["/usr/local/python3/bin/python"]
           args:
           - app.py
           lifecycle:

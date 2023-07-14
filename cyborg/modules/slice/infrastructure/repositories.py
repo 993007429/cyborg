@@ -1,6 +1,7 @@
 import logging
 import math
 import sys
+from datetime import datetime, timedelta
 from typing import Optional, Type, Tuple, List, Any
 
 from sqlalchemy import desc, or_, func, distinct, and_
@@ -86,7 +87,10 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         query = self.session.query(SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg).filter(
             SliceModel.id > start_id).order_by(SliceModel.id.desc())
         if upload_batch_number is not None:
-            rows = query.filter(SliceModel.upload_batch_number == upload_batch_number).all()
+            query = query.filter(
+                SliceModel.upload_batch_number == upload_batch_number
+            )
+            rows = query.all()
             increased = len(rows)
             last_id = rows[0][0] if rows else 0
             slices = [{'caseid': row[1], 'fileid': row[2], 'ai_type': AIType.get_by_value(row[3])} for row in rows]
@@ -96,6 +100,31 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             last_id = row[0] if row else 0
             increased = query.count()
             return last_id, increased, []
+
+    def get_new_updated_slices(
+            self, updated_after: Optional[datetime] = None, upload_batch_number: Optional[int] = None
+    ) -> Tuple[int, List[dict]]:
+
+        if updated_after is None:
+            # TODO hack, 返回300秒之后更新过的记录，实际的业务逻辑需要前端船体update_after参数，也就是上一次获取到的更新时间
+            updated_after = datetime.now() - timedelta(seconds=300)
+
+        query = self.session.query(
+            SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg, SliceModel.started).filter(
+            SliceModel.last_modified > updated_after).order_by(SliceModel.last_modified.asc())
+
+        if upload_batch_number is not None:
+            query = query.filter(
+                SliceModel.upload_batch_number == upload_batch_number
+            )
+
+        rows = query.all()
+        updated = len(rows)
+        slices = [{'caseid': row[1],
+                   'fileid': row[2],
+                   'ai_type': AIType.get_by_value(row[3]),
+                   'status': SliceStartedStatus.get_by_value(row[4])} for row in rows]
+        return updated, slices
 
     def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id, company=company).first()
