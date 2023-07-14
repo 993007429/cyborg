@@ -606,12 +606,17 @@ class SliceService(object):
         records = self.domain_service.repository.get_records(end_time=end_time, company=request_context.current_company)
         return AppResponse(data={'recordCount': len(records)})
 
-    def get_new_slices(self, start_id: int, upload_batch_number: Optional[str] = None) -> AppResponse:
+    def get_new_slices(
+            self, start_id: int, updated_after: Optional[datetime.datetime] = None, upload_batch_number: Optional[str] = None
+    ) -> AppResponse:
+        last_modified = datetime.datetime.now()
         last_id, increased, slices = self.domain_service.repository.get_new_slices(
             start_id=start_id, upload_batch_number=upload_batch_number)
-        data = {'lastId': last_id, 'increased': increased}
+        updated, updated_slices = self.domain_service.repository.get_new_updated_slices(
+            updated_after=updated_after, upload_batch_number=upload_batch_number)
+        data = {'lastId': last_id, 'lastModified': last_modified, 'increased': increased, 'updated': updated}
         if upload_batch_number:
-            data.update({'newRecords': slices})
+            data.update({'newRecords': slices, 'updatedRecords': updated_slices})
         return AppResponse(data=data)
 
     async def free_up_space(self, end_time: str) -> AppResponse:

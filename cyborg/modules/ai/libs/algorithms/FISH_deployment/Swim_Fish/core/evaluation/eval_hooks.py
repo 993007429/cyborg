@@ -6,7 +6,7 @@ from mmcv.runner import DistEvalHook as BaseDistEvalHook
 from mmcv.runner import EvalHook as BaseEvalHook
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from Algorithms.FISH_deployment.Swim_Fish.apis.test import single_gpu_test, multi_gpu_test
+from cyborg.modules.ai.libs.algorithms.FISH_deployment.Swim_Fish.apis.test import single_gpu_test, multi_gpu_test
 
 
 class EvalHook(BaseEvalHook):

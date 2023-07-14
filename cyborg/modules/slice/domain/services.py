@@ -112,7 +112,7 @@ class SliceDomainService(object):
         try:
             thumbnail_image = slide.get_thumbnail(Settings.THUMBNAIL_BOUNDING)
             thumbnail_image.save(os.path.join(slide_path, "thumbnail.jpeg"))
-        except ValueError:
+        except Exception:
             logger.warning(f'获取缩略图失败: {case_id}-{file_id}')
             pass
 
@@ -130,7 +130,7 @@ class SliceDomainService(object):
             'objective_rate': objective_rate,
             "company": company_id,
             "type": "slice",
-            "update_time": time.strftime('%Y/%m/%d %H:%M:%S', time.localtime()),
+            "update_time": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             "operator": operator,
             "slice_number": label_text,
             "is_has_label": 1 if os.path.exists(slice_label_path) and os.path.getsize(
@@ -193,7 +193,7 @@ class SliceDomainService(object):
                 record.update_data(slice_number=info['slice_number'])
             slice.update_data(high_through=1)
 
-        info['update_time'] = time.strftime('%Y/%m/%d %H:%M:%S', time.localtime())
+        info['update_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         if slice:
             cover = False

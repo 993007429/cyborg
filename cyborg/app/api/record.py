@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from datetime import datetime
 
 from flask import request, jsonify, send_file
 from werkzeug import formparser
@@ -86,8 +87,10 @@ def get_all_values_in_fields():
 
 @api_blueprint.route('/records/polling', methods=['get', 'post'])
 def get_new_records():
+    updated_after = request.form.get('updatedAfter')
     res = AppServiceFactory.slice_service.get_new_slices(
         start_id=int(request.form.get('startId', 0)),
+        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S') if updated_after else None,
         upload_batch_number=request.form.get('uploadBatchNumber')
     )
     return jsonify(res.dict())

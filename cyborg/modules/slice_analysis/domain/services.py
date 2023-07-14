@@ -94,7 +94,9 @@ class SliceAnalysisDomainService(object):
             for tile in tiles:
                 tile_id = tiled_slice.tile_to_id(tile)
                 mark_to_tiles.append(MarkToTileEntity(raw_data=dict(mark_id=mark.id, tile_id=tile_id)))
-            current_tiles[mark.id] = mark.cal_tiles(tiled_slice=tiled_slice, polygon_use_center=True)[0]
+            tiles = mark.cal_tiles(tiled_slice=tiled_slice, polygon_use_center=True)
+            if tiles:
+                current_tiles[mark.id] = tiles[0]
 
         for level in range(tiled_slice.max_level - 1, 6, -1):
             if len(marks) > downsample_threshold and level < tiled_slice.max_level:

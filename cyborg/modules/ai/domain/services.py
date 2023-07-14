@@ -722,7 +722,8 @@ class AIDomainService(object):
         mpp = 0.5
 
         whole_slide = 1
-        roi = task.rois[0]
+        rois = task.rois or [task.new_default_roi()]
+        roi = rois[0]
 
         roi_id = roi['id']
         cell_type = 0
@@ -733,9 +734,9 @@ class AIDomainService(object):
         from cyborg.modules.ai.libs.algorithms.FISH_deployment import cal_fish_tissue
         nucleus_coords, red_signal_coords, green_signal_coords = cal_fish_tissue.run_fish(slide=task.slide_path)
         count_summary_dict = {
-            'nuclues_num': len(red_signal_coords),
-            'red_signal_num': len(green_signal_coords),
-            'green_signal_num': len(nucleus_coords)
+            'nuclues_num': len(nucleus_coords),
+            'red_signal_num': len(red_signal_coords),
+            'green_signal_num': len(green_signal_coords)
         }
 
         for nucleus_coord in nucleus_coords:
@@ -758,9 +759,10 @@ class AIDomainService(object):
             group_id = red_group_id
             this_mark = Mark(
                 position={'x': [float(red_signal_coord[0])], 'y': [float(red_signal_coord[1])]},
+                method='spot',
                 stroke_color=type_color_dict[cell_type],
                 mark_type=2,
-                diagnosis=json.dumps({'type': cell_type}),
+                diagnosis={'type': cell_type},
                 radius=4 * 1 / mpp,
                 area_id=roi_id,
                 group_id=group_id
@@ -772,9 +774,10 @@ class AIDomainService(object):
             group_id = green_group_id
             this_mark = Mark(
                 position={'x': [float(green_signal_coord[0])], 'y': [float(green_signal_coord[1])]},
+                method='spot',
                 stroke_color=type_color_dict[cell_type],
                 mark_type=2,
-                diagnosis=json.dumps({'type': cell_type}),
+                diagnosis={'type': cell_type},
                 radius=4 * 1 / mpp,
                 area_id=roi_id,
                 group_id=group_id
@@ -788,7 +791,7 @@ class AIDomainService(object):
             position={'x': [], 'y': []},
             mark_type=3,
             ai_result=count_summary_dict,
-            diagnosis=json.dumps({'type': cell_type}),
+            diagnosis={'type': cell_type},
             radius=1 / mpp,
             is_export=1,
             editable=1,
@@ -845,11 +848,11 @@ class AIDomainService(object):
 
                 cell_mark = Mark(
                     # id=idx,
-                    position=json.dumps({'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]}),
+                    position={'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]},
                     stroke_color='red',
                     mark_type=2,
                     method='rectangle',
-                    diagnosis=json.dumps({'type': label}),
+                    diagnosis={'type': label},
                     radius=1 / mpp,
                     area_id=roi_id,
                     editable=0,

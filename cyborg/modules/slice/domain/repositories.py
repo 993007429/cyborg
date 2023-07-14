@@ -1,5 +1,6 @@
 import sys
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from typing import Optional, Type, Tuple, List, Any
 
 from cyborg.modules.ai.domain.entities import TCTProbEntity
@@ -51,7 +52,16 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
     def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
         ...
 
-    def get_new_slices(self, start_id: int, upload_batch_number: Optional[int] = None) -> Tuple[int, int, List[dict]]:
+    @abstractmethod
+    def get_new_slices(
+            self, start_id: int, upload_batch_number: Optional[int] = None
+    ) -> Tuple[int, int, List[dict]]:
+        ...
+
+    @abstractmethod
+    def get_new_updated_slices(
+            self, updated_after: Optional[datetime] = None, upload_batch_number: Optional[int] = None
+    ) -> Tuple[int, List[dict]]:
         ...
 
     @abstractmethod

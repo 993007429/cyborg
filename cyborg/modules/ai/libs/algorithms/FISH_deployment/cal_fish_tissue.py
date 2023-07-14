@@ -16,6 +16,8 @@ from cyborg.infra.oss import oss
 
 pattern = re.compile(r"\$\{[a-zA-Z\d_.]*\}")
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
 logger = logging.getLogger(__name__)
 
 
@@ -167,8 +169,8 @@ def get_all_pred_points(signal_result):
     return all_center_coords, all_center_labels
 
 
-def generate_bbox_summary(cell_for_tissue, result, score_thr, overlap_thr, ots_thr):
-    if cell_for_tissue == 'CELL':
+def generate_bbox_summary(cell_or_tissue, result, score_thr, overlap_thr, ots_thr):
+    if cell_or_tissue == 'CELL':
         class_name_dict = {0: "Primordial cell", 1: "Promyelocytic cells", 2: "Late immature cells",
                            3: "Other cell", 4: "Dead cell", 5: "Autofluorescent cells",
                            6: "Non-cellular components", 7: "bubble"}
@@ -335,17 +337,17 @@ def filter_bbox(bbox_summary_dict):
     return final_bbox_summary_dict
 
 
-def save_both_results(cell_for_tissue, pred, score_thr, overlap_thr, ots_thr):
-    if cell_for_tissue not in ('TISSUE', 'CELL'):
+def save_both_results(cell_or_tissue, pred, score_thr, overlap_thr, ots_thr):
+    if cell_or_tissue not in ('TISSUE', 'CELL'):
         raise ValueError('You can only choose CELL or TISSUE for calculation')
 
     bbox_start_time = time.time()
     bbox_summary_dict, center_coords, center_labels = generate_bbox_summary(
-        cell_for_tissue, pred,
+        cell_or_tissue, pred,
         score_thr=score_thr,
         overlap_thr=overlap_thr, ots_thr=ots_thr
     )
-    logger.info('generate_bbox_summary time', time.time() - bbox_start_time)
+    logger.info(f'generate_bbox_summary time: {time.time() - bbox_start_time}')
     cell_boundary_list, red_coords_list, green_coords_list = generate_final_results(bbox_summary_dict)
 
     return cell_boundary_list, red_coords_list, green_coords_list
@@ -431,22 +433,28 @@ def patch_config(cfg):
 
 
 def run_fish(slide):
-    args = parse_args()
     cell_start_time = time.time()
-    cfg = Config.fromfile(args.config)
+    cfg = Config.fromfile(os.path.join(current_dir, 'config_and_weights/config.py'))
     cfg = patch_config(cfg)
-    model = init_detector(cfg, args.checkpoint, device=args.device)
+
+    oss_key = oss.path_join(
+        'AI', 'FISH_deployment', 'config_and_weights', 'mul0.2_coef0.1_redcoef0.8_epoch_300.pth')
+    file_path = os.path.join(current_dir, 'config_and_weights', 'mul0.2_coef0.1_redcoef0.8_epoch_300.pth')
+    oss.get_object_to_file(oss_key, file_path)
+
+    model = init_detector(cfg, checkpoint=file_path, device='cuda:0')
     middle_time = time.time()
-    logger.info('cell_init_time', middle_time - cell_start_time)
+    logger.info(f'cell_init_time: {middle_time - cell_start_time}')
     img = slide
     result = inference_detector(model, img)
     cell_cal_time = time.time() - middle_time
-    logging.info('cell_inf_time', cell_cal_time)
+    logging.info(f'cell_inf_time: {cell_cal_time}')
     cell_boundary_list, red_coords_list, green_coords_list = save_both_results(
-        cell_for_tissue=args.CELL_OR_TISSUE,
+        cell_or_tissue='TISSUE',
         pred=result,
-        score_thr=args.score_thr,
-        overlap_thr=args.overlap_thr, ots_thr=args.ots_thr
+        score_thr=0.3,
+        overlap_thr=0.4,
+        ots_thr=0.85
     )
 
     return cell_boundary_list, red_coords_list, green_coords_list

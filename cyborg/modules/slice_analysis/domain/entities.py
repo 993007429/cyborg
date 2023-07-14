@@ -257,7 +257,7 @@ class MarkEntity(BaseDomainEntity):
             item['show_layer'] = [3, 1, 2, 4].index(self.mark_type)
 
         elif ai_type == AIType.fish_tissue:
-            if item.mark_type == 3:
+            if self.mark_type == 3:
                 return None
             item['show_layer'] = 1 if self.method == 'spot' else 0
 
