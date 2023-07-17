@@ -142,6 +142,7 @@ class AlgBase:
                 model = torch2trt(model, [torch.zeros(1, 3, 224, 224).cuda()], max_batch_size=64, fp16_mode=True)
                 buffer = BytesIO()
                 torch.save(model.state_dict(), buffer)
+                buffer.seek(0)
                 oss.put_object_from_io(buffer, trt_model_file_key)
             return model
 
