@@ -832,7 +832,7 @@ class AIDomainService(object):
             BMConsts.label1_num_dict[BMConsts.label_map_dict[label_name]] += 1
             if BMConsts.label2_num_dict[label_name] <= 100:
                 BMConsts.label2_data_dict[label_name].append({
-                    # "id": idx,
+                    "id": idx,
                     "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
                     "image": 0,
                     "editable": 0,
@@ -847,7 +847,7 @@ class AIDomainService(object):
                 })
 
                 cell_mark = Mark(
-                    # id=idx,
+                    id=idx,
                     position={'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]},
                     stroke_color='red',
                     mark_type=2,
@@ -861,7 +861,7 @@ class AIDomainService(object):
 
         for label1, num in sorted(BMConsts.label1_num_dict.items(), key=lambda k: k[1], reverse=True):
             label2_list = BMConsts.reversed_label_map_dict[label1]
-            subset_label2_dict = {k: v for k, v in BMConsts.label1_num_dict.items() if k in label2_list}
+            subset_label2_dict = {k: v for k, v in BMConsts.label2_num_dict.items() if k in label2_list}
             tier2_list = [{'label': k, 'num': v, 'data': BMConsts.label2_data_dict[k]} for (k, v) in
                           sorted(subset_label2_dict.items(), key=lambda k: k[1], reverse=True)]
             cells.append({'label': label1, 'num': num, 'data': tier2_list})

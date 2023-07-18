@@ -1,3 +1,5 @@
+from itertools import groupby
+
 
 class BMConsts(object):
     bm_class_list = [
@@ -98,7 +100,7 @@ class BMConsts(object):
         "血小板": "血小板"
     }
 
-    reversed_label_map_dict = {v: k for k, v in label_map_dict.items()}
+    reversed_label_map_dict = {label: [kk for kk, _ in group] for label, group in groupby([(k, v) for k, v in label_map_dict.items()], lambda x: x[1])}
 
     label1_num_dict = {k: 0 for k in list(set(label_map_dict.values()))}
 

@@ -133,7 +133,7 @@ class SliceAnalysisDomainService(object):
                     nucleus['mark_type'] = 1
                     nucleus['iconType'] = 'dnaIcon'
                     mark_list.append(nucleus)
-        elif is_manual and ai_type == AIType.bm:
+        elif ai_type == AIType.bm:
             area_mark = marks[0]
             ai_result = area_mark.ai_result
             if ai_result:
