@@ -14,7 +14,7 @@ class Settings(object):
 
     PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-    ENV = os.environ.get('CYBORG_ENV', 'DEV').upper()
+    ENV = os.environ.get('CYBORG_ENV', 'LOCAL').upper()
 
     LOCAL_SETTINGS = get_local_settings(f'{PROJECT_DIR}/local_settings/cyborg-{ENV.lower()}.ini')
 

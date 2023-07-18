@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -108,7 +109,7 @@ class SliceAnalysisService(object):
             type: Optional[int] = None,
             mark_type: Optional[int] = None,
             dashed: Optional[int] = None,
-            doctor_diagnosis: Optional[str] = None,
+            doctor_diagnosis: Optional[dict] = None,
     ) -> AppResponse[dict]:
 
         ai_type = request_context.ai_type
@@ -248,6 +249,34 @@ class SliceAnalysisService(object):
             return AppResponse(err_code=1, message='backup mark table failed')
 
         return AppResponse(message='backup mark table succeed')
+
+    @connect_slice_db()
+    def export_marks(self):
+        mark_infos = list()
+        _, marks = self.domain_service.repository.get_marks()
+        for mark in marks:
+            group = self.domain_service.repository.get_mark_group_by_id(mark.group_id)
+            position = mark.position
+            position_list = list()
+            for i in range(len(position.get('x'))):
+                x_coord_list = position.get('x')
+                y_coord_list = position.get('y')
+                position_list.append({'x': x_coord_list[i], 'y': y_coord_list[i]})
+            mark_info = {
+                'position': position_list,
+                'color': group.color if group else '',
+                'groupName': group.groupName if group else '',
+            }
+            mark_infos.append(mark_info)
+
+        data_paths = self.slice_service.get_slice_data_paths(
+            case_id=request_context.case_id, file_id=request_context.file_id).data
+        slice_path = data_paths.get('slice_dir')
+        filename = 'slice.json'
+        file_path = os.path.join(slice_path, filename)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(mark_infos, f, ensure_ascii=False)
+        return file_path
 
     @connect_slice_db()
     def clear_ai_result(self, exclude_area_marks: Optional[List[int]] = None) -> AppResponse:

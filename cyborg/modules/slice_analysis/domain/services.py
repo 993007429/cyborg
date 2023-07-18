@@ -167,7 +167,7 @@ class SliceAnalysisDomainService(object):
             diagnosis_type: Optional[int] = None,
             mark_type: Optional[int] = None,
             dashed: Optional[int] = None,
-            doctor_diagnosis: Optional[str] = None,
+            doctor_diagnosis: Optional[dict] = None,
             ai_result_ready: Optional[bool] = None,
             is_export: Optional[int] = None,
             op_name: Optional[str] = None

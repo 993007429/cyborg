@@ -121,7 +121,7 @@ def create_company():
 async def delete_company():
     company = request.form.get('grp_name')
     res = await AppServiceFactory.user_service.delete_company(company_id=company)
-    return jsonify(res.dict)
+    return jsonify(res.dict())
 
 
 @api_blueprint.route('/manage/shutdown', methods=['get', 'post'])

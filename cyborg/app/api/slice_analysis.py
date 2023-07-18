@@ -1,7 +1,7 @@
 import json
 import logging
 
-from flask import request, jsonify
+from flask import request, jsonify, send_file
 
 from cyborg.app.api import api_blueprint
 from cyborg.app.limiter import limiter
@@ -223,3 +223,9 @@ def get_screen_count():
 
     res = AppServiceFactory.slice_analysis_service.get_cell_count_in_quadrant(view_path=view_path)
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/files/exportJson', methods=['get', 'post'])
+def export_json():
+    file_path = AppServiceFactory.slice_analysis_service.export_marks()
+    return send_file(file_path)

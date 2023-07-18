@@ -221,9 +221,7 @@ class SliceDomainService(object):
                     slice.update_data(ai_suggest=json.dumps(v))
 
                 elif v is not None:
-                    if isinstance(v, dict) or isinstance(v, list):
-                        slice.update_data(**{k: json.dumps(v)})
-                    elif isinstance(v, str):
+                    if isinstance(v, str):
                         slice.update_data(**{k: v.strip()})
                     else:
                         slice.update_data(**{k: v})
@@ -290,7 +288,7 @@ class SliceDomainService(object):
             ai_status=0
         )
         if ai_name is not None:
-            ai_dict = json.loads(entity.ai_dict)
+            ai_dict = entity.ai_dict
             ai_dict[ai_name + 'Started'] = True
             entity.update_data(ai_dict=ai_dict, alg=ai_name)
         if upload_batch_number is not None:

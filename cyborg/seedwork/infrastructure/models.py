@@ -1,21 +1,16 @@
 import json
+import logging
 from functools import cached_property
 from typing import TypeVar
 
-from sqlalchemy import (
-    Column, Integer, DateTime, func, Enum, inspect, JSON,
-)
+from sqlalchemy import inspect, JSON
 from sqlalchemy.orm import declarative_base
 
-from cyborg.seedwork.domain.value_objects import BaseEnum
+logger = logging.getLogger(__name__)
 
 
 class _Base:
     __table_args__ = {'mysql_engine': 'InnoDB'}
-
-    # id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    # created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    # last_modified = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
     @property
     def raw_data(self):
@@ -23,12 +18,10 @@ class _Base:
         return {column.key: getattr(self, column.key) for column in mapper.attrs}
 
     @cached_property
-    def enum_columns(self):
-        return [c.name for c in self.__table__.columns if isinstance(c.type, Enum)]
-
-    @cached_property
     def json_columns(self):
-        return [c.name for c in self.__table__.columns if isinstance(c.type, JSON)]
+        mapper = inspect(self.__class__)
+        return [column.key for column in mapper.attrs if column.expression is not None and isinstance(
+            column.expression.type, JSON)]
 
     def set_data(self, data: dict):
         mapper = inspect(self.__class__)
@@ -38,10 +31,8 @@ class _Base:
                 setattr(self, k, v)
 
     def __setattr__(self, key, value):
-        # if isinstance(value, BaseEnum) and key not in self.enum_columns:
-        #     value = value.value
         if (isinstance(value, list) or isinstance(value, dict)) and key not in self.json_columns:
-            value = json.dumps(value)
+            value = json.dumps(value, ensure_ascii=False)
         super(_Base, self).__setattr__(key, value)
 
     def to_dict(self) -> dict:

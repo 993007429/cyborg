@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def json_serializer(val):
-    return json.dumps(val, cls=CyborgJsonEncoder)
+    return json.dumps(val, cls=CyborgJsonEncoder, ensure_ascii=False)
 
 
 def json_deserializer(val):
