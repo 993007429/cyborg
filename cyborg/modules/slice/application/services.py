@@ -121,11 +121,7 @@ class SliceService(object):
 
     def delete_records(self, case_ids: List[str]) -> AppResponse[str]:
         freed_size = self.domain_service.delete_records(case_ids, request_context.current_company)
-        if freed_size > 0:
-            self.user_service.update_company_storage_usage(
-                company_id=request_context.current_company,
-                increased_size=- freed_size)
-        else:
+        if freed_size <= 0:
             return AppResponse(message='删除失败')
 
         return AppResponse(data='删除成功')
@@ -193,12 +189,6 @@ class SliceService(object):
                 if slice_info:
                     return AppResponse(data=slice_info)
         else:
-            slide_save_name = os.path.join(upload_path, file_name)
-            slide_size = fs.get_file_size(slide_save_name) / 1024 ** 3
-            self.user_service.update_company_storage_usage(
-                company_id=company_id,
-                increased_size=slide_size
-            )
             return AppResponse(data={'path': os.path.join(Settings.DATA_DIR, company_id, 'data')})
 
         return AppResponse(err_code=6, message='上传发生异常')
@@ -432,12 +422,7 @@ class SliceService(object):
         if not slice:
             return AppResponse(err_code=1, message='slice does not exist')
 
-        freed_size = self.domain_service.delete_slice(slice)
-        if freed_size > 0:
-            self.user_service.update_company_storage_usage(
-                company_id=request_context.current_company,
-                increased_size=freed_size
-            )
+        self.domain_service.delete_slice(slice)
         return AppResponse(message='delete slice succeed')
 
     def delete_ai_image_files(self, case_id: str, file_id: str):

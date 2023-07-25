@@ -131,6 +131,7 @@ class SliceAnalysisService(object):
             tiled_slice=tiled_slice, op_name=request_context.current_user.username
         )
 
+        logger.info(new_mark.id)
         if err_msg:
             return AppResponse(err_code=1, message=err_msg)
 
@@ -142,7 +143,8 @@ class SliceAnalysisService(object):
                 marks=[new_mark, ], option=1, ai_type=ai_type, tiled_slice=tiled_slice
             )
 
-        return AppResponse(message='create mark succeed', data={'new_mark_id': new_mark.id})
+        logger.info(new_mark.id)
+        return AppResponse(message='create mark succeed', data={'new_mark_id': str(new_mark.id)})
 
     @connect_slice_db()
     def create_ai_marks(

@@ -111,19 +111,13 @@ class UserCoreDomainService(object):
                 company.usage = company_usage
                 company.save()
 
-        try:
-            total, used, _ = shutil.disk_usage(company_data_path)
-        except:
-            total, used, _ = shutil.disk_usage(Settings.DATA_DIR)
+        total, used, _ = shutil.disk_usage(company_data_path)
+        total = total // (2 ** 30)
+        total_space = total - 10  # 预留10G的物理空间兜底
+        company_usage = used // (2 ** 30)  #
 
-        total = total // (2 ** 30)  # 总空间
         if Settings.CLOUD:  # 公有云
             total_space = float(company.volume)  # 公有云用配置的值做分母
-            company_usage = float(company.usage)  # 公有云用累计使用空间的值做分子
-        else:  # 工作站
-            # 工作站用物理空间做分母
-            total_space = total - 10  # 预留10G的物理空间兜底
-            company_usage = used // (2 ** 30)  # 工作站用实际的磁盘使用空间值做分子
 
         if total_space:
             space = company_usage / total_space if company_usage / total_space <= 1 else 1
@@ -132,17 +126,6 @@ class UserCoreDomainService(object):
         return {
             'remainingSpace': round(100 - space * 100, 0)
         }
-
-    def update_company_storage_usage(self, company_id: str, increased_size: float) -> bool:
-        company = self.company_repository.get_company_by_id(company_id)
-        if not company:
-            return False
-
-        company.update_data(usage=max(float(company.usage) + increased_size, 0))
-        success = self.company_repository.save(company)
-        if success:
-            logger.info(f'空间变化：{increased_size}GB')
-        return success
 
     def update_company_trial(self, company_id: str, ai_name: str) -> Tuple[int, str, Optional[CompanyEntity]]:
         company = self.company_repository.get_company_by_id(company_id)
@@ -153,7 +136,7 @@ class UserCoreDomainService(object):
             trial_times = company.trial_times
             ai_trial_count = trial_times.get(ai_name)
             if Settings.CLOUD and not ai_trial_count:
-                return 1, '当前为试用账号，该模块的可用次数已用尽。', None
+                return 1, '可用算法次数不足，请重试。', None
 
             trial_times[ai_name] = ai_trial_count - 1
             company.update_data(trial_times=json.dumps(trial_times))

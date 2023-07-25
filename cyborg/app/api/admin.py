@@ -169,7 +169,7 @@ def get_ai_threshold():
 @api_blueprint.route('/manage/getDefaultAiThreshold', methods=['get', 'post'])
 def get_default_ai_threshold():
     request_context.ai_type = AIType.get_by_value(request.form.get('algor_type'))
-    res = AppServiceFactory.user_service.get_ai_threshold()
+    res = AppServiceFactory.user_service.get_default_ai_threshold()
     return jsonify(res.dict())
 
 

@@ -5,6 +5,7 @@ from flask import Flask, Response
 from flask.json.provider import DefaultJSONProvider
 
 from cyborg.app.limiter import limiter
+from cyborg.app.openapi.roche import roche_blueprint
 from cyborg.app.settings import Settings
 from cyborg.app.logging import gen_logging_config
 from cyborg.app.subscribe import subscribe_events
@@ -43,6 +44,10 @@ def init_app():
 
     # 注册蓝图 解耦
     app.register_blueprint(api_blueprint, url_prefix='/aipath/api')
+
+    # TODO 按需加载
+    from cyborg.app.openapi.roche import vendor, algorithm
+    app.register_blueprint(roche_blueprint, url_prefix='/openapi/v1')
 
     subscribe_events()
 

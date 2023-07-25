@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sys
 from datetime import datetime
 
 from flask import request, jsonify, send_file
@@ -29,7 +30,7 @@ def set_customized_record_fields():
 
 def _get_query_records_params() -> dict:
     page = request.form.get('page', 1, type=int) - 1   # 服务端下标统一从0开始
-    limit = request.form.get('limit', 20, type=int)
+    limit = request.form.get('limit', sys.maxsize, type=int)
     search_key = request.form.get("search_key")
     search_value = request.form.get("search_value")
 

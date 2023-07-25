@@ -89,10 +89,6 @@ class UserCoreService(object):
         data = self.domain_service.get_company_storage_info(company_id=request_context.current_company)
         return AppResponse(data=data)
 
-    def update_company_storage_usage(self, company_id: str, increased_size: float) -> AppResponse[bool]:
-        success = self.domain_service.update_company_storage_usage(company_id=company_id, increased_size=increased_size)
-        return AppResponse(data=success)
-
     def update_company_trial(self, ai_name: str) -> AppResponse:
         err_code, message, company = self.domain_service.update_company_trial(
             company_id=request_context.current_company, ai_name=ai_name)

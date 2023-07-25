@@ -19,7 +19,6 @@ from cyborg.consts.tct import TCTConsts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.infra.session import transaction
-from cyborg.libs.label_ocr.label_rec import label_recognition
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.slice.application.tasks import update_clarity
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
@@ -27,6 +26,7 @@ from cyborg.modules.slice.domain.repositories import CaseRecordRepository, Repor
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
+from cyborg.utils.strings import camel_to_snake
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class SliceDomainService(object):
                 if label_img.mode == "RGBA":
                     label_img.convert('RGB')
                     label_img.save(label_path)
+                from cyborg.libs.label_ocr.label_rec import label_recognition
                 return label_recognition(label_path, slice_label_path, mode=label_rec_mode)
             except Exception as e:
                 logger.error('label ocr error :' + str(e))
@@ -212,6 +213,7 @@ class SliceDomainService(object):
                 cover = True
 
             for k, v in info.items():
+                k = camel_to_snake(k)
                 if k == 'id':
                     slice.update_data(fileid=v)
 
@@ -277,9 +279,6 @@ class SliceDomainService(object):
     ) -> Optional[SliceEntity]:
         entity = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
         if not entity:
-            return None
-
-        if status == SliceStartedStatus.analyzing and entity.started != SliceStartedStatus.default:
             return None
 
         entity.update_data(
@@ -424,7 +423,8 @@ class SliceDomainService(object):
                 elif title == '切片标签':
                     slice_label_path = slice.slice_label_path
                     if os.path.exists(slice_label_path) and os.path.getsize(slice_label_path):
-                        worksheet.insert_image(row, col, slice_label_path, {'x_scale': 0.11, 'y_scale': 0.1})
+                        # worksheet.insert_image(row, col, slice_label_path, {'x_scale': 0.11, 'y_scale': 0.1})
+                        pass
                 elif title == '切片编号':
                     write_label = slice.slice_number
                 elif title == '文件名':
@@ -481,8 +481,11 @@ class SliceDomainService(object):
                 if os.path.exists(current_dir) and os.path.isdir(current_dir):
                     for file in os.listdir(current_dir):
                         if file.endswith('.mdsx') or file.endswith('.svs'):
-                            shutil.copy(os.path.join(os.path.join(current_dir, file)),
-                                        os.path.join(slide_path, file_name))
+                            link_file = os.path.join(slide_path, file_name)
+                            if os.path.exists(link_file):
+                                os.remove(link_file)
+                            os.symlink(
+                                os.path.join(os.path.join(current_dir, file)), link_file)
                             break
             open_slide(os.path.join(slide_path, file_name))
             return True

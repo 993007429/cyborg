@@ -22,6 +22,7 @@ from PIL import Image, ImageDraw, ImageFont
 import math
 from paddle import inference
 
+paddle.disable_signal_handler()
 
 
 def str2bool(v):

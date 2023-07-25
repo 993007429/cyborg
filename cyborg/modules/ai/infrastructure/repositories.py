@@ -47,6 +47,16 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
                 return idx
         return None
 
+    def get_ai_tasks(
+            self, status: Optional[AITaskStatus], until_id: Optional[int], limit: int = 100) -> List[AITaskEntity]:
+        query = self.session.query(AITaskModel)
+        if status is not None:
+            query = query.filter(AITaskModel.status == status.value)
+        if until_id is not None:
+            query = query.filter(AITaskModel.id < until_id)
+        models = query.order_by(AITaskModel.id.desc())
+        return [AITaskEntity.from_dict(model.raw_data) for model in models]
+
     def get_ai_id_by_type(self, ai_type: AIType) -> Optional[int]:
         row = self.session.query(AIModel.id).filter_by(ai_name=ai_type.value).first()
         return row[0] if row else None
@@ -110,7 +120,8 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         return TCTProbEntity.from_dict(model.raw_data) if model else None
 
     def get_tct_probs_by_slices(self, slices: List[dict]) -> List[TCTProbEntity]:
-        mapping = {s['id']: s for s in slices}
+        mapping = {s['uid']: s['check_result'] for s in slices}
+
         models = self.session.query(TCTProbModel).filter(TCTProbModel.slice_id.in_(mapping.keys())).all()
         return [TCTProbEntity.from_dict(
             model.raw_data, check_result=mapping.get(model.slice_id, '')) for model in models]

@@ -4,6 +4,9 @@ from cyborg.app.request_context import request_context
 from cyborg.modules.ai.application.services import AIService
 from cyborg.modules.ai.domain.services import AIDomainService
 from cyborg.modules.ai.infrastructure.repositories import SQLAlchemyAIRepository
+from cyborg.modules.openapi.authentication.application.services import OpenAPIAuthService
+from cyborg.modules.openapi.authentication.domain.services import OpenAPIAuthDomainService
+from cyborg.modules.openapi.authentication.infrastructure.repositories import ConfigurableOpenAPIClientRepository
 
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice.domain.services import SliceDomainService
@@ -146,6 +149,26 @@ class AIContainer(containers.DeclarativeContainer):
     )
 
 
+class OpenAPIContainer(containers.DeclarativeContainer):
+    core = providers.DependenciesContainer()
+
+    user_center = providers.DependenciesContainer()
+
+    client_repository = providers.Factory(
+        ConfigurableOpenAPIClientRepository
+    )
+
+    openapi_auth_domain_service = providers.Factory(
+        OpenAPIAuthDomainService,
+        client_repository=client_repository,
+    )
+
+    openapi_auth_service = providers.Factory(
+        OpenAPIAuthService,
+        domain_service=openapi_auth_domain_service,
+    )
+
+
 class AppContainer(containers.DeclarativeContainer):
 
     core = providers.Container(Core)
@@ -173,4 +196,9 @@ class AppContainer(containers.DeclarativeContainer):
         user_center=user_center,
         slice=slice,
         slice_analysis=slice_analysis
+    )
+
+    openapi = providers.Container(
+        OpenAPIContainer,
+        core=core,
     )

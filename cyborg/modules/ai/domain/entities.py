@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Type
 
 from cyborg.consts.common import Consts
+from cyborg.modules.ai.domain.value_objects import AITaskStatus
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import AIType, BaseEnum
 from cyborg.utils.id_worker import IdWorker
@@ -19,6 +20,13 @@ class AITaskEntity(BaseDomainEntity):
     def setup_expired_time(self):
         expired_at = datetime.now() + timedelta(seconds=Consts.ALGOR_OVERTIME.get(self.ai_type.value, 1800))
         self.update_data(expired_at=expired_at)
+
+    def set_failed(self):
+        self.update_data(status=AITaskStatus.failed)
+
+    @property
+    def is_timeout(self):
+        return self.status == AITaskStatus.analyzing and datetime.now() > self.expired_at
 
     @property
     def slide_path(self) -> str:
@@ -43,3 +51,6 @@ class AIStatisticsEntity(BaseDomainEntity):
 class TCTProbEntity(BaseDomainEntity):
 
     check_result: str = ''
+
+    def to_list(self):
+        return [self.prob_nilm, self.prob_ascus, self.prob_lsil, self.prob_asch, self.prob_hsil, self.prob_agc]

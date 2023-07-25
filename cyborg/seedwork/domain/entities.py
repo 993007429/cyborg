@@ -28,7 +28,10 @@ class BaseDomainEntity(BaseModel):
     def _decode_value(self, field_name: str, value: Any) -> Any:
         if field_name in self.json_fields:
             if value and isinstance(value, str):
-                value = json.loads(value)
+                try:
+                    value = json.loads(value)
+                except (TypeError, ValueError):
+                    value = None
         if field_name in self.enum_fields:
             if value and isinstance(value, str):
                 value = self.enum_fields[field_name].get_by_value(value)

@@ -1,5 +1,4 @@
 import datetime
-import gc
 import json
 import logging
 from collections import Counter
@@ -75,6 +74,16 @@ class AIDomainService(object):
             task.update_data(result_id=result_id)
 
         return self.repository.save_ai_task(task)
+
+    def maintain_ai_tasks(self, until_id: Optional[int] = None) -> List[dict]:
+        tasks = self.repository.get_ai_tasks(status=AITaskStatus.analyzing, until_id=until_id, limit=100)
+        failed = []
+        for task in tasks:
+            if task.is_timeout:
+                task.set_failed()
+                self.repository.save_ai_task(task)
+                failed.append(task.to_dict())
+        return failed
 
     def check_available_gpu(self, task: AITaskEntity):
         from cyborg.modules.ai.utils.gpu import get_gpu_status
@@ -184,6 +193,7 @@ class AIDomainService(object):
         tct_prob = self.repository.get_tct_prob(slice_id=slice_id)
         if not tct_prob:
             tct_prob = TCTProbEntity()
+            tct_prob.update_data(slice_id=slice_id)
 
         tct_prob.update_data(
             prob_nilm=prob_info['NILM'],
@@ -350,6 +360,7 @@ class AIDomainService(object):
                 is_export=1,
                 ai_result=ai_result,
                 editable=1,
+                stroke_color='grey',
                 group_id=group_id
             ))
 
@@ -457,6 +468,7 @@ class AIDomainService(object):
                 mark_type=3,
                 method='rectangle',
                 is_export=1,
+                stroke_color='grey',
                 ai_result=count_summary_dict,
                 group_id=group_name_to_id.get('ROI')
             ))
@@ -552,6 +564,7 @@ class AIDomainService(object):
                 mark_type=3,
                 method='rectangle',
                 ai_result=ai_result,
+                stroke_color='grey',
                 is_export=1,
                 group_id=group_name_to_id.get('ROI'),
             ))
@@ -793,6 +806,7 @@ class AIDomainService(object):
             ai_result=count_summary_dict,
             diagnosis={'type': cell_type},
             radius=1 / mpp,
+            stroke_color='grey',
             is_export=1,
             editable=1,
             group_id=group_name_to_id.get('ROI')
@@ -882,6 +896,7 @@ class AIDomainService(object):
             method='rectangle',
             is_export=1,
             ai_result=ai_result,
+            stroke_color='grey',
             radius=1 / mpp,
             group_id=group_name_to_id.get('ROI')
         )
