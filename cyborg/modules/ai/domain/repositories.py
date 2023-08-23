@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, List
 
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
+from cyborg.modules.ai.domain.value_objects import AITaskStatus
 from cyborg.seedwork.domain.value_objects import AIType
 
 
@@ -24,7 +25,12 @@ class AIRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def get_ai_task_ranking(self, task_id: int) -> Optional[int]:
+    def get_ai_task_ranking(self, task_id: int, start_id: Optional[int] = None) -> Optional[int]:
+        ...
+
+    @abstractmethod
+    def get_ai_tasks(
+            self, status: Optional[AITaskStatus], until_id: Optional[int], limit: int = 100) -> List[AITaskEntity]:
         ...
 
     @abstractmethod

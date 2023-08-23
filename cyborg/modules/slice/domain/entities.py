@@ -170,8 +170,8 @@ class SliceEntity(BaseDomainEntity):
                 "type": self.type,
                 "clarity": self.clarity,
                 "position": json.loads(self.position) if self.position else {},
-                "roilist": json.loads(self.roilist),
-                "ai_dict": json.loads(self.ai_dict),
+                "roilist": self.roilist,
+                "ai_dict": self.ai_dict,
                 "slide_quality": int(self.slide_quality) if self.slide_quality else None,
                 "cell_num": self.cell_num,
                 'templateId': self.template_id,
@@ -378,7 +378,6 @@ class CaseRecordEntity(BaseDomainEntity):
         d = self.basic_info
         d.update({
             'attachments': [entity.to_dict() for entity in self.attachments],
-            # 'slices': [entity.to_dict() for entity in self.slices],
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
@@ -407,7 +406,7 @@ class CaseRecordEntity(BaseDomainEntity):
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
-            'update': self.update_time,
+            'update': max(self.update_time, *[slice.update_time for slice in self.slices]),
             'reportInfo': self.report_info,
             'reportUid': self.id
         }

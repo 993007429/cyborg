@@ -133,7 +133,7 @@ class SliceAnalysisDomainService(object):
                     nucleus['mark_type'] = 1
                     nucleus['iconType'] = 'dnaIcon'
                     mark_list.append(nucleus)
-        elif is_manual and ai_type == AIType.bm:
+        elif ai_type == AIType.bm:
             area_mark = marks[0]
             ai_result = area_mark.ai_result
             if ai_result:
@@ -167,7 +167,7 @@ class SliceAnalysisDomainService(object):
             diagnosis_type: Optional[int] = None,
             mark_type: Optional[int] = None,
             dashed: Optional[int] = None,
-            doctor_diagnosis: Optional[str] = None,
+            doctor_diagnosis: Optional[dict] = None,
             ai_result_ready: Optional[bool] = None,
             is_export: Optional[int] = None,
             op_name: Optional[str] = None
@@ -243,7 +243,8 @@ class SliceAnalysisDomainService(object):
             # TODO fishTissue算法需要获取group_id逻辑
             # group_id = self.get_group_id(ai_type=ai_type, mark=mark_params, group_id=group_id)
             item['create_time'] = int(round(time.time() * 1000))
-            item['id'] = id_worker.get_next_id() or id_worker.get_new_id()
+            if 'id' not in item:
+                item['id'] = id_worker.get_next_id() or id_worker.get_new_id()
             if not item['position']['x']:
                 whole_slide_roi = self.repository.get_mark(item['id'])
                 if whole_slide_roi:
@@ -611,6 +612,7 @@ class SliceAnalysisDomainService(object):
             else:
                 marks_for_ai_result.append(mark)
 
+        logger.info(marks_for_ai_result)
         if marks_for_ai_result:
             self.update_ai_result(marks=marks_for_ai_result, option=2, ai_type=ai_type, tiled_slice=tiled_slice)
 
@@ -996,8 +998,6 @@ class SliceAnalysisDomainService(object):
                 }
             elif ai_type == AIType.pdl1:
                 pdl1_type_list = ["neg_norm", 'neg_tumor', 'pos_norm', 'pos_tumor']
-                rename_dict = {"neg_norm": "negNorm", "neg_tumor": "negTumor", "pos_norm": "posNorm",
-                               "pos_tumor": "posTumor"}
                 center_x, center_y = 0, 0
                 if whole_slide:
                     center_coords = ai_result_before_modify.get("center_coords")
@@ -1030,7 +1030,7 @@ class SliceAnalysisDomainService(object):
 
                         # Update Pdl1sCount
                         for tile_id in tile_id_list:
-                            self.repository.update_pdl1_count_in_tile(tile_id, rename_dict[cell_type], 1)
+                            self.repository.update_pdl1_count_in_tile(tile_id, cell_type, 1)
 
                     elif option == 2:
                         if whole_slide:
@@ -1054,7 +1054,7 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify['tps'] = 0
 
                         for tile_id in tile_id_list:
-                            self.repository.update_pdl1_count_in_tile(tile_id, rename_dict[cell_type], - 1)
+                            self.repository.update_pdl1_count_in_tile(tile_id, cell_type, - 1)
 
                     elif option == 3:
                         previous_type = pdl1_type_list[mark.pre_diagnosis['type']]
@@ -1080,8 +1080,8 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify['tps'] = 0
 
                         for tile_id in tile_id_list:
-                            self.repository.update_pdl1_count_in_tile(tile_id, rename_dict[previous_type], - 1)
-                            self.repository.update_pdl1_count_in_tile(tile_id, rename_dict[cell_type], 1)
+                            self.repository.update_pdl1_count_in_tile(tile_id, previous_type, - 1)
+                            self.repository.update_pdl1_count_in_tile(tile_id, cell_type, 1)
 
                 slide_total = ai_result_before_modify['pos_tumor'] + ai_result_before_modify['neg_tumor']
                 slide_heterogeneous = ai_result_before_modify['pos_tumor']

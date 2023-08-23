@@ -32,7 +32,7 @@ class MarkEntity(BaseDomainEntity):
 
     @property
     def json_fields(self) -> List[str]:
-        return ['position', 'ai_result', 'diagnosis']
+        return ['position', 'ai_result', 'diagnosis', 'doctor_diagnosis']
 
     def update_data(self, **kwargs):
         if 'type' in kwargs:

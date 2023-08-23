@@ -38,10 +38,6 @@ class MarkModel(BaseModel):
 
     __import_table_name__ = ''
 
-    """
-    'position', 'ai_result', 'diagnosis'
-    """
-
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
     position = Column(JSON, nullable=True, comment='标注点位置')
     method = Column(Text, nullable=True, comment='标注工具，例如自由笔')
@@ -58,7 +54,7 @@ class MarkModel(BaseModel):
     group_id = Column('groupId', Integer, nullable=True, comment='标注组id')
     area_id = Column('areaId', Integer, nullable=True, comment='算法区域标注id')
     dashed = Column(Integer, nullable=True, comment='虚线为1，实线为0')
-    doctor_diagnosis = Column('doctorDiagnosis', Text, comment='医生手工判读')
+    doctor_diagnosis = Column('doctorDiagnosis', JSON, comment='医生手工判读')
 
 
 class MarkToTileModel(BaseModel):

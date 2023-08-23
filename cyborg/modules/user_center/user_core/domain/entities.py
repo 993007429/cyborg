@@ -40,7 +40,7 @@ class CompanyEntity(BaseDomainEntity):
         return os.path.join(Settings.DATA_DIR, self.company)
 
     async def remove_data_dir(self):
-        await aioshutil.rmtree(self.base_dir)
+        await aioshutil.rmtree(self.base_dir, ignore_errors=True)
 
     def to_dict(self):
         d = {snake_to_camel(k): v for k, v in super().to_dict().items()}
@@ -86,6 +86,6 @@ class UserEntity(BaseDomainEntity):
         if self.companyEntity:
             d.update({
                 'importable': self.companyEntity.importable,
-                'exportJson': self.companyEntity.exportJson
+                'exportJson': self.companyEntity.export_json
             })
         return d

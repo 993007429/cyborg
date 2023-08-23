@@ -16,6 +16,10 @@ class SQLAlchemyUserRepository(UserRepository, SQLAlchemySingleModelRepository[U
         model = self.session.query(UserModel).filter_by(username=username, company=company).first()
         return UserEntity.from_dict(model.raw_data) if model else None
 
+    def get_user_by_id(self, user_id: int) -> Optional[UserEntity]:
+        model = self.session.query(UserModel).get(user_id)
+        return UserEntity.from_dict(model.raw_data) if model else None
+
     def get_users(self, company: Optional[str] = None) -> List[UserEntity]:
         query = self.session.query(UserModel)
         if company is not None:

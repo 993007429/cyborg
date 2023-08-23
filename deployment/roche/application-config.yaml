@@ -1,0 +1,13 @@
+# 在这里放置需要通过CDP配置的选项
+
+global:
+  nodePort: <<nodePort.nodePort>>
+  harbor:
+    url: harbor.roche-digital.cn/navify-anywhere-edge/rdsl-td-pli
+
+mysql:
+  password: <<mysqlServer.database.password>>
+  userName: <<mysqlServer.database.user>>
+
+Roche:
+  appSecret: <<service.account.secret>>

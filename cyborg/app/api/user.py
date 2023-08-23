@@ -7,6 +7,7 @@ from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import AppServiceFactory
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
+from cyborg.utils.strings import dict_camel_to_snake
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def login():
 
     res.data['cloud'] = Settings.CLOUD
     del res.data['id']
-    login_user = LoginUser.from_dict(res.data)
+    login_user = LoginUser.from_dict(dict_camel_to_snake(res.data))
 
     resp = make_response(jsonify(res.dict()))
     resp.set_cookie(key='jwt', value=login_user.jwt_token, expires=login_user.expire_time)

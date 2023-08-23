@@ -1,3 +1,4 @@
+import logging
 import operator, math
 import numpy as np
 from io import BytesIO
@@ -6,6 +7,8 @@ from collections import Mapping
 
 from . import kfb_lowlevel
 from .kfb_deepzoom import KfbDeepZoomGenerator
+
+logger = logging.getLogger(__name__)
 
 class kfbRef:
     img_count = 0
@@ -84,10 +87,11 @@ class KfbSlide(object):
         ------------
         
         '''
+
         TILE_SIZE = 256
         r_loc_level0 = list(location)
         r_size = list(size)
-        
+
         dzi_obj = self.get_dzi()
         
         downsample_ratio = self.level_downsamples[level]
@@ -103,15 +107,16 @@ class KfbSlide(object):
 
         # Get shift to make up for 256
         start_shift = [loc % TILE_SIZE for loc in r_loc]
+
         # calculate 256 integral size
         p_loc  =  list(map(operator.sub, r_loc,  start_shift))
         t_size =  list(map(operator.add, r_size, start_shift))
         # add end_shift to make up for 256 in the end part
-        end_shift = [TILE_SIZE - loc % TILE_SIZE for loc in t_size]
+        # end_shift = [TILE_SIZE - loc % TILE_SIZE for loc in t_size]
+        end_shift = [TILE_SIZE - loc % TILE_SIZE if loc % TILE_SIZE > 0 else 0 for loc in t_size]
         p_size = list(map(operator.add, t_size, end_shift))
 
         region_img = np.zeros((p_size[1], p_size[0], 3), dtype=np.uint8) + 1
-        
         num_x, num_y = int(p_size[0]/TILE_SIZE), int(p_size[1]/TILE_SIZE)
 
         start_x, start_y = math.floor(p_loc[0]/TILE_SIZE), math.floor(p_loc[1]/TILE_SIZE)
@@ -124,6 +129,9 @@ class KfbSlide(object):
                 #cur_region = self._fixed_read_region((p_loc[0]+rx*TILE_SIZE, p_loc[1]+ry*TILE_SIZE), 
                 #                                      level=level)
                 cur_region = dzi_obj.get_tile(tile_index, (rx+start_x, ry+start_y))
+                if not cur_region:
+                    continue
+
                 if isinstance(cur_region, np.ndarray):
                     buf = BytesIO(cur_region)
                     cur_region = Image.open(buf)

@@ -115,6 +115,12 @@ class MinIO(Oss):
             secret_key=self.secret,
             secure=False,
         )
+        self.public_client = Minio(
+            self.public_endpoint,
+            access_key=self.access_key,
+            secret_key=self.secret,
+            secure=False,
+        )
 
     @cached_property
     def bucket_endpoint(self):
@@ -182,9 +188,11 @@ class MinIO(Oss):
 
     def generate_sign_url(self, method: str, key: str, expire_in: int = 600, slash_safe=True) -> str:
         rand = random.randint(100000, 500000)
-        return self.client.get_presigned_url(method, bucket_name=self.bucket_name, object_name=key,
-                                             expires=datetime.timedelta(seconds=expire_in),
-                                             extra_query_params={'seal': f'{rand}'})
+        return self.public_client.get_presigned_url(
+            method, bucket_name=self.bucket_name, object_name=key,
+            expires=datetime.timedelta(seconds=expire_in),
+            extra_query_params={'cyborg': f'{rand}'}
+        )
 
     def generate_sign_token(self, filetype: str, target_dir: str, expire_in: int = 300) -> dict:
         """sign upload token with specify file suffix, :filetype:

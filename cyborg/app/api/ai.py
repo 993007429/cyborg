@@ -63,7 +63,6 @@ def cancel_calibration():
 def get_result():
     ai_type = request.form.get('type')
     request_context.ai_type = AIType.get_by_value(ai_type)
-
     res = AppServiceFactory.ai_service.get_ai_task_result()
     return jsonify(res.dict())
 

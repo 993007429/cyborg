@@ -121,7 +121,7 @@ def create_company():
 async def delete_company():
     company = request.form.get('grp_name')
     res = await AppServiceFactory.user_service.delete_company(company_id=company)
-    return jsonify(res.dict)
+    return jsonify(res.dict())
 
 
 @api_blueprint.route('/manage/shutdown', methods=['get', 'post'])
@@ -169,7 +169,7 @@ def get_ai_threshold():
 @api_blueprint.route('/manage/getDefaultAiThreshold', methods=['get', 'post'])
 def get_default_ai_threshold():
     request_context.ai_type = AIType.get_by_value(request.form.get('algor_type'))
-    res = AppServiceFactory.user_service.get_ai_threshold()
+    res = AppServiceFactory.user_service.get_default_ai_threshold()
     return jsonify(res.dict())
 
 

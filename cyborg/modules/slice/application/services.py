@@ -121,11 +121,7 @@ class SliceService(object):
 
     def delete_records(self, case_ids: List[str]) -> AppResponse[str]:
         freed_size = self.domain_service.delete_records(case_ids, request_context.current_company)
-        if freed_size > 0:
-            self.user_service.update_company_storage_usage(
-                company_id=request_context.current_company,
-                increased_size=- freed_size)
-        else:
+        if freed_size <= 0:
             return AppResponse(message='删除失败')
 
         return AppResponse(data='删除成功')
@@ -135,15 +131,16 @@ class SliceService(object):
         return AppResponse(data=result)
 
     def _check_space_usage(self) -> Tuple[int, str]:
-        free_space = fs.get_free_space(Settings.DATA_DIR)
-        if free_space < 10:  # 校验物 理磁盘剩余空间（留10个g兜底）
-            return 5, f'剩余磁盘空间不足,剩余{free_space}G'
-
-        company_info = self.user_service.get_company_info(company_id=request_context.current_company).data
-        volume = company_info['volume']
-        usage = company_info['usage']
-        if volume and usage and float(usage) >= float(volume):
-            return 5, f'volume: {volume}, usage: {usage}'
+        if Settings.CLOUD:
+            company_info = self.user_service.get_company_info(company_id=request_context.current_company).data
+            volume = company_info['volume']
+            usage = company_info['usage']
+            if volume and usage and float(usage) >= float(volume):
+                return 5, f'volume: {volume}, usage: {usage}'
+        else:
+            free_space = fs.get_free_space(Settings.DATA_DIR)
+            if free_space < 10:  # 校验物 理磁盘剩余空间（留10个g兜底）
+                return 5, f'剩余磁盘空间不足,剩余{free_space}G'
 
         return 0, ''
 
@@ -161,6 +158,10 @@ class SliceService(object):
             upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str, cover_slice_number: bool,
             high_through: bool, operator: str
     ) -> AppResponse[dict]:
+
+        err_code, message = self._check_space_usage()
+        if err_code:
+            return AppResponse(err_code=err_code, message=message)
 
         if high_through:
             # 上传文件重复性校验
@@ -193,12 +194,6 @@ class SliceService(object):
                 if slice_info:
                     return AppResponse(data=slice_info)
         else:
-            slide_save_name = os.path.join(upload_path, file_name)
-            slide_size = fs.get_file_size(slide_save_name) / 1024 ** 3
-            self.user_service.update_company_storage_usage(
-                company_id=company_id,
-                increased_size=slide_size
-            )
             return AppResponse(data={'path': os.path.join(Settings.DATA_DIR, company_id, 'data')})
 
         return AppResponse(err_code=6, message='上传发生异常')
@@ -432,12 +427,7 @@ class SliceService(object):
         if not slice:
             return AppResponse(err_code=1, message='slice does not exist')
 
-        freed_size = self.domain_service.delete_slice(slice)
-        if freed_size > 0:
-            self.user_service.update_company_storage_usage(
-                company_id=request_context.current_company,
-                increased_size=freed_size
-            )
+        self.domain_service.delete_slice(slice)
         return AppResponse(message='delete slice succeed')
 
     def delete_ai_image_files(self, case_id: str, file_id: str):

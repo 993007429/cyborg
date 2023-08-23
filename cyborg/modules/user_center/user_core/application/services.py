@@ -89,10 +89,6 @@ class UserCoreService(object):
         data = self.domain_service.get_company_storage_info(company_id=request_context.current_company)
         return AppResponse(data=data)
 
-    def update_company_storage_usage(self, company_id: str, increased_size: float) -> AppResponse[bool]:
-        success = self.domain_service.update_company_storage_usage(company_id=company_id, increased_size=increased_size)
-        return AppResponse(data=success)
-
     def update_company_trial(self, ai_name: str) -> AppResponse:
         err_code, message, company = self.domain_service.update_company_trial(
             company_id=request_context.current_company, ai_name=ai_name)
@@ -137,6 +133,12 @@ class UserCoreService(object):
 
     def get_user(self, username: str, company: str) -> AppResponse:
         user = self.domain_service.repository.get_user_by_name(username=username, company=company)
+        if not user:
+            return AppResponse(err_code=1, message='no such user')
+        return AppResponse(data=user.to_dict())
+
+    def get_user_by_id(self, user_id: int) -> AppResponse:
+        user = self.domain_service.repository.get_user_by_id(user_id=user_id)
         if not user:
             return AppResponse(err_code=1, message='no such user')
         return AppResponse(data=user.to_dict())

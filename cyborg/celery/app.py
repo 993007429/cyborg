@@ -1,13 +1,11 @@
 import logging
 from functools import wraps
-from typing import Tuple
 
 from celery import Celery
-from celery.result import AsyncResult
 from kombu import Exchange, Queue
 
 from cyborg.app.request_context import request_context
-from cyborg.infra.celery import make_default_config, async_get_result
+from cyborg.infra.celery import make_default_config
 
 logger = logging.getLogger(__name__)
 

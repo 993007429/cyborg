@@ -1,12 +1,13 @@
 import json
 import logging
 
-from flask import request, jsonify
+from flask import request, jsonify, send_file, redirect
 
 from cyborg.app.api import api_blueprint
 from cyborg.app.limiter import limiter
 from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import AppServiceFactory
+from cyborg.infra.oss import oss
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.utils.strings import camel_to_snake
@@ -223,3 +224,24 @@ def get_screen_count():
 
     res = AppServiceFactory.slice_analysis_service.get_cell_count_in_quadrant(view_path=view_path)
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/files/downloadTemplate', methods=['get', 'post'])
+def download_template():
+    template_name = request.args.get('name')
+    if template_name.startswith('调参模板'):
+        oss_key = oss.path_join('AI', 'PDL1', template_name)
+    elif template_name.startswith('病例列表'):
+        oss_key = oss.path_join('record', 'template', template_name)
+    else:
+        return '', 404
+
+    oss_url = oss.generate_sign_url('GET', oss_key)
+
+    return redirect(oss_url, code=302)
+
+
+@api_blueprint.route('/files/exportJson', methods=['get', 'post'])
+def export_json():
+    file_path = AppServiceFactory.slice_analysis_service.export_marks()
+    return send_file(file_path)

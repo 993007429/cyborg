@@ -1,0 +1,98 @@
+{
+  "appCode": "cyborg",
+  "version": "839467399233851392",
+  "cdpVersion": "1.3.1",
+  "deployments": [
+    {
+      "id": "839467399246434305",
+      "stepCode": "mysql_database_deployment",
+      "depends": [
+        "839467399246434304"
+      ],
+      "params": {
+        "database": "dipath",
+        "user": "dipath",
+        "charsets": "utf8mb4",
+        "collate": "utf8_general_ci"
+      },
+      "result": {
+        "deploymentStatus": "Not-Start",
+        "deploymentStartTime": "",
+        "deploymentCompleteTime": "",
+        "errorMessage": ""
+      }
+    },
+    {
+      "id": "839467399246434304",
+      "stepCode": "mysql_server_deployment",
+      "depends": [],
+      "params": {
+        "mode": "shared",
+        "disk": "15Gi",
+        "memory": "8Gi",
+        "cpu": "2000m",
+        "mysqlServer": "cyborg-mysql-57",
+        "version": "5.7.0"
+      },
+      "result": {
+        "deploymentStatus": "Not-Start",
+        "deploymentStartTime": "",
+        "deploymentCompleteTime": "",
+        "errorMessage": ""
+      }
+    },
+    {
+      "id": "839467399246434306",
+      "stepCode": "redis_server_deployment",
+      "depends": [],
+      "params": {
+        "mode": "shared",
+        "disk": "15Gi",
+        "memory": "8Gi",
+        "cpu": "2000m",
+        "mysqlServer": "cyborg-redis-60",
+        "version": "6.0.16"
+      },
+      "result": {
+        "deploymentStatus": "Not-Start",
+        "deploymentStartTime": "",
+        "deploymentCompleteTime": "",
+        "errorMessage": ""
+      }
+    },
+    {
+      "id": "839467399250628608",
+      "stepCode": "file_service_deployment",
+      "depends": [],
+      "params": {
+        "shared": "",
+        "self": "[{\"folder\":\"cyborg-fs\",\"capacity\":\"50Gi\",\"isBackup\":\"false\",\"name\":\"cyborg-fs-7fc89aef\",\"accessMode\":\"ReadWriteOnce\"}]",
+        "storage": "storage"
+      },
+      "result": {
+        "deploymentStatus": "Not-Start",
+        "deploymentStartTime": "",
+        "deploymentCompleteTime": "",
+        "errorMessage": ""
+      }
+    },
+    {
+      "id": "839467399250628609",
+      "stepCode": "application_deployment",
+      "depends": [
+        "839467399246434305",
+        "839467399246434306",
+        "839467399250628608"
+      ],
+      "params": {
+        "nodePort": "[{\"port\":\"32421\",\"key\":\"nodePort\",\"mainEntryPort\":\"true\"}]"
+      },
+      "result": {
+        "deploymentStatus": "Not-Start",
+        "deploymentStartTime": "",
+        "deploymentCompleteTime": "",
+        "errorMessage": ""
+      }
+    }
+  ]
+}

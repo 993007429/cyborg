@@ -16,6 +16,10 @@ class UserRepository(SingleModelRepository[UserEntity], metaclass=ABCMeta):
         ...
 
     @abstractmethod
+    def get_user_by_id(self, user_id: int) -> Optional[UserEntity]:
+        ...
+
+    @abstractmethod
     def get_users(self, company: Optional[str] = None) -> List[UserEntity]:
         ...
 

@@ -1,5 +1,4 @@
 import datetime
-import gc
 import json
 import logging
 from collections import Counter
@@ -19,6 +18,7 @@ from cyborg.consts.ki67 import Ki67Consts
 from cyborg.consts.np import NPConsts
 from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.consts.tct import TCTConsts
+from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 class AIDomainService(object):
+
+    RANK0_TASK_ID_CACHE_KEY = 'cyborg:ai_task:rank0'
 
     def __init__(self, repository: AIRepository):
         super(AIDomainService, self).__init__()
@@ -57,8 +59,6 @@ class AIDomainService(object):
             'is_calibrate': is_calibrate
         })
 
-        task.setup_expired_time()
-
         if self.repository.save_ai_task(task):
             return task
 
@@ -70,11 +70,24 @@ class AIDomainService(object):
 
         if status is not None:
             task.update_data(status=status)
+            if status == AITaskStatus.analyzing:
+                task.setup_expired_time()
+                cache.set(self.RANK0_TASK_ID_CACHE_KEY, task.id)
 
         if result_id is not None:
             task.update_data(result_id=result_id)
 
         return self.repository.save_ai_task(task)
+
+    def maintain_ai_tasks(self, until_id: Optional[int] = None) -> List[dict]:
+        tasks = self.repository.get_ai_tasks(status=AITaskStatus.analyzing, until_id=until_id, limit=100)
+        failed = []
+        for task in tasks:
+            if task.is_timeout:
+                task.set_failed()
+                self.repository.save_ai_task(task)
+                failed.append(task.to_dict())
+        return failed
 
     def check_available_gpu(self, task: AITaskEntity):
         from cyborg.modules.ai.utils.gpu import get_gpu_status
@@ -107,7 +120,8 @@ class AIDomainService(object):
         stats_list = self.repository.get_ai_stats(
             ai_type=ai_type, company=company, start_date=start_date, end_date=end_date, version=Settings.VERSION)
         data = [stats.to_dict() for stats in stats_list]
-        total = dict(sum([Counter(item) for item in data], start=Counter()))
+        total = AIStatisticsEntity().to_stats_data()
+        total.update(dict(sum([Counter(stats.to_stats_data()) for stats in stats_list], start=Counter())))
         total['date'] = '总计'
         data.insert(0, total)
         return data
@@ -184,6 +198,7 @@ class AIDomainService(object):
         tct_prob = self.repository.get_tct_prob(slice_id=slice_id)
         if not tct_prob:
             tct_prob = TCTProbEntity()
+            tct_prob.update_data(slice_id=slice_id)
 
         tct_prob.update_data(
             prob_nilm=prob_info['NILM'],
@@ -350,6 +365,7 @@ class AIDomainService(object):
                 is_export=1,
                 ai_result=ai_result,
                 editable=1,
+                stroke_color='grey',
                 group_id=group_id
             ))
 
@@ -457,6 +473,7 @@ class AIDomainService(object):
                 mark_type=3,
                 method='rectangle',
                 is_export=1,
+                stroke_color='grey',
                 ai_result=count_summary_dict,
                 group_id=group_name_to_id.get('ROI')
             ))
@@ -552,6 +569,7 @@ class AIDomainService(object):
                 mark_type=3,
                 method='rectangle',
                 ai_result=ai_result,
+                stroke_color='grey',
                 is_export=1,
                 group_id=group_name_to_id.get('ROI'),
             ))
@@ -793,6 +811,7 @@ class AIDomainService(object):
             ai_result=count_summary_dict,
             diagnosis={'type': cell_type},
             radius=1 / mpp,
+            stroke_color='grey',
             is_export=1,
             editable=1,
             group_id=group_name_to_id.get('ROI')
@@ -832,7 +851,7 @@ class AIDomainService(object):
             BMConsts.label1_num_dict[BMConsts.label_map_dict[label_name]] += 1
             if BMConsts.label2_num_dict[label_name] <= 100:
                 BMConsts.label2_data_dict[label_name].append({
-                    # "id": idx,
+                    "id": idx,
                     "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
                     "image": 0,
                     "editable": 0,
@@ -847,7 +866,7 @@ class AIDomainService(object):
                 })
 
                 cell_mark = Mark(
-                    # id=idx,
+                    id=idx,
                     position={'x': [xmin, xmax, xmax, xmin], 'y': [ymin, ymin, ymax, ymax]},
                     stroke_color='red',
                     mark_type=2,
@@ -861,7 +880,7 @@ class AIDomainService(object):
 
         for label1, num in sorted(BMConsts.label1_num_dict.items(), key=lambda k: k[1], reverse=True):
             label2_list = BMConsts.reversed_label_map_dict[label1]
-            subset_label2_dict = {k: v for k, v in BMConsts.label1_num_dict.items() if k in label2_list}
+            subset_label2_dict = {k: v for k, v in BMConsts.label2_num_dict.items() if k in label2_list}
             tier2_list = [{'label': k, 'num': v, 'data': BMConsts.label2_data_dict[k]} for (k, v) in
                           sorted(subset_label2_dict.items(), key=lambda k: k[1], reverse=True)]
             cells.append({'label': label1, 'num': num, 'data': tier2_list})
@@ -882,6 +901,7 @@ class AIDomainService(object):
             method='rectangle',
             is_export=1,
             ai_result=ai_result,
+            stroke_color='grey',
             radius=1 / mpp,
             group_id=group_name_to_id.get('ROI')
         )
@@ -916,9 +936,11 @@ class AIDomainService(object):
             if task.status == AITaskStatus.analyzing:
                 return '', {'done': False, 'rank': 0}
             else:
-                ranking = self.repository.get_ai_task_ranking(task.id)
+                start_id = cache.get(self.RANK0_TASK_ID_CACHE_KEY)
+                ranking = self.repository.get_ai_task_ranking(task.id, start_id=start_id)
                 if ranking is not None:
                     return '', {'done': False, 'rank': ranking + 1}
+
                 return '', {'done': True, 'rank': -2}
 
     def get_analyze_threshold(self, threshold: float, analyse_mode: str, slices: List[dict]) -> dict:

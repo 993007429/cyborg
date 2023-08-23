@@ -4,6 +4,12 @@ from cyborg.app.request_context import request_context
 from cyborg.modules.ai.application.services import AIService
 from cyborg.modules.ai.domain.services import AIDomainService
 from cyborg.modules.ai.infrastructure.repositories import SQLAlchemyAIRepository
+from cyborg.modules.oauth.application.services import OAuthService
+from cyborg.modules.oauth.domain.services import OAuthDomainService
+from cyborg.modules.oauth.infrastructure.repositories import SqlAlchemyOAuthApplicationRepository
+from cyborg.modules.openapi.authentication.application.services import OpenAPIAuthService
+from cyborg.modules.openapi.authentication.domain.services import OpenAPIAuthDomainService
+from cyborg.modules.openapi.authentication.infrastructure.repositories import ConfigurableOpenAPIClientRepository
 
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice.domain.services import SliceDomainService
@@ -146,6 +152,41 @@ class AIContainer(containers.DeclarativeContainer):
     )
 
 
+class OpenAPIContainer(containers.DeclarativeContainer):
+    core = providers.DependenciesContainer()
+
+    user_center = providers.DependenciesContainer()
+
+    client_repository = providers.Factory(
+        ConfigurableOpenAPIClientRepository
+    )
+
+    openapi_auth_domain_service = providers.Factory(
+        OpenAPIAuthDomainService,
+        client_repository=client_repository,
+    )
+
+    openapi_auth_service = providers.Factory(
+        OpenAPIAuthService,
+        domain_service=openapi_auth_domain_service,
+    )
+
+    oauth_application_repository = providers.Factory(
+        SqlAlchemyOAuthApplicationRepository, session=core.request_context.provided.db_session
+    )
+
+    oauth_domain_service = providers.Factory(
+        OAuthDomainService,
+        repository=oauth_application_repository,
+    )
+
+    oauth_service = providers.Factory(
+        OAuthService,
+        domain_service=oauth_domain_service,
+        user_service=user_center.user_service
+    )
+
+
 class AppContainer(containers.DeclarativeContainer):
 
     core = providers.Container(Core)
@@ -173,4 +214,10 @@ class AppContainer(containers.DeclarativeContainer):
         user_center=user_center,
         slice=slice,
         slice_analysis=slice_analysis
+    )
+
+    openapi = providers.Container(
+        OpenAPIContainer,
+        core=core,
+        user_center=user_center
     )

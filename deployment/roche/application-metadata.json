@@ -1,0 +1,30 @@
+{
+    "application":{
+        "applicationCode":"cyborg",
+        "applicationName":"Dipath Pathology",
+        "partnerName":"dipath",
+        "icon":"logo.png",
+        "applicationType":"3",
+        "applicationVersion":"4.0.3",
+        "applicationDesc":"Dipath Pathology",
+        "applicationCategory":""
+    },
+    "components":[
+        {
+            "versionNo":"4.0.3",
+            "componentName":"Dipath Pathology Frontend",
+            "description":"this is frontend",
+            "type":"3",
+            "applicationComponentCode":"cyborg-fe",
+            "accessType":"public"
+        },
+        {
+            "versionNo":"4.0.3",
+            "componentName":"Dipath Pathology Backend",
+            "description":"this is backend",
+            "type":"3",
+            "applicationComponentCode":"cyborg-backend",
+            "accessType":"bearer-only"
+        }
+    ]
+}

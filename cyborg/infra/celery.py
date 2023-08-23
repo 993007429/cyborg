@@ -29,12 +29,13 @@ def make_default_config():
         task_serializer='pickle',
         result_serializer='pickle',
         accept_content=['pickle', 'json'],
-        result_expires=120,
+        result_expires=1800,
         worker_prefetch_multiplier=1,
-        # worker_max_tasks_per_child=1,
         worker_max_memory_per_child=10000000,
         worker_send_task_events=True,
         task_send_sent_event=True,
+        # task_acks_late=True,
+        broker_transport_options={'visibility_timeout': 60}
     )
     return config
 

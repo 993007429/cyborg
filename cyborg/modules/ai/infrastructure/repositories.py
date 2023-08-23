@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from sqlalchemy import desc
 
+from cyborg.infra.cache import cache
 from cyborg.infra.session import transaction
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
@@ -37,15 +38,25 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         model = self.session.query(AITaskModel).filter_by(is_calibrate=True).order_by(desc(AITaskModel.id)).first()
         return AITaskEntity.from_dict(model.raw_data) if model else None
 
-    def get_ai_task_ranking(self, task_id: int) -> Optional[int]:
+    def get_ai_task_ranking(self, task_id: int, start_id: Optional[int] = None) -> Optional[int]:
         rows = self.session.query(AITaskModel.id).filter(
             AITaskModel.status == AITaskStatus.default,
-            AITaskModel.expired_at > datetime.now()
+            AITaskModel.id > (start_id or 0)
         ).order_by(AITaskModel.id).all()
         for idx, row in enumerate(rows):
             if row[0] == task_id:
                 return idx
         return None
+
+    def get_ai_tasks(
+            self, status: Optional[AITaskStatus], until_id: Optional[int], limit: int = 100) -> List[AITaskEntity]:
+        query = self.session.query(AITaskModel)
+        if status is not None:
+            query = query.filter(AITaskModel.status == status.value)
+        if until_id is not None:
+            query = query.filter(AITaskModel.id < until_id)
+        models = query.order_by(AITaskModel.id.desc())
+        return [AITaskEntity.from_dict(model.raw_data) for model in models]
 
     def get_ai_id_by_type(self, ai_type: AIType) -> Optional[int]:
         row = self.session.query(AIModel.id).filter_by(ai_name=ai_type.value).first()
@@ -79,7 +90,6 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         query = self.session.query(AIStatisticsModel).filter_by(
             ai_type=ai_type.value,
             company=company,
-            date=date
         )
         if date is not None:
             query = query.filter_by(date=date)
@@ -110,7 +120,8 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         return TCTProbEntity.from_dict(model.raw_data) if model else None
 
     def get_tct_probs_by_slices(self, slices: List[dict]) -> List[TCTProbEntity]:
-        mapping = {s['id']: s for s in slices}
+        mapping = {s['uid']: s['check_result'] for s in slices}
+
         models = self.session.query(TCTProbModel).filter(TCTProbModel.slice_id.in_(mapping.keys())).all()
         return [TCTProbEntity.from_dict(
             model.raw_data, check_result=mapping.get(model.slice_id, '')) for model in models]

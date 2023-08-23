@@ -1,4 +1,6 @@
 from __future__ import division
+
+import logging
 from io import BytesIO
 import math
 from PIL import Image
@@ -10,6 +12,9 @@ PROPERTY_NAME_BOUNDS_X         = u'openslide.bounds-x'
 PROPERTY_NAME_BOUNDS_Y         = u'openslide.bounds-y'
 PROPERTY_NAME_BOUNDS_WIDTH     = u'openslide.bounds-width'
 PROPERTY_NAME_BOUNDS_HEIGHT    = u'openslide.bounds-height'
+
+logger = logging.getLogger(__name__)
+
 
 class KfbDeepZoomGenerator( object ):
 
@@ -103,7 +108,10 @@ class KfbDeepZoomGenerator( object ):
         """
         # Read tile
         args, z_size = self._get_tile_info(level, address)
+
         tile = self._osr._fixed_read_region(*args)
+        if tile is None:
+            return None
         '''
         # Apply on solid background
         bg = Image.new('RGB', tile.size, self._bg_color)
@@ -125,7 +133,7 @@ class KfbDeepZoomGenerator( object ):
         if dz_level < 0 or dz_level >= self._dz_levels:
             raise ValueError("Invalid level")
         for t, t_lim in zip(t_location, self._t_dimensions[dz_level]):
-            if t < 0 or t >= t_lim:
+            if t < 0 or t > t_lim:
                 raise ValueError("Invalid address")
 
         # Get preferred slide level
@@ -152,10 +160,10 @@ class KfbDeepZoomGenerator( object ):
         # Round location down and size up, and add offset of active area
         l0_location = tuple(int(self._l0_from_l(slide_level, l) + l0_off)
                     for l, l0_off in zip(l_location, self._l0_offset))
-        l_size = tuple(int(min(math.ceil(self._l_from_z(dz_level, dz)),
-                    l_lim - math.ceil(l)))
-                    for l, dz, l_lim in
-                    zip(l_location, z_size, self._l_dimensions[slide_level]))
+
+        l_size = tuple(
+            int(min(math.ceil(self._l_from_z(dz_level, dz)), l_lim - math.ceil(l)))
+            for l, dz, l_lim in zip(l_location, z_size, self._l_dimensions[slide_level]))
 
         # Return read_region() parameters plus tile size for final scaling
         return ((l0_location, slide_level, l_size), z_size)

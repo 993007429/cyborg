@@ -74,6 +74,7 @@ class AIService(object):
             status=SliceStartedStatus.default, ai_name=ai_name, upload_batch_number=upload_batch_number,
             template_id=template_id, ip_address=ip_address)
         if res.err_code:
+            res.err_code = 3
             return res
 
         slice_info = res.data
@@ -97,6 +98,8 @@ class AIService(object):
         task = self.domain_service.repository.get_ai_task_by_id(task_id)
         if not task:
             return AppResponse(err_code=1, message='任务不存在')
+        if task.is_finished:
+            return AppResponse()
 
         request_context.case_id = task.case_id
         request_context.file_id = task.file_id
@@ -124,7 +127,6 @@ class AIService(object):
         request_context.ai_type = ai_type
 
         self.analysis_service.clear_ai_result()
-        # self.analysis_service.clear_ai_result(exclude_area_marks=[int(roi['id']) for roi in task.rois if roi['x']])
 
         groups = self.analysis_service.get_mark_groups(template_id=task.template_id).data
         group_name_to_id = {group['label']: int(group['id']) for group in groups}
@@ -151,18 +153,11 @@ class AIService(object):
             elif ai_type == AIType.fish_tissue:
                 result = self.domain_service.run_fish_tissue(task, group_name_to_id)
             elif ai_type == AIType.pdl1:
-                # TODO
-                # if "fit" in task.model_info:
-                #     logger.info("run fitting model")
-                #     # result = self.domain_service.refine_pdl1(task)  # 调参
-                # else:
                 result = self.domain_service.run_pdl1(task, group_name_to_id, request_context.current_user.data_dir)
             elif ai_type == AIType.np:
                 result = self.domain_service.run_np(task, group_name_to_id)
             elif ai_type == AIType.bm:
                 result = self.domain_service.run_bm(task, group_name_to_id)
-            # elif ai_type == AIType.model_calibrate_tct:
-            #     result = self.domain_service.calibrate_lct(task)
             else:
                 logger.error(f'{ai_type} does not support')
                 result = ALGResult(ai_suggest='', err_msg=f'{ai_type} does not support')
@@ -173,6 +168,7 @@ class AIService(object):
 
         if result.err_msg:
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
+            self.slice_service.finish_ai(status=SliceStartedStatus.failed)
             return AppResponse(message=result.err_msg)
 
         stats = self.domain_service.refresh_ai_statistics(
@@ -207,7 +203,7 @@ class AIService(object):
             )
 
         alg_time = time.time() - start_time
-        logger.info(f'任务{task.id}计算完成,耗时{alg_time}')
+        logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 计算完成,耗时{alg_time}')
 
         return AppResponse(message='succeed')
 
@@ -224,13 +220,15 @@ class AIService(object):
             request_context.case_id = slice_info['caseid']
             request_context.file_id = slice_info['fileid']
             res = self.start_ai(ai_name=ai_name)
-            if res.err_code:
+            if res.err_code == 1:
+                return res
+            elif res.err_code:
                 failed += 1
             else:
                 data.append(res.data)
 
         return AppResponse(
-            message=f'操作成功。有{failed}张切片正在处理或上传中，系统已跳过处理。' if failed else '操作成功', data=data)
+            message='操作成功', data=data)
 
     def do_model_calibration(self, ai_name: str, case_ids: List[int]) -> AppResponse:
 
@@ -255,7 +253,7 @@ class AIService(object):
         if not task:
             return AppResponse(err_code=1, message='ai task not found')
 
-        ret = app.control.revoke(task.result_id, terminate=True)
+        app.control.revoke(task.result_id, terminate=True)
 
         if task.status not in (AITaskStatus.success, AITaskStatus.failed):
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
@@ -295,3 +293,12 @@ class AIService(object):
             ai_type=request_context.ai_type, company=request_context.current_company,
             start_date=start_date, end_date=end_date)
         return AppResponse(data=data)
+
+    def maintain_ai_tasks(self) -> AppResponse:
+        failed = self.domain_service.maintain_ai_tasks()
+        for task in failed:
+            request_context.case_id = task['case_id']
+            request_context.file_id = task['file_id']
+            self.slice_service.update_ai_status(status=SliceStartedStatus.failed)
+            app.control.revoke(task['result_id'], terminate=True)
+        return AppResponse(data=failed)
