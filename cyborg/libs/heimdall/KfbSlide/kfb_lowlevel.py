@@ -1,5 +1,6 @@
 from __future__ import division
 
+import logging
 import sys
 
 from ctypes import *
@@ -10,6 +11,8 @@ if sys.platform == 'win32':
     _lib = windll.LoadLibrary('libkfbslide.dll')
 elif sys.platform == 'linux':
     _lib = cdll.LoadLibrary('libkfbslide.so')
+
+logger = logging.getLogger(__name__)
 
 
 class OpenSlideError(Exception):
@@ -160,10 +163,14 @@ def kfbslide_read_region(osr, level, pos_x, pos_y):
     pixel = POINTER(c_ubyte)()
     if not _kfbslide_read_region(osr, level, pos_x, pos_y,
                                  byref(data_length), byref(pixel)):
-        raise ValueError("Fail to read region")
-    # print("DataLength : ", data_length)
+        return None
+
+    logger.info('>>>>>>>>>>>1111')
+    logger.info(data_length)
+    logger.info(pixel)
+
     if data_length.value == 0:
-        raise Exception("Fail to read region")
+        return None
 
     img_array = np.ctypeslib.as_array(pixel, shape=(data_length.value,)).copy()
 

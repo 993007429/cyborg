@@ -2,10 +2,10 @@ from unittest import mock
 
 from sqlalchemy.orm import sessionmaker
 
-from seal.app import request_context
-from seal.infra.oss import oss
-from seal.infra.mock.oss import MockedOss
-from seal.infra.mock.session import mocked_engine
+from cyborg.app.request_context import request_context
+from cyborg.infra.mock.oss import MockedOss
+from cyborg.infra.mock.session import mocked_engine
+from cyborg.infra.oss import oss
 
 
 class BaseTest(object):

@@ -274,8 +274,8 @@ class SliceDomainService(object):
 
     def update_ai_status(
             self, case_id: str, file_id: str, company_id: str, status: SliceStartedStatus,
-            ai_name: Optional[str] = None, upload_batch_number: Optional[str] = None, template_id: Optional[int] = None,
-            ip_address: Optional[str] = None
+            ai_name: Optional[str] = None, upload_batch_number: Optional[str] = None,
+            template_id: Optional[int] = None, ip_address: Optional[str] = None
     ) -> Optional[SliceEntity]:
         entity = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
         if not entity:
@@ -289,13 +289,15 @@ class SliceDomainService(object):
         if ai_name is not None:
             ai_dict = entity.ai_dict
             ai_dict[ai_name + 'Started'] = True
-            entity.update_data(ai_dict=ai_dict, alg=ai_name)
+            entity.update_data(ai_dict=ai_dict, alg=ai_name, tool_type=ai_name)
         if upload_batch_number is not None:
             entity.update_data(upload_batch_number=upload_batch_number)
         if template_id is not None:
             entity.update_data(template_id=template_id)
         if ip_address is not None:
             entity.update_data(ipaddress=ip_address)
+
+        entity.update_data(update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
         if self.repository.save_slice(entity):
             return entity
@@ -532,41 +534,43 @@ class SliceDomainService(object):
             name = attachment.get('name', None)
             filename = attachment.get('filename', None)
 
-            slice = self.repository.get_slice(case_id=case_id, file_id=fileid, company=company_id)
-            if not slice:
-                loaded = attachment.get('loaded', 0)
-                total = attachment.get('total', 0)
-                stain = attachment.get('stain', None)
-                state = attachment.get('state', 1)
-                ajax_token = json.dumps(attachment.get('ajaxToken', {}))
-                path = attachment.get('path', '')
-                res_obj = {
-                    'caseid': case_id,
-                    'filename': filename,
-                    'name': name,
-                    'loaded': loaded,
-                    'total': total,
-                    'stain': stain,
-                    'state': state,
-                    'mppx': 0.0,
-                    'mppy': 0.0,
-                    'height': 0,
-                    'width': 0,
-                    'tool_type': None,
-                    'started': 0,
-                    'objective_rate': '',
-                    'radius': 1,  # 默认系数是1
-                    'is_solid': 1,  # 默认标注模块中显示实心
-                    'fileid': fileid,
-                    'company': company_id,
-                    'ajax_token': ajax_token,
-                    'path': path,
-                    'type': "attachment",
-                    'update_time': datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    'operator': user_name,
-                }
-                new_slice = SliceEntity(raw_data=res_obj)
-                self.repository.save_slice(new_slice)
+            slice_entity = self.repository.get_slice(case_id=case_id, file_id=fileid, company=company_id)
+            if not slice_entity:
+                slice_entity = SliceEntity()
+
+            loaded = attachment.get('loaded', 0)
+            total = attachment.get('total', 0)
+            stain = attachment.get('stain', None)
+            state = attachment.get('state', 1)
+            ajax_token = json.dumps(attachment.get('ajaxToken', {}))
+            path = attachment.get('path', '')
+            res_obj = {
+                'caseid': case_id,
+                'filename': filename,
+                'name': name,
+                'loaded': loaded,
+                'total': total,
+                'stain': stain,
+                'state': state,
+                'mppx': 0.0,
+                'mppy': 0.0,
+                'height': 0,
+                'width': 0,
+                'tool_type': None,
+                'started': 0,
+                'objective_rate': '',
+                'radius': 1,  # 默认系数是1
+                'is_solid': 1,  # 默认标注模块中显示实心
+                'fileid': fileid,
+                'company': company_id,
+                'ajax_token': ajax_token,
+                'path': path,
+                'type': "attachment",
+                'update_time': datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                'operator': user_name,
+            }
+            slice_entity.update_data(**res_obj)
+            self.repository.save_slice(slice_entity)
 
         slices = self.repository.get_slices_by_case_id(case_id=case_id, company=company_id)
         slice_count = self.repository.get_slice_count_by_case_id(case_id=case_id, company=company_id)

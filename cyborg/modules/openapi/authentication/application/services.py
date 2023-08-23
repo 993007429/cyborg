@@ -18,22 +18,17 @@ class OpenAPIAuthService(object):
 
     def check_params_signature(
             self, *,
-            token: str, method: str, content_type: str, gmt_date: str,
-            query_string: str, request_body: str, user_id: str = ''
+            sign: str,
+            params: dict,
     ) -> Optional[AppResponse]:
         if not request_context.openapi_client:
             return UnregisteredClientResponse()
 
-        if not self.domain_service.check_gmt_date(gmt_date):
-            return ParamsSignatureErrorResponse(message='Request Expired.')
-
         if not self.domain_service.check_signature(
-                token,
+                sign,
                 access_key=request_context.openapi_client.access_key,
                 secret_key=request_context.openapi_client.secret_key,
-                app_name=request_context.openapi_client.app_name,
-                method=method, content_type=content_type, gmt_date=gmt_date,
-                query_string=query_string, request_body=request_body, user_id=user_id
+                params=params
         ):
             return ParamsSignatureErrorResponse(message='Invalid Signature')
 

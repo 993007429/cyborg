@@ -1,10 +1,10 @@
 from flask import jsonify
 
-from cyborg.app.openapi.roche import roche_blueprint
+from cyborg.app.openapi import openapi_blueprint
 from cyborg.seedwork.application.responses import AppResponse
 
 
-@roche_blueprint.route('/vendor', methods=['get', 'post'])
+@openapi_blueprint.route('/vendor', methods=['get', 'post'])
 def vendor():
     res = AppResponse(data={
         'company_name': 'dipath',

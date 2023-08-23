@@ -98,6 +98,8 @@ class AIService(object):
         task = self.domain_service.repository.get_ai_task_by_id(task_id)
         if not task:
             return AppResponse(err_code=1, message='任务不存在')
+        if task.is_finished:
+            return AppResponse()
 
         request_context.case_id = task.case_id
         request_context.file_id = task.file_id

@@ -131,15 +131,16 @@ class SliceService(object):
         return AppResponse(data=result)
 
     def _check_space_usage(self) -> Tuple[int, str]:
-        free_space = fs.get_free_space(Settings.DATA_DIR)
-        if free_space < 10:  # 校验物 理磁盘剩余空间（留10个g兜底）
-            return 5, f'剩余磁盘空间不足,剩余{free_space}G'
-
-        company_info = self.user_service.get_company_info(company_id=request_context.current_company).data
-        volume = company_info['volume']
-        usage = company_info['usage']
-        if volume and usage and float(usage) >= float(volume):
-            return 5, f'volume: {volume}, usage: {usage}'
+        if Settings.CLOUD:
+            company_info = self.user_service.get_company_info(company_id=request_context.current_company).data
+            volume = company_info['volume']
+            usage = company_info['usage']
+            if volume and usage and float(usage) >= float(volume):
+                return 5, f'volume: {volume}, usage: {usage}'
+        else:
+            free_space = fs.get_free_space(Settings.DATA_DIR)
+            if free_space < 10:  # 校验物 理磁盘剩余空间（留10个g兜底）
+                return 5, f'剩余磁盘空间不足,剩余{free_space}G'
 
         return 0, ''
 
@@ -157,6 +158,10 @@ class SliceService(object):
             upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str, cover_slice_number: bool,
             high_through: bool, operator: str
     ) -> AppResponse[dict]:
+
+        err_code, message = self._check_space_usage()
+        if err_code:
+            return AppResponse(err_code=err_code, message=message)
 
         if high_through:
             # 上传文件重复性校验

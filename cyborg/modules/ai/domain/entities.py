@@ -29,6 +29,10 @@ class AITaskEntity(BaseDomainEntity):
         return self.status == AITaskStatus.analyzing and datetime.now() > self.expired_at
 
     @property
+    def is_finished(self):
+        return self.status in (AITaskStatus.success, AITaskStatus.failed)
+
+    @property
     def slide_path(self) -> str:
         return self.slice_info['slice_file_path'] if self.slice_info else ''
 
@@ -42,6 +46,18 @@ class AITaskEntity(BaseDomainEntity):
 
 
 class AIStatisticsEntity(BaseDomainEntity):
+
+    def to_stats_data(self):
+        return {
+            'totalCount': self.total_count or 0,
+            'negativeCount': self.negative_count or 0,
+            'positiveCount': self.positive_count or 0,
+            'abnormalCount': self.abnormal_count or 0,
+            'totalCountDr': self.total_count_dr or 0,
+            'negativeCountDr': self.negative_count_dr or 0,
+            'positiveCountDr': self.positive_count_dr or 0,
+            'abnormalCountDr': self.abnormal_count_dr or 0
+        }
 
     def to_dict(self):
         d = {snake_to_camel(k): v for k, v in super().to_dict().items()}

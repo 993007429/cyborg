@@ -18,6 +18,7 @@ from cyborg.consts.ki67 import Ki67Consts
 from cyborg.consts.np import NPConsts
 from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.consts.tct import TCTConsts
+from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
@@ -30,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 class AIDomainService(object):
+
+    RANK0_TASK_ID_CACHE_KEY = 'cyborg:ai_task:rank0'
 
     def __init__(self, repository: AIRepository):
         super(AIDomainService, self).__init__()
@@ -56,8 +59,6 @@ class AIDomainService(object):
             'is_calibrate': is_calibrate
         })
 
-        task.setup_expired_time()
-
         if self.repository.save_ai_task(task):
             return task
 
@@ -69,6 +70,9 @@ class AIDomainService(object):
 
         if status is not None:
             task.update_data(status=status)
+            if status == AITaskStatus.analyzing:
+                task.setup_expired_time()
+                cache.set(self.RANK0_TASK_ID_CACHE_KEY, task.id)
 
         if result_id is not None:
             task.update_data(result_id=result_id)
@@ -116,7 +120,8 @@ class AIDomainService(object):
         stats_list = self.repository.get_ai_stats(
             ai_type=ai_type, company=company, start_date=start_date, end_date=end_date, version=Settings.VERSION)
         data = [stats.to_dict() for stats in stats_list]
-        total = dict(sum([Counter(item) for item in data], start=Counter()))
+        total = AIStatisticsEntity().to_stats_data()
+        total.update(dict(sum([Counter(stats.to_stats_data()) for stats in stats_list], start=Counter())))
         total['date'] = '总计'
         data.insert(0, total)
         return data
@@ -931,9 +936,11 @@ class AIDomainService(object):
             if task.status == AITaskStatus.analyzing:
                 return '', {'done': False, 'rank': 0}
             else:
-                ranking = self.repository.get_ai_task_ranking(task.id)
+                start_id = cache.get(self.RANK0_TASK_ID_CACHE_KEY)
+                ranking = self.repository.get_ai_task_ranking(task.id, start_id=start_id)
                 if ranking is not None:
                     return '', {'done': False, 'rank': ranking + 1}
+
                 return '', {'done': True, 'rank': -2}
 
     def get_analyze_threshold(self, threshold: float, analyse_mode: str, slices: List[dict]) -> dict:

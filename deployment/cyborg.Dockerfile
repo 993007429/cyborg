@@ -1,4 +1,4 @@
-FROM dipath/cyborg:0.0.2
+FROM dipath/cyborg:4.0.0
 
 ADD ./cyborg ./cyborg
 ADD ./app.py ./app.py

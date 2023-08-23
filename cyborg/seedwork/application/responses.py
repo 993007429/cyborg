@@ -30,6 +30,7 @@ class ResponseEncoder(JSONEncoder):
 
 
 class AppResponse(BaseModel, Generic[T]):
+    http_code: int = 200
     err_code: int = 0
     message: Optional[str] = None
     data: Optional[T] = None

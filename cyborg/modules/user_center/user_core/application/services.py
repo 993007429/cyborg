@@ -137,6 +137,12 @@ class UserCoreService(object):
             return AppResponse(err_code=1, message='no such user')
         return AppResponse(data=user.to_dict())
 
+    def get_user_by_id(self, user_id: int) -> AppResponse:
+        user = self.domain_service.repository.get_user_by_id(user_id=user_id)
+        if not user:
+            return AppResponse(err_code=1, message='no such user')
+        return AppResponse(data=user.to_dict())
+
     def create_user(self, username: str, password: str, company_id: str, role: str) -> AppResponse:
         err_msg, new_user = self.domain_service.create_user(username, password, company_id, role)
         if err_msg:

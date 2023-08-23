@@ -378,7 +378,6 @@ class CaseRecordEntity(BaseDomainEntity):
         d = self.basic_info
         d.update({
             'attachments': [entity.to_dict() for entity in self.attachments],
-            # 'slices': [entity.to_dict() for entity in self.slices],
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
@@ -407,7 +406,7 @@ class CaseRecordEntity(BaseDomainEntity):
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
-            'update': self.update_time,
+            'update': max(self.update_time, *[slice.update_time for slice in self.slices]),
             'reportInfo': self.report_info,
             'reportUid': self.id
         }

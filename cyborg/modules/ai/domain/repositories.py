@@ -25,7 +25,7 @@ class AIRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def get_ai_task_ranking(self, task_id: int) -> Optional[int]:
+    def get_ai_task_ranking(self, task_id: int, start_id: Optional[int] = None) -> Optional[int]:
         ...
 
     @abstractmethod

@@ -11,7 +11,7 @@ from flask import current_app, request
 from cyborg.app.settings import Settings
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import BaseValueObject
-
+from cyborg.utils.jwt import jwt_encode, jwt_decode
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class LoginUser(BaseValueObject):
     @classmethod
     def get_payload_from_token(cls, token: str) -> Optional['LoginUser']:
         try:
-            payload = jwt.decode(token, current_app.config.JWT_SECRET, algorithm='HS256')
+            payload = jwt_decode(token, current_app.config.JWT_SECRET, algorithm='HS256')
             return LoginUser.from_dict(payload)
         except Exception:
             return None
@@ -57,12 +57,12 @@ class LoginUser(BaseValueObject):
         payload['expires'] = self.expire_time if self.time_out else None
         del payload['export_json']
         payload['exportJson'] = self.export_json
-        return jwt.encode(payload, Settings.JWT_SECRET, algorithm='HS256').decode('utf8')
+        return jwt_encode(payload, Settings.JWT_SECRET, algorithm='HS256')
 
     @classmethod
     def get_from_cookie(cls) -> Optional['LoginUser']:
         token = request.cookies.get('jwt')
-        payload = jwt.decode(token, Settings.JWT_SECRET, algorithm='HS256') if token else None
+        payload = jwt_decode(token, Settings.JWT_SECRET, algorithm='HS256') if token else None
         login_user = LoginUser.from_dict(payload) if payload else None
         if not login_user or (not request.path.endswith('upload2') and login_user.is_expired):
             return None

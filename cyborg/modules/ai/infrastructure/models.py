@@ -82,4 +82,4 @@ class AITaskModel(BaseModel):
     is_calibrate = Column(Boolean, nullable=False, default=False)
     template_id = Column(Integer, nullable=False, default=0)
     result_id = Column(String(50), nullable=False, default='')
-    expired_at = Column(DateTime, nullable=False)
+    expired_at = Column(DateTime, nullable=True)

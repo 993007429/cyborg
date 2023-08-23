@@ -1,0 +1,9 @@
+application_chart_name: cyborg
+application_chart_version: 0.1.1
+application_image:
+  - file: cyborg-fe-4.0.3.tar
+    name: cyborg-fe
+    tag: 4.0.3
+  - file: cyborg-backend-4.0.3.tar
+    name: cyborg-backend
+    tag: 4.0.3

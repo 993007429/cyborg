@@ -6,6 +6,8 @@ from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
+from cyborg.utils.jwt import jwt_encode, jwt_decode
+
 
 class SignatureUtil:
 
@@ -61,10 +63,10 @@ class SignatureUtil:
             'iat': issue_time,
             'exp': issue_time + expire_in,
         })
-        return jwt.encode(payload, secret, algorithm='HS256')
+        return jwt_encode(payload, secret, algorithm='HS256')
 
     @classmethod
-    def payload_from_jtw_token(cls, token: str, secret: str) -> Optional[Dict]:
+    def payload_from_jwt_token(cls, token: str, secret: str) -> Optional[Dict]:
         """从 jwt token 解析 payload
 
         :param token: jwt token str
@@ -72,7 +74,7 @@ class SignatureUtil:
         :return:
         """
         try:
-            return jwt.decode(token, secret, ['HS256'])
+            return jwt_decode(token, secret, 'HS256')
         except jwt.ExpiredSignatureError:
             return None
 

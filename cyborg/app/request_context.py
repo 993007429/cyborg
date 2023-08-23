@@ -1,8 +1,10 @@
 from contextvars import ContextVar
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from cyborg.app.auth import LoginUser
+from cyborg.app.oauth import CurrentOauthClient
 from cyborg.infra.session import get_session, get_session_by_db_uri
 
 
@@ -13,6 +15,7 @@ class RequestContext:
     _is_in_transaction: ContextVar[bool] = ContextVar("_is_in_transaction", default=False)
     _current_user: ContextVar = ContextVar("_current_user", default=None)
     _company: ContextVar = ContextVar("_company", default='')
+    _oauth_client: ContextVar = ContextVar("_oauth_client", default=None)
     _case_id: ContextVar = ContextVar("_case_id", default='')
     _file_id: ContextVar = ContextVar("_file_id", default='')
     _ai_type: ContextVar = ContextVar("_ai_type", default=None)
@@ -42,6 +45,14 @@ class RequestContext:
     @property
     def current_user_id(self) -> int:
         return self.current_user.id if self.current_user else 0
+
+    @property
+    def oauth_client(self) -> Optional[CurrentOauthClient]:
+        return self._oauth_client.get()
+
+    @oauth_client.setter
+    def oauth_client(self, client: CurrentOauthClient):
+        self._oauth_client.set(client)
 
     @property
     def is_in_transaction(self):

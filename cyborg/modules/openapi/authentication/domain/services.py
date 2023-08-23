@@ -22,20 +22,15 @@ class OpenAPIAuthDomainService(object):
         return None
 
     def check_signature(
-            self, token: str, access_key: str, secret_key: str, app_name: str, *,
-            method: str, content_type: str, gmt_date: str,
-            query_string: str, request_body: str, user_id: str
+            self, sign: str, access_key: str, secret_key: str, params
     ) -> bool:
-        ak, signature = token[8:].split('.')
+        ak, signature = sign.split('.')
         if ak != access_key:
             return False
 
-        query_string = UrlUtil.sort_query_string_by_key(query_string)
-        items_to_sign = [method, content_type, gmt_date, app_name, query_string, request_body]
-        if user_id:
-            items_to_sign.append(user_id)
-        str_to_sign = '\n'.join(items_to_sign)
+        query_string = UrlUtil.to_sorted_query_string(params)
+
         valid_request = SignatureUtil.validate_signature(
-            signature, secret_key=secret_key, string_to_sign=str_to_sign,
+            sign, secret_key=secret_key, string_to_sign=query_string,
         )
         return valid_request

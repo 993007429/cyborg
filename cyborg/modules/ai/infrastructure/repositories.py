@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from sqlalchemy import desc
 
+from cyborg.infra.cache import cache
 from cyborg.infra.session import transaction
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
@@ -37,10 +38,10 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         model = self.session.query(AITaskModel).filter_by(is_calibrate=True).order_by(desc(AITaskModel.id)).first()
         return AITaskEntity.from_dict(model.raw_data) if model else None
 
-    def get_ai_task_ranking(self, task_id: int) -> Optional[int]:
+    def get_ai_task_ranking(self, task_id: int, start_id: Optional[int] = None) -> Optional[int]:
         rows = self.session.query(AITaskModel.id).filter(
             AITaskModel.status == AITaskStatus.default,
-            AITaskModel.expired_at > datetime.now()
+            AITaskModel.id > (start_id or 0)
         ).order_by(AITaskModel.id).all()
         for idx, row in enumerate(rows):
             if row[0] == task_id:
@@ -89,7 +90,6 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         query = self.session.query(AIStatisticsModel).filter_by(
             ai_type=ai_type.value,
             company=company,
-            date=date
         )
         if date is not None:
             query = query.filter_by(date=date)

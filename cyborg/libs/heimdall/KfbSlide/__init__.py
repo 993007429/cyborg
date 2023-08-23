@@ -1,3 +1,4 @@
+import logging
 import os.path,math
 from ..SlideBase import SlideBase
 import cv2
@@ -35,15 +36,15 @@ class KfbSlide(SlideBase):
 
         crop_start_x, crop_start_y = location
         crop_level = self.slide.get_best_level_for_downsample(scale)
-        resize_ratio = self.slide.level_downsamples[crop_level]/scale
+        resize_ratio = self.slide.level_downsamples[crop_level] / scale
 
         # make sure the crop region is inside the slide
         crop_start_x, crop_start_y = min(max(crop_start_x, 0), self.width), min(max(crop_start_y, 0), self.height)
         crop_end_x = math.ceil(min(max(width+crop_start_x, 0), self.width))
         crop_end_y = math.ceil(min(max(height+crop_start_y, 0), self.height))
 
-        crop_width = math.ceil((crop_end_x - crop_start_x)/self.slide.level_downsamples[crop_level])
-        crop_height = math.ceil((crop_end_y - crop_start_y)/self.slide.level_downsamples[crop_level])
+        crop_width = math.floor((crop_end_x - crop_start_x)/self.slide.level_downsamples[crop_level])
+        crop_height = math.floor((crop_end_y - crop_start_y)/self.slide.level_downsamples[crop_level])
 
         if crop_height == 0 or crop_width == 0:
             return None
@@ -52,7 +53,6 @@ class KfbSlide(SlideBase):
             location=(crop_start_x, crop_start_y),
             level=crop_level,
             size=(crop_width, crop_height))
-
 
         if greyscale:
             crop_region = 0.2989*crop_region[:,:,0] + 0.5870*crop_region[:,:,1] + 0.1140*crop_region[:,:,2]
