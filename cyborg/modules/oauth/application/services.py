@@ -48,19 +48,7 @@ class OAuthService(object):
             self, client_id: str, client_secret: str, grant_type: str = 'client_credentials', token_type: str = 'Bearer'
     ) -> AppResponse:
         """通过授权码 `code` 获取 access token
-        参数说明：
-          - grant_type - 固定为 `authorization_code`
-          - client_id - 应用唯一标识
-          - client_secret - 应用对应的密钥
-          - code - 授权码
-          - refresh_token（optional） - 更新 token
-
-        返回token信息：
-          - access_token - 鉴权成功的 token
-          - token_type - 获取新的 token 时需要的参数
-          - expires_in - 过期时间（秒）
         """
-
         oauth_app = self.domain_service.get_oauth_app_by_client_id(client_id)
         if not oauth_app or client_secret != oauth_app.client_secret:
             return UnregisteredOAuthClientResponse(message='OAuth鉴权未通过')
@@ -78,31 +66,5 @@ class OAuthService(object):
                 'expire_in': expire_in,
             }
             return AppResponse(data=data)
-
-        # elif code and grant_type == 'authorization_code':
-        #     valid = self.domain_service.is_valid_opaque_code(code)
-        #     if not valid:
-        #         return InvalidAuthorizeCodeResponse()
-        #     account_id = self.domain_service.retrieve_account_id_from_opaque_code(code)
-        #     if not account_id:
-        #         return UnauthorizedUserResponse()
-        #     account = self.user_service.get_user_by_id(account_id)
-        #     if not account:
-        #         return UnauthorizedUserResponse()
-        #
-        #     expire_in = 60 * 60 * 2
-        #     assert request_context.openapi_client is not None
-        #     access_token, refresh_token = self.domain_service.create_access_token(
-        #         client_id, client_secret, request_context.openapi_client.secret_key,
-        #         expiration=expire_in,
-        #     )
-        #     data = {
-        #         'access_token': access_token,
-        #         'refresh_token': refresh_token,
-        #         'expire_in': expire_in,
-        #         'uid': OAuthUtil.opaque_string(str(account_id)),
-        #     }
-        #     return AppResponse(data=data)
-
         else:
             return OAuthGrantTypeUnSupportedClientResponse()
