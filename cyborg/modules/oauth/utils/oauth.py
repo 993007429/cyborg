@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 import jwt
 
-from cyborg.utils.jwt import jwt_encode
+from cyborg.utils.jwt import jwt_encode, jwt_decode
 
 
 class OAuthUtil:

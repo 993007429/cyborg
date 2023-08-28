@@ -54,7 +54,7 @@ class OAuthService(object):
             return UnregisteredOAuthClientResponse(message='OAuth鉴权未通过')
 
         if grant_type == 'client_credentials':
-            expire_in = 60 * 60 * 2
+            expire_in = 60 * 60 * 24 * 30
             access_token = self.domain_service.create_access_token(
                 client_id, client_secret, Settings.JWT_SECRET, expiration=expire_in,
             )

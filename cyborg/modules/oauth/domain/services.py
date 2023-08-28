@@ -44,6 +44,8 @@ class OAuthDomainService(object):
 
     def get_client_app_by_token(self, token: str) -> Optional[OAuthApplicationEntity]:
         payload = jwt_decode(token, Settings.JWT_SECRET, algorithm='HS256') if token else None
+        if not payload:
+            return None
         client_id = payload.get('client_id')
         client_secret = payload.get('client_secret')
         if not (client_id and client_secret):
