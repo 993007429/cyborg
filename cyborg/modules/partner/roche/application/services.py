@@ -1,215 +1,157 @@
-import json
-from typing import List, Optional
-
-from werkzeug.datastructures import FileStorage
-
-from cyborg.app.request_context import request_context
-from cyborg.modules.user_center.user_core.domain.services import UserCoreDomainService
+from cyborg.modules.ai.application.services import AIService
+from cyborg.modules.partner.roche.application import tasks
+from cyborg.modules.partner.roche.application.response import RocheAppResponse
+from cyborg.modules.partner.roche.domain.services import RocheDomainService
 from cyborg.seedwork.application.responses import AppResponse
 
 
-class UserCoreService(object):
+class RocheService(object):
 
-    def __init__(self, domain_service: UserCoreDomainService):
-        super(UserCoreService, self).__init__()
+    def __init__(self, domain_service: RocheDomainService, ai_service: AIService):
+        super(RocheService, self).__init__()
         self.domain_service = domain_service
+        self.ai_service = ai_service
 
-    def get_current_user(self) -> AppResponse[dict]:
-        user = self.domain_service.get_user_by_name(
-            request_context.current_user.username,
-            request_context.current_company
+    def get_algorithm_detail(self, algorithm_id: str) -> AppResponse:
+        algorithm = self.domain_service.repository.get_algorithm(algorithm_id)
+        return RocheAppResponse(data=algorithm.to_dict() if algorithm else None)
+
+    def get_algorithm_list(self):
+        algorithms = self.domain_service.repository.get_algorithms()
+        return RocheAppResponse(data=[algo.to_dict() for algo in algorithms])
+
+    def start_ai(self, algorithm_id: str, slide_url: str) -> AppResponse:
+
+        task_params = {
+            'rois': None,
+        }
+
+        task = self.domain_service.create_ai_task(
+            algorithm_id,
+            slide_url,
+            **task_params
         )
-        return AppResponse(data=user.to_dict() if user else None)
 
-    def check_user(self, username: str, company: str) -> AppResponse[bool]:
-        user = self.domain_service.get_user_by_name(username, company)
-        return AppResponse(data=bool(user))
+        if task:
+            result = tasks.run_ai_task(task.id)
+            if result:
+                self.domain_service.update_ai_task(task, result_id=result.id)
 
-    def login(self, username: str, password: str, company: str, client_ip: str) -> AppResponse:
-        if username.endswith(' ') or company.endswith(' '):
-            return AppResponse(err_code=3, message='wrong password')
+        return RocheAppResponse(data=task.to_dict() if task else None)
 
-        err_code, message, user = self.domain_service.login(
-            username=username, password=password, company_id=company, client_ip=client_ip)
-        if err_code:
-            return AppResponse(err_code=err_code, message=message)
-
-        return AppResponse(data=user.to_dict())
-
-    def is_signed(self) -> AppResponse:
-        user = self.domain_service.get_user_by_name(
-            request_context.current_user.username,
-            request_context.current_company
-        )
-        return AppResponse(data=user.is_signed)
-
-    def update_signed(self, username: str, company: str, file: FileStorage):
-        user = self.domain_service.get_user_by_name(username, company)
-        updated = self.domain_service.update_signed(user) if user else False
-        if updated:
-            file.save(user.sign_image_path)
+    def run_ai_task(self, task_id) -> AppResponse:
+        """
+        start_time = time.time()
+        task = self.domain_service.repository.get_ai_task_by_id(task_id)
+        if not task:
+            return AppResponse(err_code=1, message='任务不存在')
+        if task.is_finished:
             return AppResponse()
 
-        return AppResponse(message='更新失败')
+        request_context.case_id = task.case_id
+        request_context.file_id = task.file_id
+        task.slice_info = self.slice_service.get_slice_info(
+            case_id=request_context.case_id, file_id=request_context.file_id).data
+        if not task.slice_info:
+            self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
+            return AppResponse(err_code=2, message='找不到切片信息')
 
-    def update_password(self, old_password: str, new_password: str) -> AppResponse:
-        user = self.domain_service.get_user_by_name(
-            request_context.current_user.username, request_context.current_company)
-        if not user:
-            return AppResponse(err_code=3, message='user is not exist')
+        import torch.cuda
+        if torch.cuda.is_available():
+            gpu_list = []
+            while not gpu_list:
+                gpu_list = self.domain_service.check_available_gpu(task)
+                if gpu_list:
+                    os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
+                else:
+                    logger.info('显卡忙或者不可用, 等待5s...')
+                    time.sleep(5)
 
-        err_code, message = self.domain_service.update_password(
-            user, old_password=old_password, new_password=new_password)
+        self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
+        self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
 
-        return AppResponse(err_code=err_code, message=message)
+        ai_type = task.ai_type
+        request_context.ai_type = ai_type
 
-    def get_customized_record_fields(self) -> AppResponse[List[str]]:
-        data = self.domain_service.get_customized_record_fields(company_id=request_context.current_company)
-        return AppResponse(data=data)
+        self.analysis_service.clear_ai_result()
 
-    def set_customized_record_fields(self, record_fields: str) -> AppResponse[str]:
-        if self.domain_service.set_customized_record_fields(
-                company_id=request_context.current_company, record_fields=record_fields):
-            return AppResponse(data='设置成功')
-        else:
-            return AppResponse(message='设置失败')
+        groups = self.analysis_service.get_mark_groups(template_id=task.template_id).data
+        group_name_to_id = {group['label']: int(group['id']) for group in groups}
 
-    def update_report_settings(
-            self, report_name: Optional[str] = None, report_info: Optional[str] = None
-    ) -> AppResponse[bool]:
-        company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        updated = self.domain_service.update_report_settings(company, report_name=report_name, report_info=report_info)
-        return AppResponse(data=updated)
+        has_manual_roi = task.rois and task.rois[0]['x']
 
-    def get_company_info(self, company_id: str) -> AppResponse[dict]:
-        company = self.domain_service.company_repository.get_company_by_id(company_id)
-        return AppResponse(data=company.to_dict() if company else None)
+        try:
+            if ai_type == AIType.tct:
+                result = self.domain_service.run_tct(task)
+            elif ai_type == AIType.lct:
+                result = self.domain_service.run_lct(task)
+            elif ai_type == AIType.dna:
+                result = self.domain_service.run_tbs_dna(task)
+            elif ai_type == AIType.her2:
+                result = self.domain_service.run_her2(task, group_name_to_id)
+            elif ai_type == AIType.ki67:
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+            elif ai_type == AIType.ki67hot:
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=False)
+            elif ai_type == AIType.er:
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+            elif ai_type == AIType.pr:
+                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+            elif ai_type == AIType.fish_tissue:
+                result = self.domain_service.run_fish_tissue(task, group_name_to_id)
+            elif ai_type == AIType.pdl1:
+                result = self.domain_service.run_pdl1(task, group_name_to_id, request_context.current_user.data_dir)
+            elif ai_type == AIType.np:
+                result = self.domain_service.run_np(task, group_name_to_id)
+            elif ai_type == AIType.bm:
+                result = self.domain_service.run_bm(task, group_name_to_id)
+            else:
+                logger.error(f'{ai_type} does not support')
+                result = ALGResult(ai_suggest='', err_msg=f'{ai_type} does not support')
 
-    def get_company_storage_info(self) -> AppResponse:
-        data = self.domain_service.get_company_storage_info(company_id=request_context.current_company)
-        return AppResponse(data=data)
+        except Exception as e:
+            logger.exception(e)
+            result = ALGResult(ai_suggest='', err_msg='run alg error')
 
-    def update_company_trial(self, ai_name: str) -> AppResponse:
-        err_code, message, company = self.domain_service.update_company_trial(
-            company_id=request_context.current_company, ai_name=ai_name)
-        return AppResponse(err_code=err_code, message=message, data=company.to_dict() if company else None)
+        if result.err_msg:
+            self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
+            self.slice_service.finish_ai(status=SliceStartedStatus.failed)
+            return AppResponse(message=result.err_msg)
 
-    def get_company_trail_info(self) -> AppResponse:
-        company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        info = {
-            'model_lis': json.dumps(company.model_lis),
-            'onTrial': company.on_trial,
-            'trialTimes': json.dumps(company.trial_times)
-        } if company else {}
-        return AppResponse(data=info)
-
-    def get_company_label(self) -> AppResponse:
-        company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        label = company.label if company else ''
-        return AppResponse(data=label)
-
-    def update_company_label(self, label: int) -> AppResponse:
-        company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        if company:
-            self.domain_service.update_company_label(company, label)
-        return AppResponse()
-
-    def update_company_ai_threshold(
-            self, model_name: Optional[str], threshold_value: Optional[float] = None,
-            use_default_threshold: bool = False
-    ) -> AppResponse:
-        company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
-        if company:
-            self.domain_service.update_company_ai_threshold(company, model_name, threshold_value, use_default_threshold)
-        return AppResponse()
-
-    ####################################
-    # for admin below
-    ####################################
-
-    def get_users_by_company(self, company: str) -> AppResponse:
-        users = self.domain_service.repository.get_users(company=company)
-        return AppResponse(data=[user.to_dict() for user in users])
-
-    def get_user(self, username: str, company: str) -> AppResponse:
-        user = self.domain_service.repository.get_user_by_name(username=username, company=company)
-        if not user:
-            return AppResponse(err_code=1, message='no such user')
-        return AppResponse(data=user.to_dict())
-
-    def get_user_by_id(self, user_id: int) -> AppResponse:
-        user = self.domain_service.repository.get_user_by_id(user_id=user_id)
-        if not user:
-            return AppResponse(err_code=1, message='no such user')
-        return AppResponse(data=user.to_dict())
-
-    def create_user(self, username: str, password: str, company_id: str, role: str) -> AppResponse:
-        err_msg, new_user = self.domain_service.create_user(username, password, company_id, role)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
-        return AppResponse(data={'status': 1, 'user': new_user.to_dict()})
-
-    def update_user(self, user_id: int, username: str, password: str, role: str):
-        err_msg = self.domain_service.update_user(user_id=user_id, username=username, password=password, role=role)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg)
-
-        return AppResponse(message='update success', data={'message': '修改成功', 'status': 1})
-
-    def delete_user(self, username: str, company: str):
-        err_msg = self.domain_service.delete_user(username, company)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg)
-
-        return AppResponse(message='delete success', data={'status': 1})
-
-    def get_all_comanies(self) -> AppResponse:
-        companies = self.domain_service.company_repository.get_all_companies()
-        return AppResponse(data=[company.to_dict() for company in companies])
-
-    def get_company_detail(self, company_id: str) -> AppResponse:
-        company = self.domain_service.company_repository.get_company_by_id(company=company_id)
-        if not company:
-            return AppResponse(err_code=1, message='no such company')
-        return AppResponse(data=company.to_dict())
-
-    def create_company(self, **kwargs) -> AppResponse:
-        err_msg = self.domain_service.create_company(**kwargs)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
-
-        return AppResponse(data={'status': 1})
-
-    def update_company(self, **kwargs) -> AppResponse:
-        err_msg = self.domain_service.update_company(**kwargs)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
-
-        # TODO send event, 修改文件夹
-
-        return AppResponse(data={'status': 1})
-
-    async def delete_company(self, company_id: str):
-        err_msg = await self.domain_service.delete_company(company_id)
-        if err_msg:
-            return AppResponse(err_code=1, message=err_msg, data={'status': -1})
-        return AppResponse(data={'status': 1})
-
-    def save_ai_threshold(self, threshold_range: int, threshold_value: float, all_use: bool):
-        saved = self.domain_service.save_ai_threshold(
-            company_id=request_context.current_company, ai_type=request_context.ai_type,
-            threshold_range=threshold_range, threshold_value=threshold_value, all_use=all_use
+        stats = self.domain_service.refresh_ai_statistics(
+            is_error=bool(result.err_msg), ai_type=ai_type, ai_suggest=result.ai_suggest, slice_info=task.slice_info
         )
-        if not saved:
-            return AppResponse(err_code=1, message='modify ai threshold failed')
-        return AppResponse(message='modify ai threshold succeed')
 
-    def get_ai_threshold(self):
-        company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
-        ai_threshold = company.ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=ai_threshold.get(request_context.ai_type.value))
+        if result.prob_dict:
+            self.domain_service.save_prob(slice_id=task.slice_info['uid'], prob_info=result.prob_dict)
 
-    def get_default_ai_threshold(self):
-        company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
-        default_ai_threshold = company.default_ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=default_ai_threshold.get(request_context.ai_type.value, 0.5))
+        self.analysis_service.create_ai_marks(
+            cell_marks=[mark.to_dict() for mark in result.cell_marks],
+            roi_marks=[mark.to_dict() for mark in result.roi_marks],
+            skip_mark_to_tile=ai_type in [AIType.bm]
+        )
+
+        self.domain_service.update_ai_task(task, status=AITaskStatus.success)
+
+        res = self.slice_service.finish_ai(
+            status=SliceStartedStatus.failed if result.err_msg else SliceStartedStatus.success,
+            ai_suggest=result.ai_suggest,
+            slide_quality=result.slide_quality,
+            cell_num=result.cell_num,
+            as_id=stats.id if stats else None
+        )
+        if res.err_code:
+            return res
+
+        if ai_type in [AIType.model_calibrate_tct]:
+            self.user_service.update_company_ai_threshold(
+                model_name=result.get('model_name'),
+                threshold_value=result.get('aiThreshold')
+            )
+
+        alg_time = time.time() - start_time
+        logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 计算完成,耗时{alg_time}')
+
+        return AppResponse(message='succeed')
+        """
+        return RocheAppResponse()

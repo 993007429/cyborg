@@ -8,19 +8,26 @@ class RocheAlgorithmType(BaseEnum):
 
 
 class RocheTissueType(BaseEnum):
-    PROSTATE = 'PROSTATE'
-    LUNG = 'LUNG'
-    HEMATOLOGICAL = 'HEMATOLOGICAL'
-    BLADDER = 'BLADDER'
-    COLORECTAL = 'COLORECTAL'
-    BREAST = 'BREAST'
-    GASTRIC = 'GASTRIC'
-    SKIN = 'SKIN'
-    LIVER = 'LIVER'
-    LYMPH = 'LYMPH'
+    PROSTATE = 'Prostate'
+    LUNG = 'Lung'
+    HEMATOLOGICAL = 'Hematological'
+    BLADDER = 'Bladder'
+    COLORECTAL = 'Colorectal'
+    BREAST = 'Breast'
+    GASTRIC = 'Gastric'
+    SKIN = 'Skin'
+    LIVER = 'Liver'
+    LYMPH = 'Lymph'
 
 
 class RocheAnnotationType(BaseEnum):
     INCLUSION = 'INCLUSION'
     EXCLUSION = 'EXCLUSION',
     BOTH = 'BOTH'
+
+
+class RocheAITaskStatus(BaseEnum):
+    default = 0
+    analyzing = 1
+    success = 2
+    failed = 3

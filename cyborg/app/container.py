@@ -10,6 +10,9 @@ from cyborg.modules.oauth.infrastructure.repositories import SqlAlchemyOAuthAppl
 from cyborg.modules.openapi.authentication.application.services import OpenAPIAuthService
 from cyborg.modules.openapi.authentication.domain.services import OpenAPIAuthDomainService
 from cyborg.modules.openapi.authentication.infrastructure.repositories import ConfigurableOpenAPIClientRepository
+from cyborg.modules.partner.roche.application.services import RocheService
+from cyborg.modules.partner.roche.domain.services import RocheDomainService
+from cyborg.modules.partner.roche.infrastructure.repositories import SQLAlchemyRocheRepository
 
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice.domain.services import SliceDomainService
@@ -187,6 +190,28 @@ class OpenAPIContainer(containers.DeclarativeContainer):
     )
 
 
+class PartnerAPIContainer(containers.DeclarativeContainer):
+
+    core = providers.Container(Core)
+
+    ai = providers.DependenciesContainer()
+
+    roche_repository = providers.Factory(
+        SQLAlchemyRocheRepository, session=core.request_context.provided.db_session
+    )
+
+    roche_domain_service = providers.Factory(
+        RocheDomainService,
+        repository=roche_repository,
+    )
+
+    roche_service = providers.Factory(
+        RocheService,
+        domain_service=roche_domain_service,
+        ai_service=ai.ai_service
+    )
+
+
 class AppContainer(containers.DeclarativeContainer):
 
     core = providers.Container(Core)
@@ -220,4 +245,10 @@ class AppContainer(containers.DeclarativeContainer):
         OpenAPIContainer,
         core=core,
         user_center=user_center
+    )
+
+    partner = providers.Container(
+        PartnerAPIContainer,
+        core=core,
+        ai=ai
     )
