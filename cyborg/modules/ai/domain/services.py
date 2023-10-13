@@ -89,16 +89,15 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
-    def check_available_gpu(self, task: AITaskEntity):
+    def check_available_gpu(self, ai_type: AIType, slide_path: str) -> List[str]:
         from cyborg.modules.ai.utils.gpu import get_gpu_status
         gpu_status = get_gpu_status()
-        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[task.ai_type.value]
+        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[ai_type.value]
         if isinstance(required_gpu_num, tuple):
             min_gpu_num, max_gpu_num = required_gpu_num
         else:
             min_gpu_num, max_gpu_num = required_gpu_num, required_gpu_num
 
-        slide_path = task.slide_path
         logger.info(slide_path)
         # single gpu for small images is enough
         if isinstance(slide_path, str) and fs.path_splitext(slide_path.lower())[1] in ['.jpg', '.png', '.jpeg', '.bmp']:

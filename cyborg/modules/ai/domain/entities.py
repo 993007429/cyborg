@@ -33,6 +33,10 @@ class AITaskEntity(BaseDomainEntity):
         return self.status in (AITaskStatus.success, AITaskStatus.failed)
 
     @property
+    def is_analyzing(self):
+        return self.status == AITaskStatus.analyzing
+
+    @property
     def slide_path(self) -> str:
         return self.slice_info['slice_file_path'] if self.slice_info else ''
 

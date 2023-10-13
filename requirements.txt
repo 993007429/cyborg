@@ -90,10 +90,14 @@ frozenlist==1.3.3
     # via
     #   aiohttp
     #   aiosignal
+geojson==3.0.1
+    # via -r requirements.in
 greenlet==2.0.2
     # via sqlalchemy
 h11==0.14.0
     # via httpcore
+h5py==3.9.0
+    # via -r requirements.in
 httpcore==0.17.3
     # via httpx
 httpx==0.24.1
@@ -172,6 +176,7 @@ numpy==1.23.3
     # via
     #   -r requirements.in
     #   csaps
+    #   h5py
     #   imageio
     #   imgaug
     #   matplotlib

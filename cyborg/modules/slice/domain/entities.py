@@ -9,7 +9,9 @@ import aioshutil
 
 from cyborg.app.settings import Settings
 from cyborg.consts.common import Consts
+from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
+from cyborg.libs.heimdall.SlideBase import SlideBase
 from cyborg.modules.slice.domain.value_objects import SliceImageType
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import AIType
@@ -18,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class SliceEntity(BaseDomainEntity):
+
+    slide: Optional[SlideBase] = None
 
     @property
     def record_dir(self) -> str:
@@ -113,6 +117,12 @@ class SliceEntity(BaseDomainEntity):
     def ai_type(self):
         return AIType.get_by_value(self.alg)
 
+    @classmethod
+    def fix_ai_name(cls, ai_name: str) -> str:
+        if ai_name.startswith('fish'):
+            return 'fish'
+        return ai_name
+
     @property
     def ai_diagnosis_state(self) -> Optional[int]:
         if self.ai_type in (AIType.tct, AIType.lct, AIType.dna) and self.ai_suggest:
@@ -124,6 +134,62 @@ class SliceEntity(BaseDomainEntity):
         if self.ai_type in (AIType.tct, AIType.lct, AIType.dna) and self.check_result:
             return 1 if '阳性' in self.check_result else 2
         return None
+
+    @property
+    def parsed_ai_suggest(self):
+        """将tct lct dna模块的ai_suggest字符串解析成字典"""
+        ai_suggest_dict = {
+            "diagnosis": [],
+            "microbe": [],
+            "dna_diagnosis": "",
+            "flag": 1
+        }
+        ai_suggest = self.ai_suggest
+        try:
+            diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
+            if ";" in ai_suggest:
+                ai_suggest_dict["dna_diagnosis"] = ai_suggest.split(";")[-1]
+            if "阴性" in ai_suggest:
+                if "-样本不满意" in ai_suggest:
+                    temp_list = diagnosis_microbe.split(" ")
+                    if len(temp_list) == 2:
+                        ai_suggest_dict["diagnosis"] = ["阴性", "-样本不满意"]
+                        ai_suggest_dict["microbe"] = []
+                    elif len(temp_list) == 3:
+                        ai_suggest_dict["diagnosis"] = ["阴性", "-样本不满意"]
+                        ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
+                    else:
+                        ai_suggest_dict["flag"] = 0
+                        print(f"解析失败: {ai_suggest}")
+                else:
+                    temp_list = diagnosis_microbe.split(" ")
+                    if len(temp_list) == 1:
+                        ai_suggest_dict["diagnosis"] = ["阴性", ""]
+                        ai_suggest_dict["microbe"] = []
+                    elif len(temp_list) == 2:
+                        ai_suggest_dict["diagnosis"] = ["阴性", ""]
+                        ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
+                    else:
+                        ai_suggest_dict["flag"] = 0
+                        print(f"解析失败: {ai_suggest}")
+            elif "阳性" in ai_suggest:
+                temp_list = diagnosis_microbe.split(" ")
+                if len(temp_list) == 2:
+                    ai_suggest_dict["diagnosis"] = [temp_list[0], temp_list[1]]
+                    ai_suggest_dict["microbe"] = []
+                elif len(temp_list) == 3:
+                    ai_suggest_dict["diagnosis"] = [temp_list[0], temp_list[1]]
+                    ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
+                else:
+                    ai_suggest_dict["flag"] = 0
+                    print(f"解析失败: {ai_suggest}")
+            else:
+                ai_suggest_dict["flag"] = 0
+                print(f"ai建议(tct)格式非法: {ai_suggest}")
+        except Exception as e:
+            ai_suggest_dict["flag"] = 0
+            print(f"解析 {ai_suggest} 失败: {e}")
+        return ai_suggest_dict
 
     def to_dict(self, all_fields: bool = False):
         d = {
@@ -158,11 +224,22 @@ class SliceEntity(BaseDomainEntity):
         d.update(self.data_paths)
 
         if all_fields:
+            tool_type = self.tool_type
+            template_selected = self.template_id
+            if (not tool_type or tool_type in ('human', 'auto')) and (not template_selected or template_selected == 1):
+                template_id = cache.get(f'{self.company}:last_selected_template_id')
+                if template_id:
+                    tool_type = 'tagging'
+                    template_selected = int(template_id)
+
+            # if self.slide:
+            #     d['tileSize'] = self.slide.tile_size
+
             d.update({
                 'stain': self.stain,
                 'mppx': self.mppx,
                 'mppy': self.mppy,
-                'toolType': self.tool_type,
+                'toolType': tool_type,
                 'objective_rate': self.objective_rate,
                 "company": self.company,
                 "ajaxToken": json.loads(self.ajax_token),
@@ -174,7 +251,7 @@ class SliceEntity(BaseDomainEntity):
                 "ai_dict": self.ai_dict,
                 "slide_quality": int(self.slide_quality) if self.slide_quality else None,
                 "cell_num": self.cell_num,
-                'templateId': self.template_id,
+                'templateId': template_selected,
             })
         return d
 
@@ -184,6 +261,21 @@ class CaseRecordEntity(BaseDomainEntity):
     attachments: List[SliceEntity] = []
     opinion: str = ''
     dna_opinion: str = ''
+
+    @classmethod
+    def get_all_display_columns(cls) -> List[str]:
+        all_columns = [
+            '样本号', '姓名', '性别', '年龄', '取样部位', '样本类型', '切片数量', '状态', '切片文件夹', '切片标签',
+            '切片编号', '文件名', 'AI模块', 'AI建议', '复核结果', '创建时间', '最后更新', '操作人', '报告'
+        ]
+        plugins = Settings.PLUGINS
+        if 'logene' in plugins:
+            all_columns.append('导出状态')
+        return all_columns
+
+    @classmethod
+    def get_disabled_columns(cls) -> List[str]:
+        return ['样本号', '状态', '文件名', 'AI模块', 'AI建议', '最后更新']
 
     @property
     def json_fields(self) -> List[str]:
@@ -202,37 +294,60 @@ class CaseRecordEntity(BaseDomainEntity):
         return os.path.join(self.data_dir, 'reports')
 
     @property
+    def reports_dir_v2(self) -> str:
+        """
+        基于报告系统快照生成的报告文件夹
+        :return:
+        """
+        return os.path.join(self.data_dir, 'reports_v2')
+
+    @property
     def reports(self) -> List[dict]:
         items = []
-        if not os.path.exists(self.reports_dir):
-            return items
+        report_ids = []
+        reports_dir = ''
+        use_report_service = False
+        if os.path.exists(self.reports_dir_v2):
+            reports_dir = self.reports_dir_v2
+            report_ids = os.listdir(self.reports_dir_v2)
+            use_report_service = True
+        elif os.path.exists(self.reports_dir):
+            reports_dir = self.reports_dir
+            report_ids = os.listdir(self.reports_dir)
 
-        report_ids = os.listdir(self.reports_dir)
         for r_id in report_ids:
-            path = os.path.join(self.reports_dir, r_id)
+            path = os.path.join(reports_dir, r_id)
             if not os.path.isdir(path):
                 continue
             timestamp = datetime.datetime.utcfromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%dT%H:%M:%SZ")
             item = {
                 'id': r_id,
-                'date': timestamp
+                'date': timestamp,
+                'url': f'{Settings.REPORT_SERVER}/report/#/report?snapshot_id={r_id}' if use_report_service else None
             }
             items.append(item)
+        items.sort(key=lambda x: x['date'], reverse=True)
         return items
 
-    def get_report_templates(self, template_config: List[dict]):
+    def get_report_templates(self, template_config: List[dict], file_id: str):
         if not self.slices:
             return []
 
-        ai_types = [AIType.get_by_value(s.alg) for s in self.slices]
         template_codes = []
         for item in template_config:
             template_id = item['templateId']
             if template_id == 'reg':
-                if len(self.slices) > 1:
-                    template_codes.insert(0, item)
-            elif template_id in ai_types:
-                template_codes.append(item)
+                template_codes.insert(0, item)
+                alg_type = 'human'
+
+            for slic in self.slices:
+                ai_type = AIType.get_by_value(slic.alg)
+                if template_id == ai_type:
+                    if slic.fileid == file_id:
+                        item['active'] = True
+                        alg_type = ai_type
+                    template_codes.append(item)
+                    break
         return template_codes
 
     @property
@@ -338,11 +453,15 @@ class CaseRecordEntity(BaseDomainEntity):
             report_info['opinion'] = opinion_data.get('opinion')
 
             if slice_entity:
-                report_info['isStatisfied'] = 1 if slice_entity.slideQuality else 0
+                report_info['isStatisfied'] = 1 if slice_entity.slideQuality == '1' else 0
                 if slice_entity.cell_num:
-                    report_info['cellNum'] = 'greater' if slice_entity.cellNum or 0 > 5000 else 'less'
-                items = slice_entity.check_result.split(' ')
-                report_info['pathogen'] = items[2].split(',') if len(items) >= 3 else []
+                    report_info['cellNum'] = 'greater' if (slice_entity.cellNum or 0) > 5000 else 'less'
+                if slice_entity.check_result:
+                    items = slice_entity.check_result.split(' ')
+                    report_info['pathogen'] = items[2].split(',') if len(items) >= 3 else []
+                elif slice_entity.ai_suggest:
+                    ai_suggest = slice_entity.parsed_ai_suggest
+                    report_info['pathogen'] = ai_suggest.get('microbe', [])
 
             report_info.update({
                 'opinion': opinion_data.get('opinion', ''),
@@ -427,8 +546,8 @@ class ReportConfigEntity(BaseDomainEntity):
         template_config = [{'templateId': 'reg', 'templateCode': ''}]
         template_config.extend(
             [{'templateId': ai_type.value, 'templateCode': ''} for ai_type in [
-                AIType.tct, AIType.dna, AIType.pdl1, AIType.ki67, AIType.ki67hot, AIType.er, AIType.pr, AIType.her2,
-                AIType.fish_tissue, AIType.np, AIType.cd30
+                AIType.tct, AIType.lct, AIType.dna, AIType.pdl1, AIType.ki67, AIType.ki67hot, AIType.er, AIType.pr,
+                AIType.her2, AIType.fish_tissue, AIType.np, AIType.cd30
         ]])
         return template_config
 

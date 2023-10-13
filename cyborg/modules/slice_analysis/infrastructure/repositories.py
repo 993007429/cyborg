@@ -98,7 +98,8 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         return None
 
     @transaction
-    def clear_mark_table(self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None):
+    def clear_mark_table(
+            self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None):
         mark_query = self.session.query(self.mark_model_class)
         if exclude_area_marks is not None:
             mark_query = mark_query.filter(self.mark_model_class.id.not_in(exclude_area_marks))

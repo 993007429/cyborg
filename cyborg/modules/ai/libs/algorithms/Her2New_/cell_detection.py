@@ -2,11 +2,15 @@ import logging
 import os
 import json
 import argparse
+import sys
 
 import cv2
 import torch
 import numpy as np
 import mpi4py.MPI as MPI
+
+her2_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(her2_root)
 
 from cyborg.infra.oss import oss
 from models.pa_p2pnet import build_model
@@ -15,7 +19,6 @@ from cell_infer import cell_infer_
 from seg_tissue_area import find_tissue_countours
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = "True"
-her2_root = os.path.dirname(os.path.abspath(__file__))
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,11 @@ def detect(slice_path='', opt=None):
     logger.info('调用her2new_new compute_process')
     comm = MPI.COMM_WORLD
     comm_rank, comm_size = comm.Get_rank(), comm.Get_size()
-    gpu_num = torch.cuda.device_count()
+    if torch.cuda.is_available():
+        gpu_num = torch.cuda.device_count()
+    else:
+        gpu_num = 1
+
     int_device = int(comm_rank % gpu_num)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(int_device)
     # # C_net1025 original 

@@ -1,195 +1,34 @@
-image: cr.idiaoyan.cn/ops/python:3.8.12-66f08eef
-
-variables:
-  BU: "sp"
-  APPNAME: "sp-webform"
-  COMMIT_ID: ${CI_COMMIT_SHORT_SHA}
-  VERSION: ${CI_COMMIT_TAG}
-  OSS_BUCKET: "oss://ops-deploy-prod-10002-oss/${BU}/${APPNAME}/code/"
-  AWX_DEPLOY_ID: 199
-  DOCKER_REGISTRY: "cr.idiaoyan.cn"
-  DOCKER_IMAGE: "sp-saas"
-  K8S_APP_NAME_DEFAULT_CELERY: "sp-default-celery"
-  K8S_APP_NAME_ALGO_CELERY: "sp-algo-celery"
-  K8S_APP_NAME_DATA_CELERY: "sp-data-celery"
-  K8S_APP_NAME_WEB: "sp-web"
-
 stages:
   - lint
   - build
   - deploy
-  - check
-
 
 job lint:
   tags:
-  - ops
+    - ops
   stage: lint
   before_script:
-    - source /data/www/venv/bin/activate
+    - source /home/gitlab-runner/venvs/ops/bin/activate
     - pip3 install flake8
-    - pip3 install mypy
+    # - pip install mypy
     - pip3 install -r requirements-types.txt
   script:
-  - flake8 --count cyborg tests
-  - mypy --config-file .mypy.ini cyborg
-
-job unit-test:
-  tags:
-    - ops
-  stage: check
-  before_script:
-    - source /data/www/venv/bin/activate
-    - pip3 install pip-tools
-    - pip-sync
-    - pip install -r requirements-dynamic.txt --index-url=http://mirrors.idiaoyan.cn/repository/pypi/simple/ --trusted-host=mirrors.idiaoyan.cn
-    - if [ ! -d local_settings ]; then mkdir local_settings; fi
-    - echo -e
-      "[default]\n
-      Debug = false\n
-      MysqlUri = mysql://cyborg:TURTQvMIvlzhHECBF@rm-uf66w609cg8zl8kdm.mysql.rds.aliyuncs.com:3306/cyborg?charset=utf8mb4\n
-      CacheRedisUri = redis://:epu4vesS6pFkTOAY8@r-uf6yhvcglku6nc1fbm.redis.rds.aliyuncs.com:6379/1\n
-      LogFile = logs/cyborg.log\n
-      [sentry]\n
-      Dsn =\n
-      Environment = uat\n
-      [ali_oss]\n
-      AccessKeyId = LTAI5tDdMDmocAieAnAc9jaR\n
-      AccessKeySecret = v9euvm3nYGrotx6QVAx03NKU9nLK2r\n
-      PublicEndpoint = https://oss-cn-shanghai.aliyuncs.com\n
-      PrivateEndpoint = https://oss-cn-shanghai-internal.aliyuncs.com\n
-      BucketName = sp-data-prod-10002-oss\n
-      RootDirectory = cyborg-tst\n
-      [weixin]\n
-      AppId = wx564348bf54027d7c\n
-      AppSecret = 499890f6283eb2b3ca900cbbbc7824fe\n
-      CallbackDomain = www-uat.spsspro.com\n
-      LoginTokenSecret = ThisIsTokenForWxLogin\n
-      [celery]\n
-      Broker = redis://:epu4vesS6pFkTOAY8@r-uf6yhvcglku6nc1fbm.redis.rds.aliyuncs.com:6379/2\n
-      Backend = redis://:epu4vesS6pFkTOAY8@r-uf6yhvcglku6nc1fbm.redis.rds.aliyuncs.com:6379/3\n
-      [account]\n
-      OfficialCreditsAccount = 5\n
-      [elastic]\n
-      ElasticEndpoint = http://cyborg:123456@es.uat.spsspro.com:80\n
-      " > local_settings/seal_dev.ini
-
-  script:
-    - coverage run
-    - coverage report
-  only:
-    refs:
-      - pre_release
-      - master
-
-job api-test:
-  stage: check
-  image: cr.idiaoyan.cn/ops/nodejs:16.5.0-86625f25
-  before_script:
-    - npm install -g newman
-  script:
-    - newman run apitests/postman/cyborg-base.json -e apitests/postman/envs/uat_environment.json --env-var version=${COMMIT_ID}
-    - newman run apitests/postman/cyborg-saas-server.json -e apitests/postman/envs/uat_environment.json --env-var version=${COMMIT_ID}
-  only:
-    - pre_release
-  tags:
-    - ops
-
-job prepare_code:
-  stage: build
-  before_script:
-    - source /data/www/venv/bin/activate
-  script:
-    - python deployment/pre_build.py -v ${VERSION}
-    - tar -zcf ${APPNAME}-${VERSION}.tar.gz ./*
-    - ls -la ${APPNAME}*
-    - ossutil cp ${APPNAME}-${VERSION}.tar.gz ${OSS_BUCKET}
-  rules:
-    - if: '$CI_COMMIT_TAG'
-      when: on_success
-  tags:
-    - ops
-
-.build_docker:
-  stage: build
-  variables:
-    DOCKER_HOST: "tcp://localhost:2376"
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
-  services:
-    - name: ${DOCKER_REGISTRY}/mirror/docker:19.03.12-dind
-      command: [ "--registry-mirror", "https://pqbap4ya.mirror.aliyuncs.com" ]
-  image: ${DOCKER_REGISTRY}/mirror/docker:19.03.12
-  before_script:
-    - echo "[default]" > cyborg/release.ini
-    - echo "    release_version=${IMAGE_VERSION}" >> cyborg/release.ini
-    - echo ${DOCKER_REGISTRY_PASS} | docker login ${DOCKER_REGISTRY} --username=${DOCKER_REGISTRY_USER} --password-stdin
-  script:
-    - docker build -f deployment/${DOCKER_IMAGE}.Dockerfile . -t ${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION}
-    - docker tag ${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION} ${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION}
-    - docker push ${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION}
-  tags:
-    - ops
-
-job build_docker_uat:
-  extends:
-    - .build_docker
-  variables:
-    IMAGE_VERSION: ${COMMIT_ID}
-  only:
-    - pre_release
-    - hotfix
-
-job build_docker_prod:
-  extends:
-    - .build_docker
-  variables:
-    IMAGE_VERSION: ${VERSION}
-  rules:
-    - if: '$CI_COMMIT_TAG'
-      when: on_success
-
-job deploy_k8s_uat:
-  stage: deploy
-  variables:
-    K8S_NAMESPACE: "sp-uat"
-    IMAGE_VERSION: ${COMMIT_ID}
-  image: ${DOCKER_REGISTRY}/ops/kubectl:1.23.4-1-34b72640
-  script:
-    - kubectl set image deployment/${K8S_APP_NAME_DEFAULT_CELERY}-deployment ${K8S_APP_NAME_DEFAULT_CELERY}=${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION} -n ${K8S_NAMESPACE}
-    - kubectl set image deployment/${K8S_APP_NAME_ALGO_CELERY}-deployment ${K8S_APP_NAME_ALGO_CELERY}=${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION} -n ${K8S_NAMESPACE}
-    - kubectl set image deployment/${K8S_APP_NAME_DATA_CELERY}-deployment ${K8S_APP_NAME_DATA_CELERY}=${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION} -n ${K8S_NAMESPACE}
-    - kubectl set image deployment/${K8S_APP_NAME_WEB}-deployment ${K8S_APP_NAME_WEB}=${DOCKER_REGISTRY}/${BU}/${DOCKER_IMAGE}:${IMAGE_VERSION} -n ${K8S_NAMESPACE}
-  only:
-    - pre_release
-    - hotfix
-  tags:
-    - ops
+  - flake8 --count alfred
+  # - mypy --config-file .mypy.ini seal
+  except:
+    - master
 
 job deploy_uat:
-  stage: deploy
-  before_script:
-    - source /data/www/venv/bin/activate
-    - pip install box==0.90.9 --index-url=http://mirrors.idiaoyan.cn/repository/pypi/simple/ --trusted-host=mirrors.idiaoyan.cn
-    - echo "[Credentials]" >> .landlady
-    - echo "    project_id=1" >> .landlady
-    - echo "    token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3OTc4NTIyODUsInVpZCI6OCwibmFtZSI6ImdpdGxhYiJ9.15b5bZCjoMqwgStRDCrQzH2jIuJPfIowbSkgA_UtSsE" >> .landlady
-    - echo "    endpoint=http://deploy.uat.spsspro.com/api" >> .landlady
-    - echo "[Deploy]" >> .landlady
-    - echo "    backend_include=cyborg,local_settings,app.py,requirements.txt,requirements-dynamic.txt" >> .landlady
-    - echo "    fe_dist=" >> .landlady
-    - echo "    exclude_dirs=.git,local_settings/.git,__pycache__,tests" >> .landlady
-    - echo "    exclude_suffix=.pyc,__pycache__" >> .landlady
-    - echo "    webhook=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=36ed673c-4b94-4c5e-a4f6-fd740a5cc7e2" >> .landlady
-  script:
-    - python deployment/pre_build.py -v ${COMMIT_ID}
-    - mkdir local_settings
-    - wget https://code.idiaoyan.cn/api/v4/projects/1035/repository/files/sp-webform%2Fuat%2Flocal_settings%2Fseal_uat.ini/raw\?ref\=master --no-check-certificate -O local_settings/seal_uat.ini --header="PRIVATE-TOKEN:PFEXpCB3719QUJzE8wix"
-    - uat deploy
-    - uat broadcast_deploy ${APPNAME}
-  only:
-    - pre_release
-    - hotfix
   tags:
     - ops
+  stage: deploy
+  before_script:
+    - source /home/gitlab-runner/venvs/ops/bin/activate
+    - pip3 install fabric
+    - pip3 install fabric3
+    - pip3 install fabric-virtualenv
+
+  script:
+    - fab uat
+  only:
+    - pre_release

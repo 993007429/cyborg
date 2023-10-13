@@ -32,11 +32,20 @@ class AIService(object):
         self.slice_service = slice_service
         self.analysis_service = analysis_service
 
+    def check_available_gpu(self, ai_type: AIType, slide_path: str) -> AppResponse:
+        gpu_list = self.domain_service.check_available_gpu(ai_type, slide_path)
+        return AppResponse(data=gpu_list)
+
     def start_ai(
             self, ai_name: str, rois: Optional[list] = None, upload_batch_number: Optional[str] = None,
             ip_address: Optional[str] = None, is_calibrate: bool = False) -> AppResponse:
         ai_type = AIType.get_by_value(ai_name)
         request_context.ai_type = ai_type
+
+        task = self.domain_service.repository.get_latest_ai_task(
+            case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
+        if task and task.is_analyzing:
+            return AppResponse(err_code=3, message='切片已在分析中')
 
         res = self.user_service.update_company_trial(ai_name=ai_name)
         if res.err_code:
@@ -113,7 +122,7 @@ class AIService(object):
         if torch.cuda.is_available():
             gpu_list = []
             while not gpu_list:
-                gpu_list = self.domain_service.check_available_gpu(task)
+                gpu_list = self.domain_service.check_available_gpu(task.ai_type, task.slide_path)
                 if gpu_list:
                     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
                 else:
@@ -178,6 +187,7 @@ class AIService(object):
         if result.prob_dict:
             self.domain_service.save_prob(slice_id=task.slice_info['uid'], prob_info=result.prob_dict)
 
+        self.analysis_service.clear_ai_result()
         self.analysis_service.create_ai_marks(
             cell_marks=[mark.to_dict() for mark in result.cell_marks],
             roi_marks=[mark.to_dict() for mark in result.roi_marks],
@@ -274,6 +284,7 @@ class AIService(object):
             return AppResponse(err_code=2, message='任务已结束，无法取消')
 
         self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
+        self.slice_service.update_ai_status(status=SliceStartedStatus.default)
 
         return AppResponse()
 

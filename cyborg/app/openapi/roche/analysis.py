@@ -3,28 +3,44 @@ import logging
 from flask import jsonify, request
 
 from cyborg.app.openapi.roche import roche_blueprint
-from cyborg.modules.partner.roche.application.response import RocheAppResponse
+from cyborg.app.service_factory import RocheAppServiceFactory
 
 logger = logging.getLogger(__name__)
 
 
-@roche_blueprint.route('/openapi/v1/analysis', methods=['get'])
+@roche_blueprint.route('/openapi/v1/analysis', methods=['post'])
 def analysis():
-    algorithm_id = request.form.get('algorithm_id')
-    image_url = request.form.get('image_url')
-    md5 = request.form.get('md5')
-    microns_per_pixel_x = request.form.get('microns_per_pixel_x')
-    microns_per_pixel_y = request.form.get('microns_per_pixel_y')
-    slide_width = request.form.get('slide_width')
-    slide_height = request.form.get('slide_height')
-    stain = request.form.get('stain')
-    tissue_type = request.form.get('tissue_type')
-    clone_type = request.form.get('clone_type')
-    slide_type = request.form.get('slide_type')
-    indication_type = request.form.get('indication_type')
+    algorithm_id = request.json.get('algorithm_id')
+    image_url = request.json.get('image_url')
 
-    logger.info(locals())
+    logger.info('>>>>>>>>>>')
+    logger.info(request.json)
+
+    res = RocheAppServiceFactory.roche_service.start_ai(
+        algorithm_id=algorithm_id, slide_url=image_url, input_info=request.json)
+
+    return jsonify(res.dict())
 
 
+@roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/status', methods=['get'])
+def get_analysis_status(analysis_id: str):
+    res = RocheAppServiceFactory.roche_service.get_task_status(analysis_id)
+    return jsonify(res.dict())
 
-    return jsonify()
+
+@roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/stop', methods=['post'])
+def stop_analysis(analysis_id: str):
+    res = RocheAppServiceFactory.roche_service.cancel_task(analysis_id)
+    return jsonify(res.dict())
+
+
+@roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/close', methods=['post'])
+def close_analysis(analysis_id: str):
+    res = RocheAppServiceFactory.roche_service.close_task(analysis_id)
+    return jsonify(res.dict())
+
+
+@roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/result', methods=['get'])
+def get_analysis_result(analysis_id: str):
+    res = RocheAppServiceFactory.roche_service.get_task_result(analysis_id)
+    return jsonify(res.dict())

@@ -17,3 +17,11 @@ class RocheRepository(metaclass=ABCMeta):
     @abstractmethod
     def save_ai_task(self, ai_task: RocheAITaskEntity) -> bool:
         ...
+
+    @abstractmethod
+    def get_ai_task_by_id(self, task_id: int) -> Optional[RocheAITaskEntity]:
+        ...
+
+    @abstractmethod
+    def get_ai_task_by_analysis_id(self, analysis_id: str) -> Optional[RocheAITaskEntity]:
+        ...

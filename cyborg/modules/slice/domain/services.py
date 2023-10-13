@@ -71,16 +71,16 @@ class SliceDomainService(object):
                 logger.info('清晰度计算完成: %s: %s' % (slice_file_path, clarity_score))
 
     def create_slice(
-            self, case_id: str, file_id: str, company_id: str, slide_path: str, file_name: str, local_file_name: str,
-            upload_type: str, tool_type: str, label_rec_mode: int, user_file_path: str, cover_slice_number: bool,
-            operator: str, high_through: bool = False
+            self, case_id: str, file_id: str, company_id: str, upload_path: str, file_name: str, local_file_name: str,
+            slide_type: str, tool_type: str, label_rec_mode: int, user_file_path: str, cover_slice_number: bool,
+            operator: str, upload_batch_number: str, high_through: bool = False
     ) -> Optional[dict]:
 
         _ext = os.path.splitext(local_file_name)[-1].lower()  # 上传切片文件后缀
         if _ext not in Consts.ALLOWED_EXTENSIONS:
             return
 
-        slide_save_name = os.path.join(slide_path, local_file_name)
+        slide_save_name = os.path.join(upload_path, local_file_name)
         if _ext == ".jpeg":
             rotate_jpeg(slide_save_name)
         slide = open_slide(slide_save_name)
@@ -100,9 +100,9 @@ class SliceDomainService(object):
             else:
                 objective_rate = ''
 
-        label_path = os.path.join(slide_path, "label.png")
+        label_path = os.path.join(upload_path, "label.png")
         slide.save_label(label_path)  # 先关闭掉 后边再调
-        slice_label_path = os.path.join(slide_path, 'slice_label.jpg')
+        slice_label_path = os.path.join(upload_path, 'slice_label.jpg')
 
         label_text = self.recognize_label_text(label_path, slice_label_path, label_rec_mode)
 
@@ -112,7 +112,7 @@ class SliceDomainService(object):
 
         try:
             thumbnail_image = slide.get_thumbnail(Settings.THUMBNAIL_BOUNDING)
-            thumbnail_image.save(os.path.join(slide_path, "thumbnail.jpeg"))
+            thumbnail_image.save(os.path.join(upload_path, "thumbnail.jpeg"))
         except Exception:
             logger.warning(f'获取缩略图失败: {case_id}-{file_id}')
             pass
@@ -137,13 +137,24 @@ class SliceDomainService(object):
             "is_has_label": 1 if os.path.exists(slice_label_path) and os.path.getsize(
                 slice_label_path) else 0,
             "clarity": clarity_score,
-            "is_cs": 1 if upload_type == 'cs' else 0,
+            "is_cs": 0,
             "high_through": high_through,
+            "upload_batch_number": upload_batch_number,
             "tool_type": tool_type,
             "user_file_path": user_file_path,
             "user_file_folder": user_file_path.split('\\')[-2] if user_file_path else ''
         })
+
+        # event = SliceUploadedEvent(slice_info=slice_entity.raw_data)
+        # pub.sendMessage(event.event_name, event=event)
+
         self.repository.save_slice(slice_entity)
+
+        if high_through:
+            slide_save_path = slice_entity.slice_dir if slide_type == 'slices' else slice_entity.attachment_dir
+            if os.path.exists(upload_path):
+                shutil.move(upload_path, slide_save_path)
+                slide_save_name = os.path.join(slide_save_path, local_file_name)
 
         update_clarity(slice_entity.id, slide_save_name)
 
@@ -168,6 +179,7 @@ class SliceDomainService(object):
             record.update_data(slice_count=record.slice_count + 1)
             self.repository.save(record)
         return {
+            'caseid': case_id,
             "width": slide.width,
             "height": slide.height,
             "mppx": slide.mpp,
@@ -276,10 +288,10 @@ class SliceDomainService(object):
             self, case_id: str, file_id: str, company_id: str, status: SliceStartedStatus,
             ai_name: Optional[str] = None, upload_batch_number: Optional[str] = None,
             template_id: Optional[int] = None, ip_address: Optional[str] = None
-    ) -> Optional[SliceEntity]:
+    ) -> Tuple[Optional[str], Optional[SliceEntity]]:
         entity = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
         if not entity:
-            return None
+            return '切片不存在', None
 
         entity.update_data(
             started=status,
@@ -288,6 +300,7 @@ class SliceDomainService(object):
         )
         if ai_name is not None:
             ai_dict = entity.ai_dict
+            ai_name = SliceEntity.fix_ai_name(ai_name)
             ai_dict[ai_name + 'Started'] = True
             entity.update_data(ai_dict=ai_dict, alg=ai_name, tool_type=ai_name)
         if upload_batch_number is not None:
@@ -300,8 +313,8 @@ class SliceDomainService(object):
         entity.update_data(update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
         if self.repository.save_slice(entity):
-            return entity
-        return None
+            return None, entity
+        return '更新执行状态失败', None
 
     def get_slice(
             self, case_id: str, file_id: str, company_id: str) -> Tuple[int, str, Optional[SliceEntity]]:
@@ -738,6 +751,17 @@ class SliceDomainService(object):
                 return None
 
         return config
+
+    def update_report_snapshot(self, record: CaseRecordEntity, snapshot_id: int):
+        os.makedirs(os.path.join(record.data_dir, 'reports_v2', str(snapshot_id)))
+        record.update_data(report=1)
+        self.repository.save(record)
+
+    def get_all_record_columns(self) -> List[str]:
+        return CaseRecordEntity.get_all_display_columns()
+
+    def get_disabled_record_columns(self) -> List[str]:
+        return CaseRecordEntity.get_disabled_columns()
 
 
 if __name__ == '__main__':

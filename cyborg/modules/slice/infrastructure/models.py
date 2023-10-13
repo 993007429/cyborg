@@ -93,7 +93,7 @@ class SliceModel(BaseModel):
     as_id = Column('asId', Integer, comment='用量统计记录id，用于算法用量统计去重')
     ai_angle = Column('aiAngle', Float, default=0, comment='算法给出的旋转角度')
     current_angle = Column('currentAngle', Float, default=0, comment='当前的旋转角度')
-    last_modified = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
+    last_modified = Column(TIMESTAMP, nullable=False)
 
 
 class ReportConfigModel(BaseModel):

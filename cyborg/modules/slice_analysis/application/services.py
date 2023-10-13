@@ -189,6 +189,11 @@ class SliceAnalysisService(object):
         return AppResponse(message='query succeed', data={'marks': marks})
 
     @connect_slice_db()
+    def get_wsa_marks(self) -> AppResponse:
+        _, marks = self.domain_service.repository.get_marks()
+        return AppResponse()
+
+    @connect_slice_db()
     def get_default_area(self):
         err_msg, mark = self.domain_service.get_or_create_default_area(ai_type=request_context.ai_type)
         return AppResponse(message=err_msg, data=mark.to_dict() if mark else None)
@@ -441,12 +446,14 @@ class SliceAnalysisService(object):
     @connect_slice_db()
     def _get_slice_report_roi(self, slice_info: dict):
         ai_type = request_context.ai_type
+        company = request_context.current_company
         res = {"human": [], 'lct': [], 'tct': [], 'dna': []}
 
         _, manual_marks = self.domain_service.repository.manual.get_marks(is_export=1)
         for manual_mark in manual_marks:
             d = manual_mark.to_roi(ai_type=ai_type)
             d['type'] = ai_type.value
+            d['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], company=company, **d)
             res['human'].append(d)
 
         _, marks = self.domain_service.repository.get_marks(mark_type=[2, 3])
@@ -467,7 +474,8 @@ class SliceAnalysisService(object):
                         temp_dict['fileid'] = slice_info['fileid']
                         temp_dict['remark'] = temp_roi.get('remark', '')
                         temp_dict['ai_type'] = ai_type.value
-                        temp_dict['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], **temp_dict)
+                        temp_dict['image_url'] = MarkEntity.make_image_url(
+                            caseid=slice_info['caseid'], company=company, **temp_dict)
                         if ai_type in [AIType.lct, AIType.tct]:
                             res['tct'].append(temp_dict)
                         else:
@@ -484,7 +492,8 @@ class SliceAnalysisService(object):
                     temp_dict['ai_type'] = ai_type.value
                     temp_dict['iconType'] = 'dnaIcon'
                     temp_dict['di'] = nucleus.get('dna_index')
-                    temp_dict['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], **temp_dict)
+                    temp_dict['image_url'] = MarkEntity.make_image_url(
+                        caseid=slice_info['caseid'], company=company, **temp_dict)
                     res[ai_type.value].append(temp_dict)
 
         if dna_statics:

@@ -48,6 +48,7 @@ def login():
 
 
 @api_blueprint.route('/user/sign')
+@api_blueprint.route('/user/sign2')
 def sign():  # 电子签名
     res = AppServiceFactory.user_service.get_current_user()
     user_info = res.data

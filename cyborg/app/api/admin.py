@@ -185,3 +185,9 @@ async def free_up_space():
     end_time = request.form.get('closing_date')  # 截止日期
     res = await AppServiceFactory.slice_service.free_up_space(end_time=end_time)
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/config', methods=['get', 'post'])
+def get_config():
+    res = AppServiceFactory.slice_service.get_config()
+    return jsonify(res.dict())
