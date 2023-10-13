@@ -129,7 +129,7 @@ class RocheDomainService(object):
         try:
             mock_result = oss.get_object(mock_result_file_key)
             mock_result = tuple(json.loads(mock_result))
-        except:
+        except Exception:
             mock_result = None
 
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter

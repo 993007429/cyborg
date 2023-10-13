@@ -17,7 +17,7 @@ class CustomJSONProvider(DefaultJSONProvider):
 
 
 def init_app():
-    from cyborg.app.api import api_blueprint, user, record, slice_file, slice_analysis, ai, report, admin # type: ignore
+    from cyborg.app.api import api_blueprint, user, record, slice_file, slice_analysis, ai, report, admin   # noqa
 
     """项目初始化"""
     # 主应用的根目录
@@ -45,7 +45,7 @@ def init_app():
     app.register_blueprint(api_blueprint, url_prefix='/aipath/api')
 
     # TODO 按需加载
-    from cyborg.app.openapi.roche import roche_blueprint, oauth, vendor, algorithm, analysis  # type: ignore
+    from cyborg.app.openapi.roche import roche_blueprint, oauth, vendor, algorithm, analysis  # noqa
     app.register_blueprint(roche_blueprint, url_prefix='/roche')
 
     subscribe_events()

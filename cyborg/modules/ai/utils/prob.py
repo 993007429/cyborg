@@ -12,11 +12,11 @@ def save_prob_to_file(slide_path: str, result: dict, alg_name: str):
             'slide_path': slide_path,
             'filename': os.path.basename(slide_path),
             'NILM': round(float(slide_pos_prob[0]), 5),
-            'ASC-US': round(float(slide_pos_prob[1]),5),
-            'LSIL': round(float(slide_pos_prob[2]),5),
-            'ASC-H': round(float(slide_pos_prob[3]),5),
-            'HSIL': round(float(slide_pos_prob[4]),5),
-            'AGC': round(float(slide_pos_prob[5]),5),
+            'ASC-US': round(float(slide_pos_prob[1]), 5),
+            'LSIL': round(float(slide_pos_prob[2]), 5),
+            'ASC-H': round(float(slide_pos_prob[3]), 5),
+            'HSIL': round(float(slide_pos_prob[4]), 5),
+            'AGC': round(float(slide_pos_prob[5]), 5),
             'diagnosis': slide_diagnosis,
             'tbs_label': tbs_label
         }

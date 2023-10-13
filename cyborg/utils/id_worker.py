@@ -27,7 +27,7 @@ class IdWorker:
     用于生成IDs
     """
 
-    def __init__(self, data_center_id: int, worker_id: int, sequence: int=0):
+    def __init__(self, data_center_id: int, worker_id: int, sequence: int = 0):
         """
         初始化
         :param data_center_id: 数据中心（机器区域）ID
@@ -74,7 +74,7 @@ class IdWorker:
         self.last_timestamp = timestamp
 
         new_id = ((timestamp - TWEPOCH) << TIMESTAMP_LEFT_SHIFT) | (self.data_center_id << DATACENTER_ID_SHIFT) | (
-                self.worker_id << WOKER_ID_SHIFT) | self.sequence
+            self.worker_id << WOKER_ID_SHIFT) | self.sequence
         self.current_id = new_id
         return new_id
 

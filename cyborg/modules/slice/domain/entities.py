@@ -8,7 +8,6 @@ from typing import Optional, List
 import aioshutil
 
 from cyborg.app.settings import Settings
-from cyborg.consts.common import Consts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.SlideBase import SlideBase
@@ -20,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class SliceEntity(BaseDomainEntity):
-
     slide: Optional[SlideBase] = None
 
     @property
@@ -329,7 +327,7 @@ class CaseRecordEntity(BaseDomainEntity):
         items.sort(key=lambda x: x['date'], reverse=True)
         return items
 
-    def get_report_templates(self, template_config: List[dict], file_id: str):
+    def get_report_templates(self, template_config: List[dict], file_id: str) -> List[dict]:
         if not self.slices:
             return []
 
@@ -338,14 +336,12 @@ class CaseRecordEntity(BaseDomainEntity):
             template_id = item['templateId']
             if template_id == 'reg':
                 template_codes.insert(0, item)
-                alg_type = 'human'
 
             for slic in self.slices:
                 ai_type = AIType.get_by_value(slic.alg)
                 if template_id == ai_type:
                     if slic.fileid == file_id:
                         item['active'] = True
-                        alg_type = ai_type
                     template_codes.append(item)
                     break
         return template_codes
@@ -403,7 +399,7 @@ class CaseRecordEntity(BaseDomainEntity):
                 check_result = check_result.split(';')[0]
 
             check_result = check_result.replace(
-                '霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌','').replace('疱疹', '').replace(
+                '霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌', '').replace('疱疹', '').replace(
                 '巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症', '').replace('修复', '').replace(
                 '出血', '').replace('化生', '').replace(',', '').replace(' ', '')
 
@@ -428,8 +424,7 @@ class CaseRecordEntity(BaseDomainEntity):
                 ai_suggest = ai_suggest.split(';')[0]
 
             ai_suggest = ai_suggest.replace('霉菌', '').replace('滴虫', '').replace('线索', '').replace('放线菌', ''). \
-                replace('疱疹', '').replace('巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症',
-                                                                                                             ''). \
+                replace('疱疹', '').replace('巨细胞病毒', '').replace('HPV', '').replace('萎缩', '').replace('炎症', ''). \
                 replace('修复', '').replace(',', '').replace(' ', '')
             res = temp_dict.get(ai_suggest, '')
             data['opinion'] = res
@@ -548,7 +543,7 @@ class ReportConfigEntity(BaseDomainEntity):
             [{'templateId': ai_type.value, 'templateCode': ''} for ai_type in [
                 AIType.tct, AIType.lct, AIType.dna, AIType.pdl1, AIType.ki67, AIType.ki67hot, AIType.er, AIType.pr,
                 AIType.her2, AIType.fish_tissue, AIType.np, AIType.cd30
-        ]])
+            ]])
         return template_config
 
     @classmethod

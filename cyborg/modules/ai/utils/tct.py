@@ -10,7 +10,6 @@ from cyborg.libs.heimdall.dispatch import open_slide
 
 logger = logging.getLogger(__name__)
 
-
 multi_cell_cls_dict = {
     'neg': 0,
     'ASCUS': 1,
@@ -19,7 +18,6 @@ multi_cell_cls_dict = {
     'ASC-H': 3,
     'AGC': 5
 }
-
 
 multi_microorganism_cls_dict = {
     'neg': 0,
@@ -50,7 +48,7 @@ def process_cell_result(result):
         [picked_microbe_idx, np.setdiff1d(np.arange(microbe_bboxes.shape[0]), picked_microbe_idx)]).astype(np.int))
     cell_idx_list = list(np.arange(cell_bboxes.shape[0]).astype(np.int))
 
-    for i in range(min(100, len(cell_idx_list)+len(microbe_idx_list))):
+    for i in range(min(100, len(cell_idx_list) + len(microbe_idx_list))):
         if len(microbe_idx_list) > 0 and (i % 7 > 4 or len(cell_idx_list) == 0):
             cur_idx = microbe_idx_list.pop(0)
             cur_box = microbe_bboxes[cur_idx]
@@ -64,7 +62,7 @@ def process_cell_result(result):
             cur_type = 7
 
         xmin, ymin, xmax, ymax = map(int, cur_box.tolist())
-        roi_center = [int((xmin+xmax)/2), int((ymin+ymax)/2)]
+        roi_center = [int((xmin + xmax) / 2), int((ymin + ymax) / 2)]
         contour_point = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax], [xmin, ymin]]
         cell_list.append(
             {'contourPoints': contour_point, 'type': cur_type, 'center': roi_center, 'label': cur_label}
@@ -72,7 +70,7 @@ def process_cell_result(result):
     return cell_list
 
 
-def save_roi(slide_path, result,  num_row=6, num_col=7, patch_size=2048, scale=1, border_thickness=15,
+def save_roi(slide_path, result, num_row=6, num_col=7, patch_size=2048, scale=1, border_thickness=15,
              is_save_label=False, label_size=500, alg_type='lct'):
     patch_size *= scale
     result_dict = {}
@@ -113,7 +111,7 @@ def save_roi(slide_path, result,  num_row=6, num_col=7, patch_size=2048, scale=1
             row = cur_roi_indx // num_col
 
             start_x, start_y = (col + 1) * border_thickness + col * patch_size, (
-                    row + 1) * border_thickness + row * patch_size
+                row + 1) * border_thickness + row * patch_size
 
             xmin, ymin = contour_coords[0]
             xmax, ymax = contour_coords[2]
@@ -185,8 +183,7 @@ def save_empty_roi(slide_path, alg_type='lct', message=''):
     imageio.imsave(os.path.join(os.path.split(slide_path)[0], 'ai', alg_type, 'rois.jpg'), empty_img)
     with open(os.path.join(os.path.split(slide_path)[0], 'ai', alg_type, 'rois.json'), 'w', encoding='utf-8') as f:
         json.dump({alg_type: {'diagnosis': message, 'result': []}}, f)
-    logger.error('{} -- [} generating rois failed,  a black image is generated, err_msg: {}'.format(
-        alg_type, slide_path, message))
+    logger.error(f'{alg_type} -- {slide_path} generating rois failed,  a black image is generated, err_msg: {message}')
 
 
 def generate_ai_result(result: dict, roiid: int):

@@ -13,7 +13,7 @@ job lint:
     # - pip install mypy
     - pip3 install -r requirements-types.txt
   script:
-  - flake8 --count alfred
+  - flake8 --count cyborg
   # - mypy --config-file .mypy.ini seal
   except:
     - master

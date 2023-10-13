@@ -47,7 +47,7 @@ class TemplateModel(BaseModel):
     ai_id = Column('aiId', Integer)
     has_imported = Column('hasImported', Integer, default=0)
 
-    
+
 class TCTProbModel(BaseModel):
 
     __table_args__ = {'extend_existing': True}

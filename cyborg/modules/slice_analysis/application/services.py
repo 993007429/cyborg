@@ -13,7 +13,7 @@ from cyborg.modules.slice_analysis.domain.consts import AI_TYPE_MANUAL_MARK_TABL
 from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkGroupEntity
 
 from cyborg.modules.slice_analysis.domain.services import SliceAnalysisDomainService
-from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlice, SliceMarkConfig, CellCount
+from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlice, SliceMarkConfig
 from cyborg.seedwork.application.responses import AppResponse
 
 

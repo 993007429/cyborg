@@ -227,8 +227,3 @@ oss: Oss = MinIO(
     bucket_name=Settings.BUCKET_NAME,
     use_https=Settings.USE_HTTPS
 )
-
-
-if __name__ == '__main__':
-    url = oss.generate_sign_url('GET', 'partner/roche/analysis/193169bc-2dc3-4b0e-8734-20c017c9fa0f.h5')
-    print(url)

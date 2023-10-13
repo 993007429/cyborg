@@ -1,5 +1,6 @@
 from cyborg.seedwork.application.responses import AppResponse
 
+
 class InvalidAuthorizeCodeResponse(AppResponse):
     err_code = 10030
     message = '授权code无效或已过期'

@@ -5,7 +5,6 @@ import logging
 import os
 import random
 import string
-import sys
 from io import BytesIO
 from typing import Optional, List, Tuple, Union
 
@@ -223,7 +222,7 @@ class SliceService(object):
         updated = self.domain_service.update_slice_info(
             case_id=case_id, file_id=file_id, high_through=high_through, info=info)
         return AppResponse(data=updated)
-    
+
     def finish_ai(
             self, status: SliceStartedStatus, ai_suggest: Optional[str] = None, slide_quality: Optional[int] = None,
             cell_num: Optional[int] = None, as_id: Optional[int] = None

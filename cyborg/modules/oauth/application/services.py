@@ -1,7 +1,4 @@
 from typing import Optional, Tuple
-from urllib.parse import urlencode
-
-import jwt
 
 from cyborg.app.settings import Settings
 from cyborg.modules.oauth.application.responses import (
@@ -10,7 +7,6 @@ from cyborg.modules.oauth.domain.services import OAuthDomainService
 from cyborg.modules.oauth.utils.oauth import OAuthUtil
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
-from cyborg.utils.url import UrlUtil
 
 
 class OAuthService(object):

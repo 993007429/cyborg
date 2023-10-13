@@ -40,7 +40,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         model = self.session.query(SliceModel).get(slice_id)
         return SliceEntity.from_dict(model.raw_data) if model else None
 
-    def get_slices_by_case_id(self, case_id: str,  company: str) -> List[SliceEntity]:
+    def get_slices_by_case_id(self, case_id: str, company: str) -> List[SliceEntity]:
         models = self.session.query(
             SliceModel).filter_by(caseid=case_id, company=company).order_by(desc(SliceModel.id)).all()
         return [SliceEntity.from_dict(model.raw_data) for model in models]
@@ -169,7 +169,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
     def get_all_user_folders(self, company_id: str) -> List[dict]:
         rows = self.session.query(distinct(SliceModel.user_file_folder)).filter_by(company=company_id).order_by(
-                SliceModel.id.desc()).limit(20).all()
+            SliceModel.id.desc()).limit(20).all()
         user_folders = list(set(filter(None, [r[0] for r in rows])))
         return [{
             'text': user_folder,

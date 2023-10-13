@@ -22,7 +22,7 @@ def seg_tissue(slide):
     height, width = slide.height, slide.width
     slide_img = np.array(slide.get_thumbnail(1024))
     h, w = slide_img.shape[0:2]
-    ratio_x, ratio_y = width/w, height/h
+    ratio_x, ratio_y = width / w, height / h
 
     hsv = cv2.cvtColor(slide_img, cv2.COLOR_RGB2HSV)
     noise = hsv[:, :, 2] < 120
@@ -61,11 +61,10 @@ def blur_check_worker(slide, coords_list, res_list, size=256, scale=1):
 
 
 def blur_check(slide):
-
     pick_num = 400
     num_worker = 10
     if slide.mpp:
-        scale = round(0.48/slide.mpp)
+        scale = round(0.48 / slide.mpp)
     else:
         scale = 1
     patch_size = 256 * scale
@@ -78,14 +77,14 @@ def blur_check(slide):
     logger.info(f'slide type: {slide_type}  thres: {defual_thres}')
 
     mask, ratio_x, ratio_y = seg_tissue(slide)
-    mask_patch_size = math.ceil(patch_size/ratio_x)
+    mask_patch_size = math.ceil(patch_size / ratio_x)
     coord_list = []
     for x in range(0, slide.width, stride):
         for y in range(0, slide.height, stride):
             try:
-                xs, ys = math.floor(x/ratio_x), math.floor(y/ratio_y)
+                xs, ys = math.floor(x / ratio_x), math.floor(y / ratio_y)
                 patch_mask = mask[ys:ys + mask_patch_size, xs:xs + mask_patch_size]
-                if patch_mask.sum()/patch_mask.size >= 0.5:
+                if patch_mask.sum() / patch_mask.size >= 0.5:
                     coord_list.append((x, y))
             except Exception as e:
                 logger.info(e)
@@ -102,7 +101,7 @@ def blur_check(slide):
         t_list.append(t)
     for t in t_list:
         t.join()
-    clarity_list = sorted(clarity_list)[::-1][:pick_num//2]
+    clarity_list = sorted(clarity_list)[::-1][:pick_num // 2]
     if np.min(clarity_list) >= 400:
         clarity_score = 1
     else:

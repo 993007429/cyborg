@@ -168,7 +168,8 @@ class MarkEntity(BaseDomainEntity):
                             diagnosis, tbs_label = '阳性', label
                 else:
                     pass
-                if '样本不满意' in ai_suggest: tbs_label = tbs_label + '-样本不满意'
+                if '样本不满意' in ai_suggest:
+                    tbs_label = tbs_label + '-样本不满意'
 
                 ai_result['diagnosis'] = [diagnosis, tbs_label]
             else:

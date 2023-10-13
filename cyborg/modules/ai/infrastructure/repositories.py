@@ -1,9 +1,7 @@
-from datetime import datetime
 from typing import Optional, List
 
 from sqlalchemy import desc
 
-from cyborg.infra.cache import cache
 from cyborg.infra.session import transaction
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository

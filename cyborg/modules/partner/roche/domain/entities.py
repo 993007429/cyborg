@@ -6,7 +6,6 @@ from cyborg.consts.common import Consts
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheAlgorithmType
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import BaseEnum, AIType
-from cyborg.utils.id_worker import IdWorker
 
 
 class RocheAlgorithmEntity(BaseDomainEntity):

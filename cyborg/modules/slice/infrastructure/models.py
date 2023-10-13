@@ -1,10 +1,9 @@
-from sqlalchemy import Column, Integer, String, Text, Float, JSON, DateTime, func, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Text, Float, JSON, TIMESTAMP
 
 from cyborg.seedwork.infrastructure.models import BaseModel
 
 
 class CaseRecordModel(BaseModel):
-
     __tablename__ = 'record'
 
     __table_args__ = {'extend_existing': True}
@@ -39,7 +38,6 @@ class CaseRecordModel(BaseModel):
 
 
 class SliceModel(BaseModel):
-
     __tablename__ = 'slice'
 
     __table_args__ = {'extend_existing': True}
@@ -78,8 +76,10 @@ class SliceModel(BaseModel):
     ai_dict = Column(JSON, default={}, comment='各个模块计算状态')
     cell_num = Column('cellNum', Integer, nullable=True, comment='细胞数量')
     slide_quality = Column('slideQuality', String(255), nullable=True, comment='切片质量')
-    csUpload_status = Column('csUploadStatus', Integer, nullable=True, default=0, comment='上传众包状态（0未上传，1已上传）')
-    csAll_finished = Column('csAllFinished', Integer, nullable=True, default=0, comment='完成众包模式下所有流程（0未完成，1已完成）')
+    csUpload_status = Column('csUploadStatus', Integer, nullable=True, default=0,
+                             comment='上传众包状态（0未上传，1已上传）')
+    csAll_finished = Column('csAllFinished', Integer, nullable=True, default=0,
+                            comment='完成众包模式下所有流程（0未完成，1已完成）')
     is_cs = Column('isCs', Integer, nullable=True, default=0, comment='众包模式下上传切片为1')
     high_through = Column('highThrough', Integer, nullable=True, default=0, comment='高通量上传切片为1')
     ai_status = Column('aiStatus', Integer, nullable=True, comment='算法计算完成为1')
@@ -97,7 +97,6 @@ class SliceModel(BaseModel):
 
 
 class ReportConfigModel(BaseModel):
-
     __tablename__ = 'report_config'
 
     id = Column(Integer, primary_key=True, comment='主键ID')

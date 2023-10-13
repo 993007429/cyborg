@@ -142,7 +142,7 @@ def change_cell_result(cell_prob_dict, cell_pos_dict, combine_test_labels_all, m
                 combine_test_labels_all[cell_pos_dict['pnc_pos'][min_pos[i]]] = ptc
 
             ntc_change_num = int(abs((total_num_ptc + int(total_num_phc * 0.5)) / (target_tps + 1e-10) - (
-                    total_num_ptc + int(total_num_phc * 0.5)) - total_num_ntc))
+                total_num_ptc + int(total_num_phc * 0.5)) - total_num_ntc))
 
             min_pos = list(
                 map(cell_prob_dict['ntc_prob'].index, heapq.nsmallest(ntc_change_num, cell_prob_dict['ntc_prob'])))
@@ -234,8 +234,9 @@ def compute_pdl1_s(slide_path=None, x_coords=None, y_coords=None, fitting_model=
                 'pos_norm': cell_count[2], 'pos_tumor': cell_count[3],
                 'total': int(remap_changed_cls_labels.size),
                 'tps': round(float(cell_count[Pdl1Consts.cell_label_dict['pos_tumor']] / (
-                        cell_count[Pdl1Consts.cell_label_dict['pos_tumor']] +
-                        cell_count[Pdl1Consts.cell_label_dict['neg_tumor']] + 1e-10)), 4)}
+                    cell_count[Pdl1Consts.cell_label_dict['pos_tumor']] +
+                    cell_count[Pdl1Consts.cell_label_dict['neg_tumor']] + 1e-10)), 4)
+            }
 
             roi_center = center_coords_np.tolist()
             cls_labels = remap_changed_cls_labels.tolist()

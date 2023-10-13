@@ -1,7 +1,7 @@
 """用户/账号"""
 
 from sqlalchemy import (
-    Column, Index, Integer, String, DateTime, func,
+    Column, Integer, String, DateTime, func,
 )
 
 from cyborg.seedwork.infrastructure.models import BaseModel

@@ -12,5 +12,5 @@ def jwt_encode(payload: dict, secret: str, algorithm: str = 'HS256', headers: Op
 def jwt_decode(encoded: str, secret: str = Settings.JWT_SECRET, algorithm: str = 'HS256') -> Optional[dict]:
     try:
         return jwt.decode(encoded, secret, algorithms=[algorithm])
-    except Exception as e:
+    except Exception:
         return None

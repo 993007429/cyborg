@@ -15,7 +15,6 @@ from cyborg.modules.slice_analysis.domain.repositories import SliceMarkRepositor
 from cyborg.modules.slice_analysis.domain.value_objects import TiledSlice, AIType, AIResult, SliceMarkConfig, CellCount
 from cyborg.modules.slice_analysis.utils.polygon import is_intersected
 from cyborg.utils.id_worker import IdWorker
-from cyborg.utils.strings import camel_to_snake
 
 logger = logging.getLogger(__name__)
 
@@ -749,13 +748,17 @@ class SliceAnalysisDomainService(object):
                 '无': ['无'],
                 '骨髓细胞分类-红系': ['晚幼红细胞', '原始红细胞', '中幼红细胞', '早幼红细胞'],
                 '骨髓细胞分类-粒系': [
-                    '中性分叶核粒细胞', '嗜酸性粒细胞', '原始粒细胞', '早幼粒细胞', '中性中幼粒细胞', '中性杆状核粒细胞',
-                    '嗜碱性粒细胞', '异常早幼粒细胞', '异常中幼粒细胞t(8,21)', '异常嗜酸性粒细胞 inv(16)', '中性晚幼粒细胞'],
+                    '中性分叶核粒细胞', '嗜酸性粒细胞', '原始粒细胞', '早幼粒细胞', '中性中幼粒细胞',
+                    '中性杆状核粒细胞',
+                    '嗜碱性粒细胞', '异常早幼粒细胞', '异常中幼粒细胞t(8,21)', '异常嗜酸性粒细胞 inv(16)',
+                    '中性晚幼粒细胞'],
                 '骨髓细胞分类-淋巴系': [
-                    '淋巴细胞', '原始淋巴细胞', '反应性淋巴细胞', '大颗粒淋巴细胞', '毛细胞', '套细胞', '滤泡细胞', 'Burkkit细胞',
+                    '淋巴细胞', '原始淋巴细胞', '反应性淋巴细胞', '大颗粒淋巴细胞', '毛细胞', '套细胞', '滤泡细胞',
+                    'Burkkit细胞',
                     '淋巴瘤细胞（其他）', '幼稚淋巴细胞', '反应性淋巴细胞'],
                 'MDS病态造血-红系': [
-                    '核异常-核出芽', '核异常-核间桥', '核异常-核碎裂', '核异常-多个核', '胞浆异常-胞浆空泡', '大小异常-巨幼样变-红'],
+                    '核异常-核出芽', '核异常-核间桥', '核异常-核碎裂', '核异常-多个核', '胞浆异常-胞浆空泡',
+                    '大小异常-巨幼样变-红'],
                 '骨髓细胞分类-单核系': ['原始单核细胞', '单核细胞', '异常单核细胞（PB）', '幼稚单核细胞'],
                 '骨髓细胞分类-其他细胞': [
                     '成骨细胞', '破骨细胞', '戈谢细胞', '海蓝细胞', '尼曼匹克细胞', '分裂象', '转移瘤细胞', '吞噬细胞'],
@@ -794,8 +797,9 @@ class SliceAnalysisDomainService(object):
                     rois.append(roi)
 
             if not ai_status and ai_type not in [
-                    AIType.human, AIType.label, AIType.pdl1, AIType.ki67, AIType.er, AIType.pr, AIType.ki67hot,
-                    AIType.her2, AIType.fish_tissue, AIType.np]:
+                AIType.human, AIType.label, AIType.pdl1, AIType.ki67, AIType.er, AIType.pr, AIType.ki67hot,
+                AIType.her2, AIType.fish_tissue, AIType.np
+            ]:
                 rois = [MarkEntity.mock_roi()] if ai_type in [AIType.tct, AIType.lct, AIType.dna] else []
 
             if len(rois) == 0:
@@ -1005,7 +1009,7 @@ class SliceAnalysisDomainService(object):
 
                 for mark in marks_in_area:
                     diagnosis_type = mark.diagnosis_type
-                    cell_type, path = pdl1_type_list[diagnosis_type], mark.position
+                    cell_type, _ = pdl1_type_list[diagnosis_type], mark.position
                     tile_id_list = mark.cal_pdl1s_count_tiles(tiled_slice)
                     if option == 1:
                         # Update ROIList
@@ -1015,8 +1019,8 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] += 1
                         ai_result_before_modify['total'] += 1
                         try:
@@ -1039,8 +1043,8 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] -= 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] -= 1
                         ai_result_before_modify['total'] -= 1
                         try:
@@ -1065,8 +1069,8 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id][cell_type] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[previous_type] -= 1
                         ai_result_before_modify[cell_type] += 1
                         try:
@@ -1170,7 +1174,7 @@ class SliceAnalysisDomainService(object):
 
                 for mark in marks_in_area:
                     diagnosis_type = mark.diagnosis_type
-                    cell_type, path = count_fields[diagnosis_type], mark.position
+                    cell_type, _ = count_fields[diagnosis_type], mark.position
                     tile_id_list = mark.cal_pdl1s_count_tiles(tiled_slice)
 
                     if option == 1:

@@ -420,7 +420,7 @@ class AIDomainService(object):
             # split into 4 region
             if whole_slide:
                 if len(center_coords) > 0:
-                    center_coords_np, cls_labels_np, probs_np = np.array(center_coords), np.array(
+                    center_coords_np, cls_labels_np, _ = np.array(center_coords), np.array(
                         cls_labels), np.array(probs)
                     p1_index = np.where(np.logical_and(
                         center_coords_np[:, 0] < xcent, center_coords_np[:, 1] < ycent))[0]
@@ -442,9 +442,9 @@ class AIDomainService(object):
                         count_summary_dict.update({
                             str(i + 1): {
                                 'pos_tumor': pos_tumor, 'neg_tumor': neg_tumor, 'pos_norm': pos_norm,
-                                'neg_norm': neg_norm, 'total': total, 'tps': tps}
+                                'neg_norm': neg_norm, 'total': total, 'tps': tps
                             }
-                        )
+                        })
                 else:
                     temp_dict = {'neg_norm': 0, 'neg_tumor': 0, 'pos_norm': 0, 'pos_tumor': 0, 'total': 0,
                                  'tps': 0}
