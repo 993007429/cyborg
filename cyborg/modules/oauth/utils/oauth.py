@@ -3,8 +3,6 @@ from hashlib import sha1
 from base64 import b64decode, b64encode, b85decode, b85encode, urlsafe_b64encode
 from typing import Dict, Optional
 
-import jwt
-
 from cyborg.utils.jwt import jwt_encode, jwt_decode
 
 

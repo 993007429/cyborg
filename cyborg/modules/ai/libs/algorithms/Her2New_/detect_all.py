@@ -5,7 +5,6 @@ import stat
 
 import subprocess
 import json
-import argparse
 import time
 import math
 from typing import Any
@@ -31,6 +30,7 @@ from cyborg.seedwork.domain.value_objects import BaseValueObject
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = "True"
 current_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_root)
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +255,8 @@ def region_process(slice_path, opt, name, roi_x, roi_y):
     # Load model
     weights = opt.weights
     weights = oss.path_join('AI', 'Her2New_', weights)
+    logger.info('>>>>>>>>>>')
+    logger.info(weights)
     model = attempt_load(weights, map_location=device)  # load FP32 model
     if half:
         model.half()  # to FP16

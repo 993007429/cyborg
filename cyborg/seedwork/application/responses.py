@@ -10,8 +10,6 @@ from cyborg.types import T
 
 class ResponseEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (int64, int32)):  # type: ignore
-            return int(obj)
         if isinstance(obj, datetime.datetime):
             return obj.strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(obj, datetime.date):

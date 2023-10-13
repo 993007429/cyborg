@@ -19,13 +19,14 @@ PageParams = namedtuple('PageParams', ['page', 'per_page'])
 
 seq = 0
 
+
 class RepoQuery(object):
     def __init__(
-            self,
-            params: Dict[str, Any] = None,
-            order_by: List[Tuple[Column, Union[Type[desc], Type[asc], None]]] = None,
-            fields: List[Column] = None,
-            page_params: PageParams = None
+        self,
+        params: Dict[str, Any] = None,
+        order_by: List[Tuple[Column, Union[Type[desc], Type[asc], None]]] = None,
+        fields: List[Column] = None,
+        page_params: PageParams = None
     ):
         self.params = params or {}
         self.order_by = order_by or []

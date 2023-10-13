@@ -42,9 +42,11 @@ class Settings(object):
 
     WHITE_LIST = [
         '/aipath/api/user/login',
+        '/aipath/api/user/sign2',
         '/aipath/api/files/slice',
         '/aipath/api/files/getInfo',
         '/aipath/api/files/thumbnail',
+        '/aipath/api/files/ROI2',
         '/aipath/api/ai/inform',
         '/aipath/api/ai/connect',
         '/aipath/api/files/downloadTemplate',
@@ -72,7 +74,7 @@ class Settings(object):
     LAST_SHOW_GROUPS = [266, ]
 
     # 是否为公有云版本，默认为私有云版本
-    CLOUD = True
+    CLOUD = False
 
     # mysql配置
     MYSQL_USER = os.environ.get('mysql.user') or LOCAL_SETTINGS['mysql']['user']
@@ -102,6 +104,7 @@ class Settings(object):
     PRIVATE_ENDPOINT = MINIO_SETTINGS['private_endpoint'] if MINIO_SETTINGS else ''
     PUBLIC_ENDPOINT = MINIO_SETTINGS['public_endpoint'] if MINIO_SETTINGS else ''
     BUCKET_NAME = MINIO_SETTINGS['bucket_name'] if MINIO_SETTINGS else ''
+    USE_HTTPS = MINIO_SETTINGS['use_https'].lower() == 'true' if MINIO_SETTINGS else False
 
     IMAGE_SERVER = LOCAL_SETTINGS['default']['image_server']
 
@@ -111,6 +114,10 @@ class Settings(object):
 
     # 需要记录操作日志的算法模块
     ai_log_list = ['tct', 'lct', 'pdl1', 'human_tl']
+
+    PLUGINS = []
+
+    SYNC_OPERATIONS = []
 
     # 版本号（用于算法用量统计）
     VERSION = '4.0.0'

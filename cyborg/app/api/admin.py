@@ -1,13 +1,8 @@
 # index蓝图的视图
 import os
-import shutil
 import sys
-import time
 import json
-import requests
-from flask import request, current_app, jsonify
-from sqlalchemy import and_, text
-import numpy as np
+from flask import request, jsonify
 
 from cyborg.app.api import api_blueprint
 from cyborg.app.request_context import request_context
@@ -51,7 +46,7 @@ def update_user():
     user_id = request.form.get("id")
 
     res = AppServiceFactory.user_service.update_user(
-        user_id=user_id, username=new_user_name, password=new_password, role=new_role)
+        user_id=int(user_id), username=new_user_name, password=new_password, role=new_role)
     return jsonify(res.dict())
 
 
@@ -184,4 +179,10 @@ def get_record_count():
 async def free_up_space():
     end_time = request.form.get('closing_date')  # 截止日期
     res = await AppServiceFactory.slice_service.free_up_space(end_time=end_time)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/config', methods=['get', 'post'])
+def get_config():
+    res = AppServiceFactory.slice_service.get_config()
     return jsonify(res.dict())

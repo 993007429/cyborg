@@ -642,9 +642,9 @@ class TiledSlice(BaseValueObject):
         x, y, z = tile.x, tile.y, tile.z
 
         x_tile_min, x_tile_max = x * self.tile_size * 2 ** (self.max_level - z), (x + 1) * self.tile_size * 2 ** (
-                self.max_level - z) - 1
+            self.max_level - z) - 1
         y_tile_min, y_tile_max = y * self.tile_size * 2 ** (self.max_level - z), (y + 1) * self.tile_size * 2 ** (
-                self.max_level - z) - 1
+            self.max_level - z) - 1
 
         if x_tile_min > xmax or x_tile_max < xmin or y_tile_max < ymin or y_tile_min > ymax:
             return False
@@ -658,9 +658,9 @@ class TiledSlice(BaseValueObject):
         x, y, z = tile.x, tile.y, tile.z
 
         x_tile_min, x_tile_max = x * self.tile_size * 2 ** (self.max_level - z), (x + 1) * self.tile_size * 2 ** (
-                self.max_level - z) - 1
+            self.max_level - z) - 1
         y_tile_min, y_tile_max = y * self.tile_size * 2 ** (self.max_level - z), (y + 1) * self.tile_size * 2 ** (
-                self.max_level - z) - 1
+            self.max_level - z) - 1
         if xmin <= x_tile_min and xmax >= x_tile_max and ymin <= y_tile_min and ymax >= y_tile_max:
             return True
         else:

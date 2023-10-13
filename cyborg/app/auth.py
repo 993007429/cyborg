@@ -5,7 +5,6 @@ import os
 import time
 from typing import Optional, Union
 
-import jwt
 from flask import current_app, request
 
 from cyborg.app.settings import Settings
@@ -29,7 +28,6 @@ class LoginUser(BaseValueObject):
     time_out: Optional[str] = None
     cloud: bool = False
     is_test: bool = False
-
 
     @property
     def data_dir(self):

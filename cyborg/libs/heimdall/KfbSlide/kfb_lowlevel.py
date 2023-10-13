@@ -165,10 +165,6 @@ def kfbslide_read_region(osr, level, pos_x, pos_y):
                                  byref(data_length), byref(pixel)):
         return None
 
-    logger.info('>>>>>>>>>>>1111')
-    logger.info(data_length)
-    logger.info(pixel)
-
     if data_length.value == 0:
         return None
 

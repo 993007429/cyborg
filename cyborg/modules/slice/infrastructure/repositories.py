@@ -40,7 +40,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         model = self.session.query(SliceModel).get(slice_id)
         return SliceEntity.from_dict(model.raw_data) if model else None
 
-    def get_slices_by_case_id(self, case_id: str,  company: str) -> List[SliceEntity]:
+    def get_slices_by_case_id(self, case_id: str, company: str) -> List[SliceEntity]:
         models = self.session.query(
             SliceModel).filter_by(caseid=case_id, company=company).order_by(desc(SliceModel.id)).all()
         return [SliceEntity.from_dict(model.raw_data) for model in models]
@@ -83,26 +83,30 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             CaseRecordModel.create_time < end_time, CaseRecordModel.company == company).all()
         return [CaseRecordEntity.from_dict(model.raw_data) for model in models]
 
-    def get_new_slices(self, start_id: int, upload_batch_number: Optional[int] = None) -> Tuple[int, int, List[dict]]:
+    def get_new_slices(
+            self, company: str, start_id: int, upload_batch_number: Optional[str] = None
+    ) -> Tuple[int, int, List[dict]]:
         query = self.session.query(SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg).filter(
-            SliceModel.id > start_id).order_by(SliceModel.id.desc())
+            SliceModel.company == company,
+            SliceModel.id > start_id
+        ).order_by(SliceModel.id.desc())
         if upload_batch_number is not None:
             query = query.filter(
                 SliceModel.upload_batch_number == upload_batch_number
             )
             rows = query.all()
             increased = len(rows)
-            last_id = rows[0][0] if rows else 0
+            last_id = rows[0][0] if rows else start_id
             slices = [{'caseid': row[1], 'fileid': row[2], 'ai_type': AIType.get_by_value(row[3])} for row in rows]
             return last_id, increased, slices
         else:
             row = query.first()
-            last_id = row[0] if row else 0
+            last_id = row[0] if row else start_id
             increased = query.count()
             return last_id, increased, []
 
     def get_new_updated_slices(
-            self, updated_after: Optional[datetime] = None, upload_batch_number: Optional[int] = None
+            self, company: str, updated_after: Optional[datetime] = None, upload_batch_number: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
 
         if updated_after is None:
@@ -110,8 +114,12 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             updated_after = datetime.now() - timedelta(seconds=300)
 
         query = self.session.query(
-            SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg, SliceModel.started).filter(
-            SliceModel.last_modified > updated_after).order_by(SliceModel.last_modified.asc())
+            SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg, SliceModel.started,
+            SliceModel.last_modified
+        ).filter(
+            SliceModel.company == company,
+            SliceModel.last_modified > updated_after
+        ).order_by(SliceModel.last_modified.asc())
 
         if upload_batch_number is not None:
             query = query.filter(
@@ -123,8 +131,16 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         slices = [{'caseid': row[1],
                    'fileid': row[2],
                    'ai_type': AIType.get_by_value(row[3]),
-                   'status': SliceStartedStatus.get_by_value(row[4])} for row in rows]
+                   'status': SliceStartedStatus.get_by_value(row[4]),
+                   'last_modified': row[5]} for row in rows]
         return updated, slices
+
+    def get_pending_slices_count(self, company: str, upload_batch_number: str) -> int:
+        return self.session.query(SliceModel.id, SliceModel.caseid, SliceModel.fileid, SliceModel.alg).filter(
+            SliceModel.company == company,
+            SliceModel.started == 0,
+            SliceModel.upload_batch_number == upload_batch_number
+        ).count()
 
     def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id, company=company).first()
@@ -153,7 +169,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
     def get_all_user_folders(self, company_id: str) -> List[dict]:
         rows = self.session.query(distinct(SliceModel.user_file_folder)).filter_by(company=company_id).order_by(
-                SliceModel.id.desc()).limit(20).all()
+            SliceModel.id.desc()).limit(20).all()
         user_folders = list(set(filter(None, [r[0] for r in rows])))
         return [{
             'text': user_folder,

@@ -2,6 +2,7 @@ import json
 import math
 from json import JSONDecodeError
 from typing import Tuple, List, Optional, Union
+from urllib.parse import quote
 
 from shapely.geometry import Polygon, Point
 
@@ -167,7 +168,8 @@ class MarkEntity(BaseDomainEntity):
                             diagnosis, tbs_label = '阳性', label
                 else:
                     pass
-                if '样本不满意' in ai_suggest: tbs_label = tbs_label + '-样本不满意'
+                if '样本不满意' in ai_suggest:
+                    tbs_label = tbs_label + '-样本不满意'
 
                 ai_result['diagnosis'] = [diagnosis, tbs_label]
             else:
@@ -294,12 +296,12 @@ class MarkEntity(BaseDomainEntity):
         return item
 
     @classmethod
-    def make_image_url(cls, id: str, caseid: str, fileid: str, filename: str, path: dict, **_):
+    def make_image_url(cls, id: str, caseid: str, fileid: str, filename: str, path: dict, company: str, **_):
         roi = [
             [min(path['x']), min(path['y'])],
             [max(path['x']), max(path['y'])]
         ]
-        return f'{Settings.IMAGE_SERVER}/files/ROI?caseid={caseid}&fileid={fileid}&filename={filename}&roi={json.dumps(roi)}&roiid={id}'
+        return f'{Settings.IMAGE_SERVER}/files/ROI?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&roi={json.dumps(roi)}&roiid={id}&company={company}'
 
     def to_roi(self, ai_type: AIType, ai_suggest: Optional[dict] = None):
         d = self.to_dict()

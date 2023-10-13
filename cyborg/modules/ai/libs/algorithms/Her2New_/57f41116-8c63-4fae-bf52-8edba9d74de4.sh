@@ -1,0 +1,1 @@
+mpiexec --allow-run-as-root -np 0 /Users/zhaoyu/envs/cyborg/bin/python -m cell_detection --ppid 41760 --slide "/tmp/57f41116-8c63-4fae-bf52-8edba9d74de4.jpg" --mask /Users/zhaoyu/projects/cyborg/cyborg/modules/ai/libs/algorithms/Her2New_/data/mask_result/57f41116-8c63-4fae-bf52-8edba9d74de4_mask.png --roi [] [] --vis none

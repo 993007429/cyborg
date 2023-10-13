@@ -2,7 +2,6 @@ from typing import Type
 
 from sqlalchemy import Column, Integer, Text, Float, String, JSON
 
-from cyborg.modules.slice_analysis.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.models import BaseModel
 
 

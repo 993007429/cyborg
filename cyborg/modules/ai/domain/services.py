@@ -89,16 +89,15 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
-    def check_available_gpu(self, task: AITaskEntity):
+    def check_available_gpu(self, ai_type: AIType, slide_path: str) -> List[str]:
         from cyborg.modules.ai.utils.gpu import get_gpu_status
         gpu_status = get_gpu_status()
-        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[task.ai_type.value]
+        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[ai_type.value]
         if isinstance(required_gpu_num, tuple):
             min_gpu_num, max_gpu_num = required_gpu_num
         else:
             min_gpu_num, max_gpu_num = required_gpu_num, required_gpu_num
 
-        slide_path = task.slide_path
         logger.info(slide_path)
         # single gpu for small images is enough
         if isinstance(slide_path, str) and fs.path_splitext(slide_path.lower())[1] in ['.jpg', '.png', '.jpeg', '.bmp']:
@@ -421,7 +420,7 @@ class AIDomainService(object):
             # split into 4 region
             if whole_slide:
                 if len(center_coords) > 0:
-                    center_coords_np, cls_labels_np, probs_np = np.array(center_coords), np.array(
+                    center_coords_np, cls_labels_np, _ = np.array(center_coords), np.array(
                         cls_labels), np.array(probs)
                     p1_index = np.where(np.logical_and(
                         center_coords_np[:, 0] < xcent, center_coords_np[:, 1] < ycent))[0]
@@ -443,9 +442,9 @@ class AIDomainService(object):
                         count_summary_dict.update({
                             str(i + 1): {
                                 'pos_tumor': pos_tumor, 'neg_tumor': neg_tumor, 'pos_norm': pos_norm,
-                                'neg_norm': neg_norm, 'total': total, 'tps': tps}
+                                'neg_norm': neg_norm, 'total': total, 'tps': tps
                             }
-                        )
+                        })
                 else:
                     temp_dict = {'neg_norm': 0, 'neg_tumor': 0, 'pos_norm': 0, 'pos_tumor': 0, 'total': 0,
                                  'tps': 0}

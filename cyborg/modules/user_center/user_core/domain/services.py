@@ -124,6 +124,7 @@ class UserCoreDomainService(object):
         else:
             space = 1
         return {
+            'usage': company_usage,
             'remainingSpace': round(100 - space * 100, 0)
         }
 

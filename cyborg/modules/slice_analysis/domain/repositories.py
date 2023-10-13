@@ -37,7 +37,8 @@ class SliceMarkRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def clear_mark_table(self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None):
+    def clear_mark_table(
+            self, ai_type: AIType, exclude_area_marks: Optional[List[int]] = None):
         ...
 
     @abstractmethod

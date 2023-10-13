@@ -54,13 +54,17 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_new_slices(
-            self, start_id: int, upload_batch_number: Optional[int] = None
+            self, company: str, start_id: int, upload_batch_number: Optional[str] = None
     ) -> Tuple[int, int, List[dict]]:
         ...
 
     @abstractmethod
+    def get_pending_slices_count(self, company: str, upload_batch_number: str) -> int:
+        ...
+
+    @abstractmethod
     def get_new_updated_slices(
-            self, updated_after: Optional[datetime] = None, upload_batch_number: Optional[int] = None
+            self, company: str, updated_after: Optional[datetime] = None, upload_batch_number: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         ...
 

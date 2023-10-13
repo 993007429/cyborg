@@ -35,7 +35,10 @@ class OSSHeadObject(BaseModel):
 
 class Oss(object, metaclass=abc.ABCMeta):
 
-    def __init__(self, access_key: str, secret: str, pub_endpoint: str, bucket_name: str, private_endpoint: str = ''):
+    def __init__(
+            self, access_key: str, secret: str, pub_endpoint: str, bucket_name: str, private_endpoint: str = '',
+            use_https: bool = False
+    ):
         if not all((access_key, secret, pub_endpoint, bucket_name)):
             logger.warning('Missing key OSS config!')
         self.access_key = access_key
@@ -43,6 +46,7 @@ class Oss(object, metaclass=abc.ABCMeta):
         self.bucket_name = bucket_name
         self.public_endpoint = pub_endpoint
         self.private_endpoint = private_endpoint or pub_endpoint
+        self.use_https = use_https
 
     @cached_property
     def bucket_endpoint(self):
@@ -119,7 +123,7 @@ class MinIO(Oss):
             self.public_endpoint,
             access_key=self.access_key,
             secret_key=self.secret,
-            secure=False,
+            secure=self.use_https,
         )
 
     @cached_property
@@ -138,14 +142,14 @@ class MinIO(Oss):
 
     def put_object_from_file(self, file_key: str, filepath: str) -> bool:
         result = self.client.fput_object(self.bucket_name, file_key, filepath)
-        return bool(result and result.version_id)
+        return bool(result)
 
     def get_object_to_file(self, file_key: str, filepath: str):
         return self.client.fget_object(self.bucket_name, file_key, filepath)
 
     def put_object_from_io(self, bytesio: BytesIO, file_key: str):
         result = self.client.put_object(self.bucket_name, file_key, bytesio, length=bytesio.getbuffer().nbytes)
-        return bool(result and result.version_id)
+        return bool(result)
 
     def get_object_to_io(self, file_key: str) -> BytesIO:
         buffer = BytesIO()
@@ -220,5 +224,6 @@ oss: Oss = MinIO(
     secret=Settings.MINIO_ACCESS_SECRET,
     pub_endpoint=Settings.PUBLIC_ENDPOINT,
     private_endpoint=Settings.PRIVATE_ENDPOINT,
-    bucket_name=Settings.BUCKET_NAME
+    bucket_name=Settings.BUCKET_NAME,
+    use_https=Settings.USE_HTTPS
 )

@@ -1,8 +1,6 @@
 import datetime
 from typing import Optional, Tuple
 
-import jwt
-
 from cyborg.app.settings import Settings
 from cyborg.modules.oauth.domain.entities import OAuthApplicationEntity
 from cyborg.modules.oauth.domain.repositories import OAuthApplicationRepository

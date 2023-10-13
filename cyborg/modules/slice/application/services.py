@@ -5,7 +5,6 @@ import logging
 import os
 import random
 import string
-import sys
 from io import BytesIO
 from typing import Optional, List, Tuple, Union
 
@@ -18,6 +17,7 @@ from werkzeug.datastructures import FileStorage
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
 from cyborg.consts.common import Consts
+from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 
@@ -55,6 +55,18 @@ class SliceService(object):
             'folders': self.domain_service.repository.get_all_user_folders(company_id=company_id),
             'operators': self.domain_service.repository.get_all_operators(company_id=company_id)
         })
+
+    def get_display_columns(self) -> AppResponse:
+        all_columns = self.domain_service.get_all_record_columns()
+        checked_columns = self.user_service.get_customized_record_fields().data
+        disabled_columns = self.domain_service.get_disabled_record_columns()
+
+        data = [{
+            'name': column,
+            'checked': column in checked_columns,
+            'disabled': column in disabled_columns
+        } for column in all_columns]
+        return AppResponse(data=data)
 
     def search_records(
             self,
@@ -134,7 +146,8 @@ class SliceService(object):
         if Settings.CLOUD:
             company_info = self.user_service.get_company_info(company_id=request_context.current_company).data
             volume = company_info['volume']
-            usage = company_info['usage']
+            storage_info = self.user_service.get_company_storage_info().data
+            usage = storage_info['usage']
             if volume and usage and float(usage) >= float(volume):
                 return 5, f'volume: {volume}, usage: {usage}'
         else:
@@ -154,9 +167,9 @@ class SliceService(object):
         return AppResponse(data=[s.to_dict() for s in slices])
 
     def upload_slice(
-            self, case_id: str, file_id: str, company_id: str, file_name: str, slide_type: str, upload_type: str,
+            self, upload_id: str, case_id: str, file_id: str, company_id: str, file_name: str, slide_type: str,
             upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str, cover_slice_number: bool,
-            high_through: bool, operator: str
+            high_through: bool, upload_batch_number: str, operator: str
     ) -> AppResponse[dict]:
 
         err_code, message = self._check_space_usage()
@@ -164,6 +177,11 @@ class SliceService(object):
             return AppResponse(err_code=err_code, message=message)
 
         if high_through:
+            case_id = cache.get(f'uploadid:{upload_id}:caseid')
+            if not case_id:
+                case_id = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '_' + str(random.randint(0, 1000000))
+                cache.set(f'uploadid:{upload_id}:caseid', case_id, ex=3600 * 24 * 3)
+
             # 上传文件重复性校验
             slice = self.domain_service.repository.get_slice_by_local_filename(
                 user_file_path=user_file_path, file_name=file_name, company=request_context.current_company)
@@ -186,10 +204,11 @@ class SliceService(object):
             file_list = os.listdir(upload_path)
             for local_file_name in file_list:
                 slice_info = self.domain_service.create_slice(
-                    case_id=case_id, file_id=file_id, company_id=company_id, slide_path=upload_path, file_name=file_name,
-                    local_file_name=local_file_name, upload_type=upload_type, tool_type=tool_type,
-                    label_rec_mode=company['label'], user_file_path=user_file_path, cover_slice_number=cover_slice_number,
-                    operator=operator, high_through=high_through
+                    case_id=case_id, file_id=file_id, company_id=company_id, upload_path=upload_path,
+                    file_name=file_name, local_file_name=local_file_name, slide_type=slide_type, tool_type=tool_type,
+                    label_rec_mode=company['label'], user_file_path=user_file_path,
+                    cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
+                    high_through=high_through,
                 )
                 if slice_info:
                     return AppResponse(data=slice_info)
@@ -203,7 +222,7 @@ class SliceService(object):
         updated = self.domain_service.update_slice_info(
             case_id=case_id, file_id=file_id, high_through=high_through, info=info)
         return AppResponse(data=updated)
-    
+
     def finish_ai(
             self, status: SliceStartedStatus, ai_suggest: Optional[str] = None, slide_quality: Optional[int] = None,
             cell_num: Optional[int] = None, as_id: Optional[int] = None
@@ -255,7 +274,7 @@ class SliceService(object):
             self, status: SliceStartedStatus, ai_name: Optional[str] = None, upload_batch_number: Optional[str] = None,
             template_id: Optional[int] = None, ip_address: Optional[str] = None
     ) -> AppResponse[dict]:
-        slice_entity = self.domain_service.update_ai_status(
+        err_msg, slice_entity = self.domain_service.update_ai_status(
             case_id=request_context.case_id, file_id=request_context.file_id,
             company_id=request_context.current_company,
             status=status,
@@ -265,14 +284,16 @@ class SliceService(object):
             ip_address=ip_address
         )
         return AppResponse(
-            err_code=0 if slice_entity else 1,
-            message='update succeed' if slice_entity else 'update failed',
+            err_code=1 if err_msg else 0,
+            message=err_msg,
             data=slice_entity.to_dict() if slice_entity else None
         )
 
     def get_slice_info(self, case_id: str, file_id: str, company_id: str = '') -> AppResponse[dict]:
         err_code, message, entity = self.domain_service.get_slice(
             case_id=case_id, file_id=file_id, company_id=company_id or request_context.current_company)
+        if entity:
+            entity.slide = open_slide(entity.slice_file_path)
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
@@ -502,7 +523,8 @@ class SliceService(object):
         record.slices = self.domain_service.repository.get_slices_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
         report_config = self.domain_service.get_report_config(company=request_context.current_company)
-        report_templates = record.get_report_templates(template_config=report_config.template_config)
+        report_templates = record.get_report_templates(
+            template_config=report_config.template_config, file_id=request_context.file_id)
 
         report_data = record.to_dict_for_report()
 
@@ -510,13 +532,14 @@ class SliceService(object):
         from cyborg.app.service_factory import AppServiceFactory
         roi_data = AppServiceFactory.slice_analysis_service.get_report_roi().data
         roi_images = []
-        for k in ['human', 'tct', 'dna']:
+        for k in ['human', 'tct', 'lct', 'dna']:
             roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])
 
         report_data['roiImages'] = roi_images
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
-        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign'
+        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign?id={request_context.current_user.username}'
+        report_data['reportTime'] = datetime.datetime.now().strftime('%Y-%m-%d')
 
         async with aiohttp.ClientSession() as client:
             params = {
@@ -524,11 +547,40 @@ class SliceService(object):
                 'bizUid': record.id,
                 'reportData': report_data
             }
-            async with client.post(f'{Settings.REPORT_SERVER}/reports', json=params, verify_ssl=False) as resp:
+            async with client.post(f'{Settings.REPORT_SERVER}/report/api/reports', json=params, verify_ssl=False) as resp:
                 if resp.status == 200:
                     data = json.loads(await resp.read())
                     if data.get('code') == 0:
-                        return AppResponse(message='发送成功', data={'reportTemplates': report_templates})
+                        return AppResponse(message='发送成功', data={
+                            'reportTemplates': report_templates,
+                            'reportServer': Settings.REPORT_SERVER
+                        })
+                    else:
+                        return AppResponse(err_code=1, message=data.get('message', '发送报告失败'))
+                else:
+                    return AppResponse(err_code=1, message='报告中心服务异常')
+
+    async def save_report_snapshot(self, template_code: str):
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id=request_context.case_id, company=request_context.current_company)
+        if not record:
+            return AppResponse(err_code=1, message='病例不存在')
+
+        async with aiohttp.ClientSession() as client:
+            params = {
+                'bizType': Consts.REPORT_BIZ_TYPE,
+                'bizUid': record.id,
+                'templateCode': template_code
+            }
+            async with client.post(
+                    f'{Settings.REPORT_SERVER}/reports/snapshots', json=params, verify_ssl=False) as resp:
+                if resp.status == 200:
+                    data = json.loads(await resp.read())
+                    if data.get('code') == 0:
+                        snapshot_id = data.get('data', {}).get('id', None)
+                        if snapshot_id:
+                            self.domain_service.update_report_snapshot(record=record, snapshot_id=snapshot_id)
+                        return AppResponse(message='发送成功')
                     else:
                         return AppResponse(err_code=1, message=data.get('message', '发送报告失败'))
                 else:
@@ -537,6 +589,8 @@ class SliceService(object):
     def create_report(self, case_id: str, report_id: str, report_data: str, jwt: str) -> AppResponse:
         record = self.domain_service.repository.get_record_by_case_id(
             case_id=case_id, company=request_context.current_company)
+        if not record:
+            return AppResponse(err_code=1, message='病例不存在')
 
         report_dir = fs.path_join(record.data_dir, 'reports', report_id)
         os.makedirs(report_dir)
@@ -560,7 +614,7 @@ class SliceService(object):
             logger.info(command)
             os.system(command)
         except Exception as e:
-            AppResponse(err_code=11, message="create pdf error: %s" % e)
+            AppResponse(err_code=1, message="create pdf error: %s" % e)
 
         return AppResponse(message=report_id, data=report_id)
 
@@ -599,14 +653,26 @@ class SliceService(object):
     def get_new_slices(
             self, start_id: int, updated_after: Optional[datetime.datetime] = None, upload_batch_number: Optional[str] = None
     ) -> AppResponse:
-        last_modified = datetime.datetime.now()
         last_id, increased, slices = self.domain_service.repository.get_new_slices(
-            start_id=start_id, upload_batch_number=upload_batch_number)
+            company=request_context.current_company, start_id=start_id, upload_batch_number=upload_batch_number)
         updated, updated_slices = self.domain_service.repository.get_new_updated_slices(
-            updated_after=updated_after, upload_batch_number=upload_batch_number)
-        data = {'lastId': last_id, 'lastModified': last_modified, 'increased': increased, 'updated': updated}
+            company=request_context.current_company, updated_after=updated_after,
+            upload_batch_number=upload_batch_number)
+        last_modified = updated_slices[-1]['last_modified'] if updated_slices else updated_after
+        data = {
+            'lastId': last_id,
+            'lastModified': last_modified.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            'increased': increased,
+            'updated': updated
+        }
         if upload_batch_number:
             data.update({'newRecords': slices, 'updatedRecords': updated_slices})
+            if slices or updated_slices:
+                pending_count = self.domain_service.repository.get_pending_slices_count(
+                    company=request_context.company,
+                    upload_batch_number=upload_batch_number
+                )
+                data['pendingAnalysis'] = pending_count
         return AppResponse(data=data)
 
     async def free_up_space(self, end_time: str) -> AppResponse:
@@ -634,3 +700,13 @@ class SliceService(object):
             if self.domain_service.report_config_repository.save(config):
                 return AppResponse(message='保存成功')
         return AppResponse(err_code=1, message='保存失败')
+
+    def get_config(self) -> AppResponse:
+        plugins = Settings.PLUGINS or []
+        config = {
+            'hasPIS': 'logene' in plugins,
+            'syncOperations': Settings.SYNC_OPERATIONS or [],
+            'autoSelectAI': 'logene' in plugins
+        }
+
+        return AppResponse(data=config)

@@ -1,7 +1,7 @@
 [flake8]
-ignore = W503,W504
+ignore = W503,W504,C901
 
-exclude = .git, __pycache__, venv, migrations, tools
+exclude = .git, __pycache__, venv, migrations, tools, cyborg/modules/ai/libs, cyborg/libs
 
 max-complexity = 32
 

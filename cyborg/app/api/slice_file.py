@@ -26,11 +26,12 @@ download_thread_dict = dict()
 @api_blueprint.route('/files/upload2', methods=['get', 'post'])
 def upload_slice_by_dir():
     slide_type = request.args.get('type') + 's'
-    caseid = request.args.get('caseid')
+    uploadid = request.args.get('uploadid')
     fileid = request.args.get('fileid')
     filename = os.sep.join(request.args.get('filename').split('\\'))
 
-    slide_save_path = os.path.join(request_context.current_user.data_dir, 'data', caseid, slide_type, fileid, filename)
+    slide_save_path = os.path.join(
+        request_context.current_user.data_dir, 'upload_data', uploadid, slide_type, fileid, filename)
     os.makedirs(os.path.dirname(slide_save_path), exist_ok=True)
     with open(slide_save_path, "wb+") as f:
         while True:
@@ -46,16 +47,21 @@ def upload_slice_by_dir():
 def upload_slice():
     slide_type = request.args.get('type') + 's'
     case_id = request.args.get('caseid')  # 病例id
+    upload_id = request.args.get('uploadid')  # 病例id
     file_id = request.args.get('fileid')  # 文件id，一个切片文件对应一个id
     cover_slice_number = request.args.get('cover_slice_number') == 'true'  # 是否用病例号覆盖样本号，覆盖是true，不覆盖为false
     user_file_path = request.args.get('userFilePath')  # 上传端切片所在文件夹名称
     file_name = request.args.get('filename')  # 切片文件名
-    upload_type = request.args.get('other')  # 上传模式，若为众包模式下上传此值为'cs'
     tool_type = request.args.get('toolType')
     total_upload_size = int(request.args.get('total', 0))
     high_through = bool(request.args.get('high_through'))
+    upload_batch_number = request.args.get('uploadBatchNumber')
 
-    upload_path = fs.path_join(request_context.current_user.data_dir, 'data', case_id, slide_type, file_id)
+    if high_through:
+        upload_path = os.path.join(request_context.current_user.data_dir, 'upload_data', upload_id, slide_type, file_id)
+    else:
+        upload_path = os.path.join(request_context.current_user.data_dir, 'data', case_id, slide_type, file_id)
+
     if not os.path.exists(upload_path):  # 切片文件不存在，即新上传切片文件
         os.makedirs(upload_path)
 
@@ -65,11 +71,11 @@ def upload_slice():
     formparser.parse_form_data(request.environ, stream_factory=stream_factory)
 
     res = AppServiceFactory.slice_service.upload_slice(
-        case_id=case_id, file_id=file_id, company_id=request_context.current_company, file_name=file_name,
-        slide_type=slide_type, upload_type=upload_type, upload_path=upload_path,
+        upload_id=upload_id, case_id=case_id, file_id=file_id, company_id=request_context.current_company,
+        file_name=file_name, slide_type=slide_type, upload_path=upload_path,
         total_upload_size=total_upload_size, tool_type=tool_type,
         user_file_path=user_file_path, cover_slice_number=cover_slice_number, high_through=high_through,
-        operator=request_context.current_user.username
+        upload_batch_number=upload_batch_number, operator=request_context.current_user.username
     )
 
     return jsonify(res.dict())
@@ -226,6 +232,7 @@ def attachment():
 
 
 @api_blueprint.route('/files/ROI', methods=['get', 'post'])
+@api_blueprint.route('/files/ROI2', methods=['get', 'post'])
 def get_roi():
     case_id = request.args.get('caseid')
     file_id = request.args.get('fileid')
@@ -393,9 +400,12 @@ def get_download_result():
     try:
         result = AsyncResult(key, app=celery_app)
         if result.ready():
-            async_res = result.get(timeout=0.001)
+            async_res = result.get(timeout=0.1)
             if async_res:
                 res = async_res
+                res.data = {'done': True}
+        else:
+            res = AppResponse(data={'done': False})
     except CeleryTimeoutError:
         res = AppResponse(err_code=1, message='下载超时')
     except Exception as e:

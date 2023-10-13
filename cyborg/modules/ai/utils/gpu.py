@@ -16,7 +16,7 @@ def get_gpu_status():
             mem = nvmlDeviceGetMemoryInfo(ith_gpu_handle)
             gpu_status[str(i)] = {'total': mem.total >> 20, 'used': mem.used >> 20, 'free': mem.free >> 20}
         nvmlShutdown()
-    except NVMLError as e:
+    except NVMLError:
         logger.warning('no nvidia gpu found!')
 
     return gpu_status

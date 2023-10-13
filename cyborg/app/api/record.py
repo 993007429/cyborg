@@ -28,6 +28,12 @@ def set_customized_record_fields():
     return jsonify(res.dict())
 
 
+@api_blueprint.route('/records/columns', methods=['get', 'post'])
+def get_record_columns():
+    res = AppServiceFactory.slice_service.get_display_columns()
+    return jsonify(res.dict())
+
+
 def _get_query_records_params() -> dict:
     page = request.form.get('page', 1, type=int) - 1   # 服务端下标统一从0开始
     limit = request.form.get('limit', sys.maxsize, type=int)
@@ -39,8 +45,7 @@ def _get_query_records_params() -> dict:
     check_result = json.loads(request.form.get("check_result")) if (request.form.get("check_result") and
                                                                     request.form.get("check_result") != '[]') else None
     user_file_folder = json.loads(request.form.get("userFileFolder")) if (
-            request.form.get("userFileFolder") and request.form.get(
-        "userFileFolder") != '[]') else None
+        request.form.get("userFileFolder") and request.form.get("userFileFolder") != '[]') else None
     operator = json.loads(request.form.get("operator")) if (request.form.get("operator") and request.form.get(
         "operator") != '[]') else None
 
@@ -51,17 +56,17 @@ def _get_query_records_params() -> dict:
     create_time_min = request.form.get("create_min").strip('"') if request.form.get("create_min") else None
     create_time_max = request.form.get("create_max").strip('"') if request.form.get("create_max") else None
     gender = json.loads(request.form.get("gender")) if (
-            request.form.get("gender") and request.form.get("gender") != '[]') else None
+        request.form.get("gender") and request.form.get("gender") != '[]') else None
     age_min = request.form.get('age_min', type=int)
     age_max = request.form.get('age_max', type=int)
     sample_part = json.loads(request.form.get("samplePart")) if (
-            request.form.get("samplePart") and request.form.get("samplePart") != '[]') else None  # 多选
+        request.form.get("samplePart") and request.form.get("samplePart") != '[]') else None  # 多选
     sample_type = json.loads(request.form.get("sampleType")) if (
-            request.form.get("sampleType") and request.form.get("sampleType") != '[]') else None
+        request.form.get("sampleType") and request.form.get("sampleType") != '[]') else None
     statuses = json.loads(request.form.get("status")) if (
-            request.form.get("status") and request.form.get("status") != '[]') else None  # 0未处理 1处理中 2已处理 3处理异常
+        request.form.get("status") and request.form.get("status") != '[]') else None  # 0未处理 1处理中 2已处理 3处理异常
     alg = json.loads(request.form.get("alg_list")) if (
-            request.form.get("alg_list") and request.form.get("alg_list") != '[]') else None  # ['tct','ki67']
+        request.form.get("alg_list") and request.form.get("alg_list") != '[]') else None  # ['tct','ki67']
     seq_key = request.form.get("seq_key") if request.form.get(
         "seq_key") else "create_time"  # 年龄 切片数量  更新时间 创建时间 ['age','slice_num','update_time','sampleNum','create_time']
     seq = request.form.get("seq") if request.form.get("seq") else '1'  # 默认顺序  1倒序  2正序
@@ -92,6 +97,16 @@ def get_new_records():
     res = AppServiceFactory.slice_service.get_new_slices(
         start_id=int(request.form.get('startId', 0)),
         updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S') if updated_after else None,
+    )
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/records/high-through/status', methods=['get', 'post'])
+def get_high_through_status():
+    updated_after = request.form.get('updatedAfter')
+    res = AppServiceFactory.slice_service.get_new_slices(
+        start_id=int(request.form.get('startId', 0)),
+        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S.%f') if updated_after else None,
         upload_batch_number=request.form.get('uploadBatchNumber')
     )
     return jsonify(res.dict())
@@ -113,6 +128,7 @@ def delete_records():
 
 
 @api_blueprint.route('/records/get', methods=['get', 'post'])
+@api_blueprint.route('/records/detail', methods=['get', 'post'])
 @login_required
 def get_record():  # 前端传来caseid 看数据库是否存在该病例
     res = AppServiceFactory.slice_service.get_record_by_case_id(

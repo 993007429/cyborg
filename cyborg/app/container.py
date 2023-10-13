@@ -196,6 +196,8 @@ class PartnerAPIContainer(containers.DeclarativeContainer):
 
     ai = providers.DependenciesContainer()
 
+    slice_analysis = providers.DependenciesContainer()
+
     roche_repository = providers.Factory(
         SQLAlchemyRocheRepository, session=core.request_context.provided.db_session
     )
@@ -208,7 +210,8 @@ class PartnerAPIContainer(containers.DeclarativeContainer):
     roche_service = providers.Factory(
         RocheService,
         domain_service=roche_domain_service,
-        ai_service=ai.ai_service
+        ai_service=ai.ai_service,
+        analysis_service=slice_analysis.slice_analysis_service
     )
 
 
@@ -250,5 +253,6 @@ class AppContainer(containers.DeclarativeContainer):
     partner = providers.Container(
         PartnerAPIContainer,
         core=core,
-        ai=ai
+        ai=ai,
+        slice_analysis=slice_analysis
     )
