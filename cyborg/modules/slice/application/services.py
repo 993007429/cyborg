@@ -661,7 +661,7 @@ class SliceService(object):
         last_modified = updated_slices[-1]['last_modified'] if updated_slices else updated_after
         data = {
             'lastId': last_id,
-            'lastModified': last_modified.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            'lastModified': last_modified.strftime('%Y-%m-%d %H:%M:%S.%f') if last_modified else None,
             'increased': increased,
             'updated': updated
         }
