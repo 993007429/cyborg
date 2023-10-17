@@ -72,7 +72,7 @@ class SliceDomainService(object):
     def create_slice(
             self, case_id: str, file_id: str, company_id: str, upload_path: str, file_name: str, local_file_name: str,
             slide_type: str, tool_type: str, label_rec_mode: int, user_file_path: str, cover_slice_number: bool,
-            operator: str, upload_batch_number: str, high_through: bool = False
+            operator: str, upload_batch_number: str, sample_num: str, high_through: bool = False
     ) -> Optional[dict]:
 
         _ext = os.path.splitext(local_file_name)[-1].lower()  # 上传切片文件后缀
@@ -163,7 +163,7 @@ class SliceDomainService(object):
                 record = CaseRecordEntity(raw_data=dict(
                     caseid=case_id,
                     company=company_id,
-                    sample_num=case_id if cover_slice_number else (label_text or case_id),
+                    sample_num=sample_num if cover_slice_number else (label_text or sample_num),
                     stage=0,
                     slice_count=0,
                     started=0,
