@@ -208,7 +208,7 @@ class SliceService(object):
                     file_name=file_name, local_file_name=local_file_name, slide_type=slide_type, tool_type=tool_type,
                     label_rec_mode=company['label'], user_file_path=user_file_path,
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
-                    high_through=high_through,
+                    sample_num=upload_id if high_through else case_id, high_through=high_through,
                 )
                 if slice_info:
                     return AppResponse(data=slice_info)
