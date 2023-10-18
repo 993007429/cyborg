@@ -155,6 +155,9 @@ class SliceDomainService(object):
                 shutil.move(upload_path, slide_save_path)
                 slide_save_name = os.path.join(slide_save_path, local_file_name)
 
+                # move切片文件夹之后（从临时上传路径移动到正式切片路径），切片文件软链接也需要重新创建
+                self.create_slice_link_file(slide_save_path, file_name)
+
         update_clarity(slice_entity.id, slide_save_name)
 
         if high_through:
@@ -488,23 +491,34 @@ class SliceDomainService(object):
 
         return None
 
-    def validate_slice_file(self, slide_path: str, file_name: str) -> bool:
+    def create_slice_link_file(self, slide_path: str, file_name: str, check_slide: bool = False) -> bool:
+        """
+        校验文件夹类型切片的合法性
+        :param slide_path:
+        :param file_name:
+        :return:
+        """
         try:
             if os.path.splitext(file_name)[-1] in ['.mdsx', '.svs']:  # 上传麦克奥迪和海德星切片的处理
                 current_dir = os.path.join(slide_path, os.path.splitext(file_name)[0])
                 if os.path.exists(current_dir) and os.path.isdir(current_dir):
                     for file in os.listdir(current_dir):
                         if file.endswith('.mdsx') or file.endswith('.svs'):
+                            slice_file_path = os.path.join(current_dir, file)
+
+                            if check_slide:
+                                open_slide(slice_file_path)
+
                             link_file = os.path.join(slide_path, file_name)
-                            if os.path.exists(link_file):
+                            if os.path.isfile(link_file) or os.path.islink(link_file):
+                                logger.info(f'removed: {link_file}')
                                 os.remove(link_file)
                             os.symlink(
                                 os.path.join(os.path.join(current_dir, file)), link_file)
                             break
-            open_slide(os.path.join(slide_path, file_name))
             return True
         except Exception as e:
-            logger.warning(f'切片名为{file_name}文件损坏: {e}')
+            logger.warning(f'切片名为{slide_path}/{file_name}文件损坏: {e}')
             return False
 
     def save_record(
@@ -683,8 +697,8 @@ class SliceDomainService(object):
                     slice.update_data(
                         slice_number=slice_number,
                         filename=filename,
-                        ai_suggest=ai_suggest,
-                        check_result=check_result
+                        ai_suggest=ai_suggest or '',
+                        check_result=check_result or ''
                     )
                     self.repository.save_slice(slice)
                     succeed_count += 1

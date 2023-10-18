@@ -802,14 +802,14 @@ class SliceAnalysisDomainService(object):
             ]:
                 rois = [MarkEntity.mock_roi()] if ai_type in [AIType.tct, AIType.lct, AIType.dna] else []
 
-            if len(rois) == 0:
-                if ai_type in [AIType.tct, AIType.lct, AIType.bm]:
-                    self.create_mark(
-                        ai_type, method='rectangle', mark_type=3,
-                        position={'x': [0], 'y': [0]}, ai_result_ready=False)
-                elif ai_type == AIType.human_tl:
-                    cells = {k: {'data': []} for k in HUMAN_TL_CELL_TYPES}
-                    rois = cells
+        if len(rois) == 0:
+            if ai_type in [AIType.tct, AIType.lct, AIType.bm]:
+                self.create_mark(
+                    ai_type, method='rectangle', mark_type=3,
+                    position={'x': [0], 'y': [0]}, ai_result_ready=False)
+            elif ai_type == AIType.human_tl:
+                cells = {k: {'data': []} for k in HUMAN_TL_CELL_TYPES}
+                rois = cells
         return rois
 
     def get_marks_in_group(self, group_id: int, page: int = 0, per_page: int = 20):

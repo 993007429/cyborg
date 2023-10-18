@@ -132,7 +132,7 @@ class SliceService(object):
         return AppResponse(message='保存成功', data=record.to_dict())
 
     def delete_records(self, case_ids: List[str]) -> AppResponse[str]:
-        freed_size = self.domain_service.delete_records(case_ids, request_context.current_company)
+        freed_size = self.domain_service.delete_records(case_ids, request_context.current_company) or 0
         if freed_size <= 0:
             return AppResponse(message='删除失败')
 
@@ -193,10 +193,10 @@ class SliceService(object):
                 uploaded_size = fs.get_dir_size(upload_path)
                 if uploaded_size < total_upload_size:
                     return AppResponse(err_code=1, message='1')
-            # 切片文件损坏校验
-                is_valid = self.domain_service.validate_slice_file(upload_path, file_name)
-                if not is_valid:
-                    return AppResponse(err_code=3, message='3')
+
+            is_valid = self.domain_service.create_slice_link_file(upload_path, file_name)
+            if not is_valid:
+                return AppResponse(err_code=3, message='3')
 
         company = self.user_service.get_company_info(company_id).data
 
@@ -530,7 +530,7 @@ class SliceService(object):
 
         # TODO 设计上这里不应该调用slice_analysis模块的服务，勾选的roi应该保存在病例模块，后续需要优化这个逻辑
         from cyborg.app.service_factory import AppServiceFactory
-        roi_data = AppServiceFactory.slice_analysis_service.get_report_roi().data
+        roi_data = AppServiceFactory.new_slice_analysis_service().get_report_roi().data
         roi_images = []
         for k in ['human', 'tct', 'lct', 'dna']:
             roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])

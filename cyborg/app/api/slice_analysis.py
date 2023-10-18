@@ -27,7 +27,7 @@ def create_mark():
 
     request_context.ai_type = AIType.get_by_value(mark_params.pop('ai_type')) or AIType.unknown
 
-    res = AppServiceFactory.slice_analysis_service.create_mark(
+    res = AppServiceFactory.new_slice_analysis_service().create_mark(
         **{camel_to_snake(k): v for k, v in mark_params.items()})
 
     return jsonify(res.dict())
@@ -41,7 +41,7 @@ def get_marks():
 
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
-    res = AppServiceFactory.slice_analysis_service.get_marks(view_path=view_path)
+    res = AppServiceFactory.new_slice_analysis_service().get_marks(view_path=view_path)
 
     return jsonify(res.dict())
 
@@ -52,7 +52,7 @@ def select_count():
     ai_type = request.form.get('ai_type')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
-    res = AppServiceFactory.slice_analysis_service.count_marks_in_scope(scope=scope)
+    res = AppServiceFactory.new_slice_analysis_service().count_marks_in_scope(scope=scope)
     return jsonify(res.dict())
 
 
@@ -62,7 +62,7 @@ def mark_show():
     group_id = int(request.form.get('group_id'))
     request_context.ai_type = AIType.label
 
-    res = AppServiceFactory.slice_analysis_service.switch_mark_group_show_status(group_id)
+    res = AppServiceFactory.new_slice_analysis_service().switch_mark_group_show_status(group_id)
     return jsonify(res.dict())
 
 
@@ -78,7 +78,7 @@ def modify_marks():
     if scope == 'null':
         scope = None
 
-    res = AppServiceFactory.slice_analysis_service.update_marks(
+    res = AppServiceFactory.new_slice_analysis_service().update_marks(
         marks_data=marks, scope=scope, target_group_id=int(target_group_id) if target_group_id else None)
     return jsonify(res.dict())
 
@@ -94,7 +94,7 @@ def delete_mark():
     if scope == 'null':
         scope = None
 
-    res = AppServiceFactory.slice_analysis_service.delete_marks(mark_ids=mark_ids, scope=scope)
+    res = AppServiceFactory.new_slice_analysis_service().delete_marks(mark_ids=mark_ids, scope=scope)
     return jsonify(res.dict())
 
 
@@ -102,7 +102,7 @@ def delete_mark():
 def get_roi_list():
     ai_type = request.form.get('ai_type')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-    res = AppServiceFactory.slice_analysis_service.get_rois()
+    res = AppServiceFactory.new_slice_analysis_service().get_rois()
     return jsonify(res.dict())
 
 
@@ -110,7 +110,7 @@ def get_roi_list():
 def import_ai_result():
     request_context.ai_type = AIType.label
 
-    res = AppServiceFactory.slice_analysis_service.import_ai_marks()
+    res = AppServiceFactory.new_slice_analysis_service().import_ai_marks()
     return jsonify(res.dict())
 
 
@@ -155,14 +155,14 @@ def modify_solid_status():
 @limiter.limit("2/second", override_defaults=False)
 def create_group():
     template_id = int(request.form.get('template_id'))
-    res = AppServiceFactory.slice_analysis_service.create_mark_group(template_id=template_id)
+    res = AppServiceFactory.new_slice_analysis_service().create_mark_group(template_id=template_id)
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/slice/modifyGroup', methods=['get', 'post'])
 def modify_group():
     groups = json.loads(request.form.get('groups'))
-    res = AppServiceFactory.slice_analysis_service.update_mark_groups(groups)
+    res = AppServiceFactory.new_slice_analysis_service().update_mark_groups(groups)
     return jsonify(res.dict())
 
 
@@ -172,7 +172,7 @@ def delete_group():
 
     request_context.ai_type = AIType.label
 
-    res = AppServiceFactory.slice_analysis_service.delete_mark_group(group_id)
+    res = AppServiceFactory.new_slice_analysis_service().delete_mark_group(group_id)
     return jsonify(res.dict())
 
 
@@ -185,7 +185,7 @@ def select_group():
 
     request_context.ai_type = AIType.label
 
-    res = AppServiceFactory.slice_analysis_service.select_mark_group(
+    res = AppServiceFactory.new_slice_analysis_service().select_mark_group(
         group_id=group_id, page=page - 1, per_page=per_page)
 
     return jsonify(res.dict())
@@ -196,20 +196,20 @@ def query_group():
     group_id = int(request.form.get('group_id'))
     request_context.ai_type = AIType.label
 
-    res = AppServiceFactory.slice_analysis_service.get_group_info(group_id)
+    res = AppServiceFactory.new_slice_analysis_service().get_group_info(group_id)
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/slice/selectTemplate', methods=['get', 'post'])
 def select_template():
     request_context.ai_type = AIType.label
-    res = AppServiceFactory.slice_analysis_service.select_template(template_id=int(request.form.get('id')))
+    res = AppServiceFactory.new_slice_analysis_service().select_template(template_id=int(request.form.get('id')))
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/slice/templateList', methods=['get', 'post'])
 def template_list():
-    res = AppServiceFactory.slice_analysis_service.get_all_templates()
+    res = AppServiceFactory.new_slice_analysis_service().get_all_templates()
     return jsonify(res.dict())
 
 
@@ -222,7 +222,7 @@ def get_screen_count():
 
     view_path = json.loads(request.form.get('position'))
 
-    res = AppServiceFactory.slice_analysis_service.get_cell_count_in_quadrant(view_path=view_path)
+    res = AppServiceFactory.new_slice_analysis_service().get_cell_count_in_quadrant(view_path=view_path)
     return jsonify(res.dict())
 
 
@@ -243,5 +243,5 @@ def download_template():
 
 @api_blueprint.route('/files/exportJson', methods=['get', 'post'])
 def export_json():
-    file_path = AppServiceFactory.slice_analysis_service.export_marks()
+    file_path = AppServiceFactory.new_slice_analysis_service().export_marks()
     return send_file(file_path)

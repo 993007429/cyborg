@@ -47,7 +47,7 @@ class LocalFileSystem(FileSystem):
     def get_dir_size(self, path: str) -> int:
         size = 0
         for root, dirs, files in os.walk(path):
-            size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
+            size += sum([os.path.getsize(os.path.join(root, name)) for name in files if not os.path.islink(os.path.join(root, name))])
         return size
 
     def listdir(self, path: str):

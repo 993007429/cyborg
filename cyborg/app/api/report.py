@@ -27,14 +27,14 @@ async def create_report():
 def get_report_roi():
     alg_type = request.form.get('alg')
     request_context.ai_type = AIType.get_by_value(alg_type)
-    res = AppServiceFactory.slice_analysis_service.get_report_roi()
+    res = AppServiceFactory.new_slice_analysis_service().get_report_roi()
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/report/getDNAInfo', methods=['get', 'post'])
 def get_dna_info():
     request_context.ai_type = AIType.dna
-    res = AppServiceFactory.slice_analysis_service.get_dna_info()
+    res = AppServiceFactory.new_slice_analysis_service().get_dna_info()
     return jsonify(res.dict())
 
 

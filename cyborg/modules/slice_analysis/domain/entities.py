@@ -7,6 +7,7 @@ from urllib.parse import quote
 from shapely.geometry import Polygon, Point
 
 from cyborg.app.settings import Settings
+from cyborg.modules.slice_analysis.domain.consts import HUMAN_TL_CELL_TYPES
 from cyborg.modules.slice_analysis.domain.value_objects import SliceTile, MarkPosition, TiledSlice, AIType, \
     SliceMarkConfig
 from cyborg.modules.slice_analysis.utils.polygon import cal_center
@@ -319,24 +320,7 @@ class MarkEntity(BaseDomainEntity):
 
     @classmethod
     def mock_roi(cls) -> dict:
-        cells = {
-            "ASCUS": {"num": 0, "data": []},
-            "ASC-H": {"num": 0, "data": []},
-            "LSIL": {"num": 0, "data": []},
-            "HSIL": {"num": 0, "data": []},
-            "AGC": {"num": 0, "data": []},
-            "滴虫": {"num": 0, "data": []},
-            "霉菌": {"num": 0, "data": []},
-            "线索": {"num": 0, "data": []},
-            "疱疹": {"num": 0, "data": []},
-            "放线菌": {"num": 0, "data": []},
-            "异物": {"num": 0, "data": []},
-            "无": {"num": 0, "data": []},
-            "阴性": {"num": 0, "data": []},
-            "AI假阳": {"num": 0, "data": []},
-            "AI假阴": {"num": 0, "data": []},
-            "不确定": {"num": 0, "data": []},
-        }
+        cells = {cell_type: {'num': 0, 'data': []} for cell_type in HUMAN_TL_CELL_TYPES}
         ai_result = {
             'cell_num': 0,
             'clarity': 0.0,

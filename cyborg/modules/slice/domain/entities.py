@@ -193,9 +193,9 @@ class SliceEntity(BaseDomainEntity):
         d = {
             'id': self.fileid,
             'uid': self.id,
-            "ai_suggest": self.ai_suggest,
+            "ai_suggest": self.ai_suggest or '',
             "alg": self.alg,
-            "check_result": self.check_result,
+            "check_result": self.check_result or '',
             'filename': self.filename,
             'fileid': self.fileid,
             "caseid": self.caseid,
