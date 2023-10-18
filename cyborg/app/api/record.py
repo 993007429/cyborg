@@ -96,7 +96,7 @@ def get_new_records():
     updated_after = request.form.get('updatedAfter')
     res = AppServiceFactory.slice_service.get_new_slices(
         start_id=int(request.form.get('startId', 0)),
-        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S') if updated_after else None,
+        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S.%f') if updated_after else None,
     )
     return jsonify(res.dict())
 

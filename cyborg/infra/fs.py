@@ -26,6 +26,9 @@ class LocalFileSystem(FileSystem):
     def path_basename(self, path) -> str:
         return os.path.dirname(path)
 
+    def path_isfile(self, path) -> bool:
+        return os.path.isfile(path)
+
     def path_splitext(self, path) -> str:
         return os.path.splitext(path)[1]
 
