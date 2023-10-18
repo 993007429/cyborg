@@ -573,7 +573,7 @@ class SliceService(object):
                 'templateCode': template_code
             }
             async with client.post(
-                    f'{Settings.REPORT_SERVER}/reports/snapshots', json=params, verify_ssl=False) as resp:
+                    f'{Settings.REPORT_SERVER}/report/api/reports/snapshots', json=params, verify_ssl=False) as resp:
                 if resp.status == 200:
                     data = json.loads(await resp.read())
                     if data.get('code') == 0:

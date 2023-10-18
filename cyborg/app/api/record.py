@@ -96,7 +96,7 @@ def get_new_records():
     updated_after = request.form.get('updatedAfter')
     res = AppServiceFactory.slice_service.get_new_slices(
         start_id=int(request.form.get('startId', 0)),
-        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S') if updated_after else None,
+        updated_after=datetime.strptime(updated_after, '%Y-%m-%d %H:%M:%S.%f') if updated_after else None,
     )
     return jsonify(res.dict())
 
@@ -218,6 +218,13 @@ def get_report_opinion():
 @api_blueprint.route('/records/report/sync', methods=['get', 'post'])
 async def sync_report():
     res = await AppServiceFactory.slice_service.sync_report()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/records/report/save', methods=['post'])
+async def save_report():
+    template_code = request.form.get('template_code')
+    res = await AppServiceFactory.slice_service.save_report_snapshot(template_code)
     return jsonify(res.dict())
 
 
