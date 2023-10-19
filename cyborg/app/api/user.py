@@ -47,10 +47,10 @@ def login():
     return resp
 
 
-@api_blueprint.route('/user/sign')
 @api_blueprint.route('/user/sign2')
+@api_blueprint.route('/user/sign')
 def sign():  # 电子签名
-    res = AppServiceFactory.user_service.get_current_user()
+    res = AppServiceFactory.user_service.get_current_user(user_name=request.args.get('id'))
     user_info = res.data
     sign_image_path = user_info.get('sign_image_path') if user_info else ''
     if sign_image_path and fs.path_exists(sign_image_path):

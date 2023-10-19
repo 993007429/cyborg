@@ -14,13 +14,15 @@ class AppServiceFactory(object):
 
     slice_service: SliceService = AppContainer.slice.slice_service()
 
-    slice_analysis_service: SliceAnalysisService = AppContainer.slice_analysis.slice_analysis_service()
-
     ai_service: AIService = AppContainer.ai.ai_service()
 
     openapi_auth_service: OpenAPIAuthService = AppContainer.openapi.openapi_auth_service()
 
     oauth_service: OAuthService = AppContainer.openapi.oauth_service()
+
+    @staticmethod
+    def new_slice_analysis_service() -> SliceAnalysisService:
+        return AppContainer.slice_analysis.slice_analysis_service()
 
 
 class RocheAppServiceFactory(object):

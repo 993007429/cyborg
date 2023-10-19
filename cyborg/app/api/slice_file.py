@@ -101,7 +101,7 @@ def get_slice_info():
     if res.err_code:
         return jsonify(res.dict())
 
-    res.data['group'] = AppServiceFactory.slice_analysis_service.get_selected_mark_group().data
+    res.data['group'] = AppServiceFactory.new_slice_analysis_service().get_selected_mark_group().data
 
     return jsonify(res.dict())
 
@@ -179,6 +179,7 @@ def get_image():
     else:
         img_path = ''
 
+    logger.info(img_path)
     if os.path.exists(img_path) and os.path.getsize(img_path):
         resp = make_response(send_from_directory(
             directory=fs.path_dirname(img_path),

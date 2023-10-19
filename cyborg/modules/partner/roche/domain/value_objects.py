@@ -230,10 +230,19 @@ class RocheMarkerShape(BaseValueObject):
     outline_color: str
 
 
+class RochePanel(BaseValueObject):
+
+    name: str
+    description: str
+    visible: bool = True
+    exclusive: bool = False
+
+
 class RocheALGResult(BaseValueObject):
     wsi_input: Optional[RocheWsiInput] = None
-    wsi_index_items: List[RocheCellsIndexItem] = []
-    wsi_marker_presets: List[RocheMarkerPreset] = []
-    wsi_marker_shapes: Dict[str, RocheMarkerShape] = {}
+    cells_index_items: List[RocheCellsIndexItem] = []
+    marker_presets: List[RocheMarkerPreset] = []
+    marker_shapes: Dict[str, RocheMarkerShape] = {}
+    panels: List[RochePanel] = []
     ai_suggest: str = ''
     err_msg: Optional[str] = None

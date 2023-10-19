@@ -17,7 +17,7 @@ from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
     RocheDiplomat, RocheWsiInput, RocheCellsIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
-    RocheMarkerShape
+    RocheMarkerShape, RochePanel
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.encoding import CyborgJsonEncoder
 from cyborg.utils.id_worker import IdWorker
@@ -132,14 +132,14 @@ class RocheDomainService(object):
         except Exception:
             mock_result = None
 
+        slide = open_slide(task.slide_path)
+        slide_width, slide_height = slide.width, slide.height
+
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
         if mock_result:
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = mock_result
             roi_id = list(center_coords_np_with_id.keys())[0]
-            slide_width, slide_height = 4000, 7168
         else:
-            slide = open_slide(task.slide_path)
-            slide_width, slide_height = slide.width, slide.height
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
                 slide_path=task.slide_path, roi_list=[{'id': roi_id, 'x': x_coords, 'y': y_coords}])
 
@@ -248,6 +248,11 @@ class RocheDomainService(object):
             data=marker_groups
         )
 
+        panel = RochePanel(
+            name='Markers',
+            description='Markers'
+        )
+
         logger.info(wsi_input)
         logger.info(marker_shapes)
         logger.info(marker_shapes)
@@ -255,9 +260,10 @@ class RocheDomainService(object):
         return RocheALGResult(
             ai_suggest=ai_result['分级结果'],
             wsi_input=wsi_input,
-            wsi_index_items=index_items,
-            wsi_marker_presets=[wsi_marker_preset],
-            wsi_marker_shapes=marker_shapes
+            cells_index_items=index_items,
+            marker_presets=[wsi_marker_preset],
+            marker_shapes=marker_shapes,
+            panels=[panel]
         )
 
     def save_ai_result(self, task: RocheAITaskEntity, result: RocheALGResult) -> bool:
@@ -273,13 +279,15 @@ class RocheDomainService(object):
             wsi_analysis_info['input'] = json.dumps(result.wsi_input.to_dict())
 
             wsi_cells = file.create_group('wsi_cells')
-            wsi_cells['index'] = json.dumps([item.to_dict() for item in result.wsi_index_items])
-            for index_item in result.wsi_index_items:
+            wsi_cells['index'] = json.dumps([item.to_dict() for item in result.cells_index_items])
+            for index_item in result.cells_index_items:
                 wsi_cells.create_dataset(name=index_item.filename, data=[json.dumps(index_item.geo_json)])
 
             wsi_presentation = file.create_group('wsi_presentation')
-            wsi_presentation['marker_shapes'] = json.dumps({k: v.to_dict() for k, v in result.wsi_marker_shapes.items() if v})
-            wsi_presentation['markers'] = json.dumps([preset.to_dict() for preset in result.wsi_marker_presets if preset])
+            wsi_presentation['marker_shapes'] = json.dumps(
+                {k: v.to_dict() for k, v in result.marker_shapes.items() if v})
+            wsi_presentation['markers'] = json.dumps([preset.to_dict() for preset in result.marker_presets if preset])
+            wsi_presentation['panels'] = json.dumps([panel.to_dict() for panel in result.panels if panel])
 
             # wsi_masks = file.create_group('wsi_masks')
             # wsi_heatmaps = file.create_group('wsi_heatmaps')
