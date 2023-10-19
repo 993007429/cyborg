@@ -182,6 +182,9 @@ class UserCoreDomainService(object):
             is_test=company.is_test,
             time_out=company.end_time
         ))
+
+        os.makedirs(new_user.user_dir, exist_ok=True)
+
         if self.repository.save(new_user):
             logger.info('%s组织下增加了用户%s' % (company_id, username))
             return '', new_user

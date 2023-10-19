@@ -14,9 +14,9 @@ class UserCoreService(object):
         super(UserCoreService, self).__init__()
         self.domain_service = domain_service
 
-    def get_current_user(self) -> AppResponse[dict]:
+    def get_current_user(self, user_name: Optional[str]) -> AppResponse[dict]:
         user = self.domain_service.get_user_by_name(
-            request_context.current_user.username,
+            user_name or request_context.current_user.username,
             request_context.current_company
         )
         return AppResponse(data=user.to_dict() if user else None)

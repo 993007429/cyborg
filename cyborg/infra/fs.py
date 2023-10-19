@@ -24,7 +24,7 @@ class LocalFileSystem(FileSystem):
         return os.path.dirname(path)
 
     def path_basename(self, path) -> str:
-        return os.path.dirname(path)
+        return os.path.basename(path)
 
     def path_isfile(self, path) -> bool:
         return os.path.isfile(path)

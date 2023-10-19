@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import sys
 import time
 from typing import List, Optional
 
@@ -222,7 +223,7 @@ class AIService(object):
         ai_type = AIType.get_by_value(ai_name)
         request_context.ai_type = ai_type
 
-        slices = self.slice_service.get_slices(case_ids=case_ids, per_page=5).data
+        slices = self.slice_service.get_slices(case_ids=case_ids, per_page=sys.maxsize).data
 
         failed = 0
         data = []

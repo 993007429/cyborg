@@ -179,6 +179,7 @@ def get_image():
     else:
         img_path = ''
 
+    logger.info(img_path)
     if os.path.exists(img_path) and os.path.getsize(img_path):
         resp = make_response(send_from_directory(
             directory=fs.path_dirname(img_path),

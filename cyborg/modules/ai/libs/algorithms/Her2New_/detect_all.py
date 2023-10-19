@@ -255,8 +255,6 @@ def region_process(slice_path, opt, name, roi_x, roi_y):
     # Load model
     weights = opt.weights
     weights = oss.path_join('AI', 'Her2New_', weights)
-    logger.info('>>>>>>>>>>')
-    logger.info(weights)
     model = attempt_load(weights, map_location=device)  # load FP32 model
     if half:
         model.half()  # to FP16
@@ -373,6 +371,7 @@ def cal_cell(o_slide_path, roi_list, opt):
         mask, mask_path = region_process(o_slide_path, opt, name, x_coords, y_coords)
         result_root = os.path.dirname(o_slide_path)
         slide_path = '"' + o_slide_path + '"'
+        mask_path = '"' + mask_path + '"'
         coord_json_name = 'her2_coords_wsi.json'
         label_json_name = 'her2_label_wsi.json'
         vis = 'none'

@@ -538,7 +538,7 @@ class SliceService(object):
         report_data['roiImages'] = roi_images
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
-        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign?id={request_context.current_user.username}'
+        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}' # noqa
         report_data['reportTime'] = datetime.datetime.now().strftime('%Y-%m-%d')
 
         async with aiohttp.ClientSession() as client:
