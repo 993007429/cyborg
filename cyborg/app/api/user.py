@@ -1,4 +1,3 @@
-import logging
 from flask import request, send_file, make_response, jsonify
 
 from cyborg.app.api import api_blueprint
@@ -8,8 +7,6 @@ from cyborg.app.service_factory import AppServiceFactory
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
 from cyborg.utils.strings import dict_camel_to_snake
-
-logger = logging.getLogger(__name__)
 
 
 @api_blueprint.route('/user/haveSign', methods=['get', 'post'])
@@ -23,27 +20,13 @@ def is_sign():
 def login():
     username = request.form['username']
     password = request.form['password']
-
-    if username.find("@") > -1:
-        username, company = username.split("@")
-    else:
-        company = "company1"
-
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
-    res = AppServiceFactory.user_service.login(
-        username=username, password=password, company=company, client_ip=client_ip)
-
-    if res.err_code:
-        return jsonify(res.dict())
-
+    res = AppServiceFactory.user_service.login(username=username, password=password, client_ip=client_ip)
     res.data['cloud'] = Settings.CLOUD
     del res.data['id']
     login_user = LoginUser.from_dict(dict_camel_to_snake(res.data))
-
     resp = make_response(jsonify(res.dict()))
     resp.set_cookie(key='jwt', value=login_user.jwt_token, expires=login_user.expire_time)
-
-    logger.info('%s组织下的%s用户登录' % (company, username))
     return resp
 
 
@@ -97,5 +80,9 @@ def get_company_label():
 @api_blueprint.route('/ai/modifyLabel', methods=['get', 'post'])
 def modify_label():
     label = int(request.form.get('label'))
-    res = AppServiceFactory.user_service.update_company_label(label=label)
+    clarity_standards_max = float(request.form.get('clarityStandardsUpper', 0.6))
+    clarity_standards_min = float(request.form.get('clarityStandardsLower', 0.2))
+    res = AppServiceFactory.user_service.update_company_label(label=label,
+                                                              clarity_standards_min=clarity_standards_min,
+                                                              clarity_standards_max=clarity_standards_max)
     return jsonify(res.dict())

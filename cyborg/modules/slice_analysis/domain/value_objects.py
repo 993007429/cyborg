@@ -105,7 +105,7 @@ class AIResult(BaseValueObject):
                 'diagnosis': "",
                 'cells': [
                     {
-                        'label': '骨髓细胞分类-红系',
+                        'label': '红系',
                         'num': 0,
                         'data': [
                             {
@@ -131,7 +131,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-粒系',
+                        'label': '粒系',
                         'num': 0,
                         'data': [
                             {
@@ -192,7 +192,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-淋巴系',
+                        'label': '淋巴系',
                         'num': 0,
                         'data': [
                             {
@@ -284,7 +284,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-单核系',
+                        'label': '单核系',
                         'num': 0,
                         'data': [
                             {
@@ -310,7 +310,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-其他细胞',
+                        'label': '其他细胞',
                         'num': 0,
                         'data': [
                             {
@@ -356,7 +356,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-浆细胞',
+                        'label': '浆细胞',
                         'num': 0,
                         'data': [
                             {
@@ -372,7 +372,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-Auer小体',
+                        'label': 'Auer小体',
                         'num': 0,
                         'data': [
                             {
@@ -424,7 +424,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-巨核系',
+                        'label': '巨核系',
                         'num': 0,
                         'data': [
                             {
@@ -502,7 +502,7 @@ class AIResult(BaseValueObject):
                         ]
                     },
                     {
-                        'label': '骨髓细胞分类-Artefacts',
+                        'label': 'Artefacts',
                         'num': 0,
                         'data': [
                             {

@@ -35,6 +35,7 @@ def add_user():
 
     res = AppServiceFactory.user_service.create_user(
         username=username, password=init_password, company_id=company, role=role)
+
     return jsonify(res.dict())
 
 
@@ -44,9 +45,7 @@ def update_user():
     new_password = request.form.get('password')
     new_role = request.form.get('role')
     user_id = request.form.get("id")
-
-    res = AppServiceFactory.user_service.update_user(
-        user_id=int(user_id), username=new_user_name, password=new_password, role=new_role)
+    res = AppServiceFactory.user_service.update_user(user_id=user_id, username=new_user_name, password=new_password, role=new_role)
     return jsonify(res.dict())
 
 

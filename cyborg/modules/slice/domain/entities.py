@@ -23,6 +23,7 @@ class SliceEntity(BaseDomainEntity):
 
     @property
     def record_dir(self) -> str:
+
         return fs.path_join(Settings.DATA_DIR, self.company, 'data', self.caseid)
 
     @property
@@ -197,6 +198,28 @@ class SliceEntity(BaseDomainEntity):
         """
         return self.import_ai_templates is None or self.template_id in self.import_ai_templates
 
+    def get_clarity_level(self, clarity_standards_max: float, clarity_standards_min: float):
+        if not isinstance(self.clarity, (int, float, str)) or self.clarity == '-':
+            level = ''
+        else:
+            if float(self.clarity) > clarity_standards_max:
+                level = '良好'
+            elif float(self.clarity) < clarity_standards_min:
+                level = '较差'
+            else:
+                level = '中等'
+        return level
+
+    def get_cell_num_tips(self, algor_type: str, cell_num_threshold: int) -> List[str]:
+        cell_num_tips = []
+        if algor_type in ['bm', 'tct', 'lct', 'dna']:
+            if cell_num_threshold and self.nucleated_cell_num < cell_num_threshold:
+                cell_num_tips = ['有核细胞数量小于阈值，请谨慎参考诊断建议。']
+        else:
+            if cell_num_threshold and self.cell_num and self.cell_num < cell_num_threshold:
+                cell_num_tips = ['有效检测细胞量不足，请谨慎参考诊断建议。']
+        return cell_num_tips
+
     def to_dict(self, all_fields: bool = False):
         d = {
             'id': self.fileid,
@@ -225,9 +248,16 @@ class SliceEntity(BaseDomainEntity):
             "update_time": self.update_time,
             'aiDiagnosisState': self.ai_diagnosis_state,
             'checkedDiagnosisState': self.checked_diagnosis_state,
-            'isImportedFromAi': self.is_imported_from_ai
+            'isImportedFromAi': self.is_imported_from_ai,
+            'labels': self.labels or [],
+            'isMark': self.is_marked,
+            'clarityLevel': self.clarity_level,
+            'aiTips': self.ai_tips or [],
+            'errCode': self.err_code or 0,
+            'errMessage': self.err_message or '',
+            'nucleatedCellNum': self.nucleated_cell_num,
+            'cellNumTips': self.cell_num_tips
         }
-
         d.update(self.data_paths)
 
         if all_fields:
@@ -241,7 +271,6 @@ class SliceEntity(BaseDomainEntity):
 
             # if self.slide:
             #     d['tileSize'] = self.slide.tile_size
-
             d.update({
                 'stain': self.stain,
                 'mppx': self.mppx,
@@ -271,9 +300,10 @@ class CaseRecordEntity(BaseDomainEntity):
 
     @classmethod
     def get_all_display_columns(cls) -> List[str]:
+
         all_columns = [
-            '样本号', '姓名', '性别', '年龄', '取样部位', '样本类型', '切片数量', '状态', '切片文件夹', '切片标签',
-            '切片编号', '文件名', 'AI模块', 'AI建议', '复核结果', '创建时间', '最后更新', '操作人', '报告'
+            '样本号', '姓名', '性别', '年龄', '取样部位', '样本类型', '切片数量', '标注状态', '处理状态', '切片文件夹', '切片标签',
+            '切片编号', '文件名', '自定义标签', 'AI模块', '切片质量', '扫描倍数', '清晰度', '细胞量', 'AI建议', '复核结果', '创建时间', '最后更新', '操作人', '报告'
         ]
         plugins = Settings.PLUGINS
         if 'logene' in plugins:
@@ -282,7 +312,7 @@ class CaseRecordEntity(BaseDomainEntity):
 
     @classmethod
     def get_disabled_columns(cls) -> List[str]:
-        return ['样本号', '状态', '文件名', 'AI模块', 'AI建议', '最后更新']
+        return ['样本号']
 
     @property
     def json_fields(self) -> List[str]:
@@ -521,15 +551,17 @@ class CaseRecordEntity(BaseDomainEntity):
         return d
 
     def to_dict(self):
+        update_time = [slice.update_time for slice in self.slices if slice.update_time]
+        update_time.append(self.update_time)
         d = {
             'id': self.caseid,
             'basic': self.basic_info,
             'attachments': [entity.to_dict() for entity in self.attachments],
-            'slices': [entity.to_dict() for entity in self.slices],
+            'slices': [entity.to_dict(all_fields=True) for entity in self.slices],
             'reports': self.reports if self.slices else [],
             'slices_count': self.slice_count,
             'create_time': self.create_time,
-            'update': max(self.update_time, *[slice.update_time for slice in self.slices]),
+            'update': max(update_time),
             'reportInfo': self.report_info,
             'reportUid': self.id
         }

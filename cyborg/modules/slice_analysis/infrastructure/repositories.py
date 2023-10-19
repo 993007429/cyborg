@@ -288,9 +288,10 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
             query = query.filter(MarkGroupModel.parent_id.is_(None))
         if is_import is not None:
             query = query.filter(MarkGroupModel.is_import == is_import)
-        if is_ai is not None:
+        if is_ai:
             query = query.filter(MarkGroupModel.is_ai == is_ai)
-
+        else:
+            query = query.filter(MarkGroupModel.is_ai.isnot(1))
         models = query.all()
         return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
@@ -315,6 +316,10 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
     def get_visible_mark_group_ids(self) -> List[int]:
         rows = self.session.query(MarkGroupModel.id).filter_by(is_show=1).all()
         return [row[0] for row in rows]
+
+    def get_mark_groups(self, ) -> List[MarkGroupEntity]:
+        models = self.session.query(MarkGroupModel).filter_by(is_show=1).all()
+        return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
     @transaction
     def update_mark_group_status(self, group_id: int, is_empty: int) -> bool:

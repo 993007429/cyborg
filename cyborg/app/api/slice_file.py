@@ -90,6 +90,7 @@ def update_slice_info():
     high_through = bool(request.form.get('high_through'))  # 是否是高通量上传
     content = request.form.get('content')
     content = json.loads(content)
+    content.pop('labels', '')
     res = AppServiceFactory.slice_service.update_slice_info(
         case_id=case_id, file_id=file_id, high_through=high_through, info=content)
     return jsonify(res.dict())

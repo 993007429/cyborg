@@ -35,7 +35,7 @@ def get_record_columns():
 
 
 def _get_query_records_params() -> dict:
-    page = request.form.get('page', 1, type=int) - 1   # 服务端下标统一从0开始
+    page = request.form.get('page', 1, type=int) - 1  # 服务端下标统一从0开始
     limit = request.form.get('limit', sys.maxsize, type=int)
     search_key = request.form.get("search_key")
     search_value = request.form.get("search_value")
@@ -75,6 +75,11 @@ def _get_query_records_params() -> dict:
         "slice_no") != '[]') else None
     is_has_label = json.loads(request.form.get("label")) if (request.form.get("label") and request.form.get(
         "label") != '[]') else None
+    case_ids = json.loads(request.form.get("case_id")) if request.form.get('case_id') else None  # 切片主键ID  ['12', '13']
+    is_marked = json.loads(request.form.get("is_mark")) if request.form.get('is_mark') else None
+    labels = json.loads(request.form.get("labels")) if request.form.get('labels') else None
+    clarity_level = json.loads(request.form.get("clarityLevel")) if request.form.get('clarityLevel') else None
+    slice_quality = json.loads(request.form.get("sliceQuality")) if request.form.get('sliceQuality') else None
     return locals()
 
 

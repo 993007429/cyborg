@@ -29,7 +29,6 @@ from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.pagination import Pagination
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -45,7 +44,8 @@ class SliceService(object):
         if not record:
             return AppResponse(err_code=2, message='no such case')
 
-        record.slices = self.domain_service.repository.get_slices_by_case_id(case_id=case_id, company=request_context.current_company)
+        record.slices = self.domain_service.repository.get_slices_by_case_id(case_id=case_id,
+                                                                             company=request_context.current_company)
         return AppResponse(data=record.to_dict())
 
     def get_all_values_in_fields(self) -> AppResponse[dict]:
@@ -61,7 +61,6 @@ class SliceService(object):
         all_columns = self.domain_service.get_all_record_columns()
         checked_columns = self.user_service.get_customized_record_fields().data
         disabled_columns = self.domain_service.get_disabled_record_columns()
-
         data = [{
             'name': column,
             'checked': column in checked_columns,
@@ -73,14 +72,24 @@ class SliceService(object):
             self,
             **kwargs
     ) -> AppResponse[dict]:
+        company = self.user_service.domain_service.company_repository.get_company_by_id(company=request_context.company)
+        if not company:
+            return AppResponse(err_code=1, message='no such company')
+        kwargs['clarity_standards_min'] = company.clarity_standards_min
+        kwargs['clarity_standards_max'] = company.clarity_standards_max
         total, records = self.domain_service.repository.search_records(request_context.current_company, **kwargs)
         data = [record.to_dict() for record in records]
         return AppResponse(data=Pagination(locals()).to_dict())
 
     def export_records(self, **kwargs) -> AppResponse[str]:
+        company = self.user_service.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
+        if not company:
+            return AppResponse(err_code=1, message='no such company')
+        kwargs['clarity_standards_min'] = company.clarity_standards_min
+        kwargs['clarity_standards_max'] = company.clarity_standards_max
         total, records = self.domain_service.repository.search_records(request_context.current_company, **kwargs)
-
         headers = self.user_service.get_customized_record_fields().data + ['最终结果']
+
         if '报告' in headers:
             headers.remove('报告')
 
@@ -239,7 +248,8 @@ class SliceService(object):
             cell_num: Optional[int] = None, as_id: Optional[int] = None
     ) -> AppResponse:
         err_code, message, slice_entity = self.domain_service.get_slice(
-            case_id=request_context.case_id, file_id=request_context.file_id, company_id=request_context.current_company)
+            case_id=request_context.case_id, file_id=request_context.file_id,
+            company_id=request_context.current_company)
         if err_code:
             return AppResponse(err_code=err_code, message=message)
 
@@ -308,8 +318,17 @@ class SliceService(object):
     def get_slice_info(self, case_id: str, file_id: str, company_id: Optional[str] = None) -> AppResponse[dict]:
         err_code, message, entity = self.domain_service.get_slice(
             case_id=case_id, file_id=file_id, company_id=company_id or request_context.current_company)
-        if entity:
-            entity.slide = open_slide(entity.slice_file_path)
+        if not entity:
+            return AppResponse(err_code=err_code, message=message)
+        entity.slide = open_slide(entity.slice_file_path)
+        company = self.user_service.domain_service.company_repository.get_company_by_id(company=company_id)
+        if not company:
+            return AppResponse(err_code=1, message='no such company')
+        entity.clarity_level = entity.get_clarity_level(clarity_standards_max=company.clarity_standards_max,
+                                                        clarity_standards_min=company.clarity_standards_min)
+        if company.ai_threshold:
+            params = company.ai_threshold.get(entity.alg, {})
+            entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), params.get('qc_cell_num', None))
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
@@ -334,7 +353,8 @@ class SliceService(object):
                 slice = slices[0]
                 slice_file_path = fs.path_join(slice.slice_dir, slice.filename.split('.')[0])  # 可能存在的多切片文件夹存放路径
                 if os.path.exists(slice_file_path) and not slice.filename.endswith('.svs'):
-                    logger.info('caseid为<{}>下文件名为<{}>的切片为多文件切片，不进行下载！'.format(case_id, slice.filename))
+                    logger.info(
+                        'caseid为<{}>下文件名为<{}>的切片为多文件切片，不进行下载！'.format(case_id, slice.filename))
                 else:
                     params = {
                         'path': path,
@@ -498,9 +518,14 @@ class SliceService(object):
 
         if not text:
             return AppResponse(data={'total': 0, 'data': [], 'text': ''})
-
+        company = self.user_service.domain_service.company_repository.get_company_by_id(
+            company=request_context.current_company)
+        if not company:
+            return AppResponse(err_code=1, message='no such company')
         total, records = self.domain_service.repository.search_records(
-            request_context.current_company, search_key='sample_num', search_value=text)
+            request_context.current_company, search_key='sample_num', search_value=text,
+            clarity_standards_min=company.clarity_standards_min, clarity_standards_max=company.clarity_standards_max
+        )
 
         data = [record.to_dict() for record in records]
         res_data = Pagination(locals()).to_dict()
@@ -556,7 +581,6 @@ class SliceService(object):
             template_config=report_config.template_config, file_id=request_context.file_id)
         alg_type = self.domain_service.get_alg_type(case_id=request_context.case_id, file_id=request_context.file_id,
                                                     company_id=request_context.current_company)
-
         report_data = record.to_dict_for_report()
         report_data['histplot'] = report_data['histplot'] + f'&company={request_context.current_company}'
         report_data['scatterplot'] = report_data['scatterplot'] + f'&company={request_context.current_company}'
@@ -580,7 +604,7 @@ class SliceService(object):
         report_data.update(AppServiceFactory.new_slice_analysis_service().get_capture_images().data)
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = dnaIcons
-        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}' # noqa
+        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}'  # noqa
         report_data['reportTime'] = datetime.datetime.now().strftime('%Y-%m-%d')
 
         if alg_type == AIType.dna_ploidy:
@@ -626,7 +650,8 @@ class SliceService(object):
                 'reportName': report_name,
                 'reportData': report_data
             }
-            async with client.post(f'{Settings.REPORT_SERVER}/report/api/reports', json=params, verify_ssl=False) as resp:
+            async with client.post(f'{Settings.REPORT_SERVER}/report/api/reports', json=params,
+                                   verify_ssl=False) as resp:
                 if resp.status == 200:
                     data = json.loads(await resp.read())
                     if data.get('code') == 0:
@@ -730,7 +755,8 @@ class SliceService(object):
         return AppResponse(data={'recordCount': len(records)})
 
     def get_new_slices(
-            self, start_id: int, updated_after: Optional[datetime.datetime] = None, upload_batch_number: Optional[str] = None
+            self, start_id: int, updated_after: Optional[datetime.datetime] = None,
+            upload_batch_number: Optional[str] = None
     ) -> AppResponse:
         last_id, increased, slices = self.domain_service.repository.get_new_slices(
             company=request_context.current_company, start_id=start_id, upload_batch_number=upload_batch_number)
@@ -789,6 +815,37 @@ class SliceService(object):
         }
 
         return AppResponse(data=config)
+
+    def update_slice(self) -> AppResponse:
+        err_code, message, slice_entity = self.domain_service.get_slice(
+            case_id=request_context.case_id, file_id=request_context.file_id,
+            company_id=request_context.current_company)
+        if err_code:
+            return AppResponse(err_code=err_code, message=message)
+        self.domain_service.update_slice_info(request_context.case_id, request_context.file_id, False, {})
+        return AppResponse(message="更新最新时间成功")
+
+    def update_slice_mark(self, is_marked: int) -> AppResponse:
+        err_code, message, slice_entity = self.domain_service.get_slice(
+            case_id=request_context.case_id, file_id=request_context.file_id,
+            company_id=request_context.current_company)
+        if err_code:
+            return AppResponse(err_code=err_code, message=message)
+        info = {"is_marked": is_marked}
+        self.domain_service.update_slice_info(request_context.case_id, request_context.file_id, False, info)
+        return AppResponse(err_code=1, message='update slice is_marked failed')
+
+    def add_label(self, ids: List[str], name: str) -> AppResponse:
+        err_code, message = self.domain_service.repository.add_label(ids=ids, name=name)
+        return AppResponse(err_code=err_code, message=message)
+
+    def del_label(self, id: str, name: List[str]) -> AppResponse:
+        err_code, message = self.domain_service.repository.del_label(id=id, name=name)
+        return AppResponse(err_code=err_code, message=message)
+
+    def get_labels(self) -> AppResponse:
+        data = self.domain_service.repository.get_labels(company=request_context.company)
+        return AppResponse(message='get label succeed', data=data)
 
     def get_dna_check_result(self) -> AppResponse:
         case_id = request_context.case_id

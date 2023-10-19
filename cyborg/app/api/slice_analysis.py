@@ -24,25 +24,21 @@ def create_mark():
         mark_params['ai_type'] = request.form.get('ai_type', 'human')
     if mark_params.get('area_id') == -1:
         mark_params['area_id'] = None
-
     request_context.ai_type = AIType.get_by_value(mark_params.pop('ai_type')) or AIType.unknown
 
     res = AppServiceFactory.new_slice_analysis_service().create_mark(
         **{camel_to_snake(k): v for k, v in mark_params.items()})
-
+    if request_context.ai_type == AIType.label:
+        AppServiceFactory.slice_service.update_slice_mark(is_marked=1)
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/slice/getMarks', methods=['get', 'post'])
 def get_marks():
     view_path = json.loads(request.form.get('position'))  # 视野区域
-
     ai_type = request.form.get('ai_type')
-
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-
     res = AppServiceFactory.new_slice_analysis_service().get_marks(view_path=view_path)
-
     return jsonify(res.dict())
 
 
@@ -88,7 +84,6 @@ def delete_mark():
     scope = request.form.get('scope')
     ai_type = request.form.get('ai_type')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-
     mark_ids = json.loads(request.form.get('marks')) if request.form.get('marks') else None
 
     if scope == 'null':
@@ -219,6 +214,7 @@ def create_group():
 @api_blueprint.route('/slice/modifyGroup', methods=['get', 'post'])
 def modify_group():
     groups = json.loads(request.form.get('groups'))
+    request_context.ai_type = AIType.label
     res = AppServiceFactory.new_slice_analysis_service().update_mark_groups(groups)
     return jsonify(res.dict())
 
@@ -309,4 +305,26 @@ def switch_ai():
     ai_type = request.form.get('ai_type')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
     res = AppServiceFactory.new_slice_analysis_service().switch_ui()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/addLabel', methods=['get', 'post'])
+def add_label():
+    ids = json.loads(request.form.get('ids'))
+    name = request.form.get('name')
+    res = AppServiceFactory.slice_service.add_label(ids=ids, name=name)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/delLabel', methods=['get', 'post'])
+def del_label():
+    file_id = request.form.get('id')
+    names = json.loads(request.form.get('names'))
+    res = AppServiceFactory.slice_service.del_label(id=file_id, name=names)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/getLabels', methods=['get', 'post'])
+def get_labels():
+    res = AppServiceFactory.slice_service.get_labels()
     return jsonify(res.dict())

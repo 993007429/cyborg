@@ -26,6 +26,8 @@ from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
 from cyborg.utils.strings import camel_to_snake
+from cyborg.modules.slice.domain.value_objects import SliceAlg
+
 
 logger = logging.getLogger(__name__)
 
@@ -212,20 +214,14 @@ class SliceDomainService(object):
             slice.update_data(high_through=1)
 
         info['update_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-
+        record_info = {'update_time': info['update_time']}
         if slice:
             cover = False
-            if 'started' in info:
-                del info['started']
-            if 'ai_suggest' in info:
-                del info['ai_suggest']
-            if 'radius' in info:
-                del info['radius']
-            if 'is_solid' in info:
-                del info['is_solid']
-            if 'clarity' in info:
-                del info['clarity']
-
+            info.pop('started', None)
+            info.pop('ai_suggest', None)
+            info.pop('radius', None)
+            info.pop('is_solid', None)
+            info.pop('clarity', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
 
@@ -250,15 +246,16 @@ class SliceDomainService(object):
             self.repository.save_slice(slice)
 
         else:  # 新建切片信息
-            slice = SliceEntity(**info)
+            info['ajax_token'] = info.pop('ajaxToken', {})
+            info['user_file_path'] = info.pop('userFilePath', '')
+            slice = SliceEntity(raw_data=info)
             if high_through:
                 slice.update_data(high_through=1)
             self.repository.save_slice(slice)
-
-            if record:
-                record.update_data(update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
-                record.update_data(slice_num=record.slice_num + 1)
-                self.repository.save(record)
+            record_info['slice_num'] = record.slice_num + 1 if record and record.slice_num else 1
+        if record:
+            record.update_data(**record_info)
+            self.repository.save(record)
         return True
 
     def update_slice_ai_suggest(self, abnormal_high: int, abnormal_low: int, total: int) -> bool:
@@ -282,7 +279,6 @@ class SliceDomainService(object):
 
         slice.update_data(ai_suggest=new_ai_suggest)
         self.repository.save_slice(slice)
-
         return True
 
     def update_mark_config(
@@ -363,7 +359,9 @@ class SliceDomainService(object):
         slice = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
         if not slice:
             return 2, 'no such file or directory', None
-
+        err, message = self.repository.get_slice_err(slice.caseid, slice.fileid)
+        slice.err_code = err
+        slice.err_message = message
         return 0, '', slice
 
     def get_alg_type(self, case_id: str, file_id: str, company_id: str) -> str:
@@ -461,8 +459,7 @@ class SliceDomainService(object):
                 worksheet.set_column(headers.index('创建时间'), headers.index('创建时间'), 25)
             if '切片标签' in headers:
                 worksheet.set_column(headers.index('切片标签'), headers.index('切片标签'), 20)
-
-        row_items = [(record, slice) for record in records for slice in record.slices]
+        row_items = [(record, slice) for record in records for slice in record.slices or [None]]
         for idx, (record, slice) in enumerate(row_items):
             row = idx + 1
             for col, title in enumerate(headers):
@@ -471,37 +468,52 @@ class SliceDomainService(object):
                 if title == '样本号':
                     write_label = record.caseid
                 elif title == '姓名':
-                    write_label = record.name
+                    write_label = record.name or ''
                 elif title == '性别':
-                    write_label = record.gender
+                    write_label = record.gender or ''
                 elif title == '年龄':
-                    write_label = str(record.age)
+                    write_label = str(record.age) if record.age else ''
                 elif title == '取样部位':
                     write_label = record.sample_part
                 elif title == '样本类型':
                     write_label = record.sample_type
                 elif title == '切片数量':
                     write_label = '1'
-                elif title == '状态':
-                    write_label = {'0': '未处理', '1': '处理中', '2': '已处理', '3': '处理异常'}.get(str(slice.ai_status), '')
+                elif title == '处理状态':
+                    write_label = SliceStartedStatus(int(slice.started)).description
                 elif title == '切片标签':
-                    slice_label_path = slice.slice_label_path
+                    slice_label_path = slice.slice_label_path if slice else ''
                     if os.path.exists(slice_label_path) and os.path.getsize(slice_label_path):
-                        # worksheet.insert_image(row, col, slice_label_path, {'x_scale': 0.11, 'y_scale': 0.1})
-                        pass
+                        worksheet.insert_image(row, col, slice_label_path, {'x_scale': 0.11, 'y_scale': 0.1})
                 elif title == '切片编号':
-                    write_label = slice.slice_number
+                    write_label = slice.slice_number if slice else ''
                 elif title == '文件名':
-                    write_label = slice.filename
+                    write_label = slice.filename if slice else ''
+                elif title == '自定义标签':
+                    write_label = ','.join(slice.labels) if slice.labels else ''
                 elif title == '切片文件夹':
-                    write_label = slice.user_file_folder
+                    write_label = slice.user_file_folder if slice else ''
                 elif title == 'AI模块':
-                    write_label = Consts.ALGOR_DICT.get(slice.alg) if slice.alg in Consts.ALGOR_DICT else slice.alg
+                    write_label = SliceAlg[slice.alg].value if slice.alg else ''
+                elif title == '切片质量':
+                    if slice and slice.slide_quality:
+                        if int(slice.slide_quality) == 1:
+                            write_label = '合格'
+                        elif int(slice.slide_quality) == 0:
+                            write_label = '不合格'
+                    else:
+                        write_label = ''
+                elif title == '扫描倍数':
+                    write_label = slice.objective_rate if slice else ''
+                elif title == '清晰度':
+                    write_label = slice.clarity_level if slice else ''
+                elif title == '细胞量':
+                    write_label = slice.cell_num if slice else ''
                 elif title == 'AI建议':
-                    write_label = slice.ai_suggest
+                    write_label = slice.ai_suggest if slice else ''
                     cell_format = auto_cell_format(write_label)
                 elif title == '复核结果':
-                    write_label = slice.check_result.strip().strip(';')
+                    write_label = slice.check_result.strip().strip(';') if slice and slice.check_result else ''
                     cell_format = auto_cell_format(write_label)
                 elif title == '最后更新':
                     update_time = record.update_time
@@ -529,13 +541,17 @@ class SliceDomainService(object):
                             local_date_str = local_date_str.strftime('%Y-%m-%d %H:%M:%S')
                         write_label = local_date_str
                 elif title == '操作人':
-                    write_label = slice.operator
+                    write_label = slice.operator if slice else ''
                 elif title == '最终结果':
-                    write_label = slice.check_result.strip().strip(';') or slice.ai_suggest
+                    if not slice:
+                        write_label = ''
+                    else:
+                        write_label = slice.check_result.strip().strip(';') if slice.check_result else '' or slice.ai_suggest
                     cell_format = auto_cell_format(write_label)
-
+                elif title == '标注状态':
+                    write_label = '已标注' if slice and slice.is_marked else '未标注'
+                    cell_format = auto_cell_format(write_label)
                 worksheet.write(row, col, write_label, cell_format)
-
         return None
 
     def create_slice_link_file(self, slide_path: str, file_name: str, check_slide: bool = False) -> bool:

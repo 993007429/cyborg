@@ -74,6 +74,9 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
     def get_slice(self, case_id: str, file_id: str, company: Optional[str] = None) -> Optional[SliceEntity]:
         ...
 
+    def get_slice_err(self, case_id: str, file_id: str) -> Tuple[int, str]:
+        ...
+
     @abstractmethod
     def get_slice_by_local_filename(self, user_file_path: str, file_name: str, company: str) -> Optional[SliceEntity]:
         ...
@@ -114,7 +117,13 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             seq_key: Optional[str] = None, seq: Optional[str] = None,
             update_min: Optional[str] = None, update_max: Optional[str] = None,
             create_time_min: Optional[str] = None, create_time_max: Optional[str] = None,
-            page: int = 0, limit: int = 20
+            page: int = 0, limit: int = 20,
+            case_ids: Optional[List[str]] = None,
+            is_marked: Optional[int] = None,
+            labels: Optional[str] = None,
+            clarity_level: Optional[str] = None,
+            slice_quality: Optional[str] = None,
+            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6
     ) -> Tuple[int, List[CaseRecordEntity]]:
         ...
 
@@ -128,6 +137,18 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+        ...
+
+    @abstractmethod
+    def add_label(self, ids: List[str], name: str) -> Tuple[int, str]:
+        ...
+
+    @abstractmethod
+    def del_label(self, id: str, name: List[str]) -> Tuple[int, str]:
+        ...
+
+    @abstractmethod
+    def get_labels(self, company: str) -> List[str]:
         ...
 
 
