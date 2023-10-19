@@ -248,6 +248,12 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
             query = query.filter_by(group_id=group_id)
         return query.count()
 
+    def has_mark(self, group_id: Optional[int] = None) -> bool:
+        query = self.session.query(self.mark_model_class)
+        if group_id is not None:
+            query = query.filter_by(group_id=group_id)
+        return query.exists()
+
     @transaction
     def save_mark_group(self, entity: MarkGroupEntity) -> bool:
         model = self.convert_to_model(entity, MarkGroupModel)

@@ -372,8 +372,8 @@ class SliceAnalysisDomainService(object):
             self.repository.save_mark(mark)
 
         for group_id in involved_groups:
-            count = self.repository.get_mark_count(group_id=group_id)
-            self.repository.update_mark_group_status(group_id=group_id, is_empty=count == 0)
+            has_mark = self.repository.has_mark(group_id=group_id)
+            self.repository.update_mark_group_status(group_id=group_id, is_empty=has_mark is False)
 
         if marks_for_ai_result:
             self.update_ai_result(marks=marks_for_ai_result, option=3, ai_type=ai_type, tiled_slice=tiled_slice)
@@ -475,8 +475,8 @@ class SliceAnalysisDomainService(object):
                 self.repository.manual.save_mark(mark)
 
         for group_id in involved_groups:
-            count = self.repository.get_mark_count(group_id=group_id)
-            self.repository.update_mark_group_status(group_id=group_id, is_empty=count == 0)
+            has_mark = self.repository.has_mark(group_id=group_id)
+            self.repository.update_mark_group_status(group_id=group_id, is_empty=has_mark is False)
 
         if marks_for_ai_result:
             self.update_ai_result(marks=marks_for_ai_result, option=3, ai_type=ai_type, tiled_slice=tiled_slice)
@@ -686,8 +686,8 @@ class SliceAnalysisDomainService(object):
         err_code, message = err_code or err, message or msg
 
         for group_id in set([mark.group_id for mark in marks_for_delete]):
-            count = self.repository.get_mark_count(group_id=group_id)
-            self.repository.update_mark_group_status(group_id=group_id, is_empty=count == 0)
+            has_mark = self.repository.has_mark(group_id=group_id)
+            self.repository.update_mark_group_status(group_id=group_id, is_empty=has_mark is False)
 
         return err_code, message
 
@@ -715,8 +715,8 @@ class SliceAnalysisDomainService(object):
             err_code, message = err_code or err, message or msg
 
         for group_id in set([mark.group_id for mark in marks]):
-            count = self.repository.get_mark_count(group_id=group_id)
-            self.repository.update_mark_group_status(group_id=group_id, is_empty=count == 0)
+            has_mark = self.repository.has_mark(group_id=group_id)
+            self.repository.update_mark_group_status(group_id=group_id, is_empty=has_mark is False)
         return err_code, message
 
     def import_ai_marks(self, template_id: int) -> str:

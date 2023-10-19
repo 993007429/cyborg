@@ -55,7 +55,6 @@ class UserCoreService(object):
                 cache.expire(key, 5 * 60)
             return AppResponse(err_code=err_code, message=message)
         cache.delete(key)
-
         data = user.to_dict()
         data['cloud'] = Settings.CLOUD
         del data['id']

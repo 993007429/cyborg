@@ -20,8 +20,8 @@ class UserModel(BaseModel):
     time_out = Column(String(255), nullable=True, comment='超时时间')
     volume = Column(Integer, nullable=True, comment='磁盘容量')
     expires = Column(Float, nullable=True, comment='过期时间')
-    salt = Column(String(255), nullable=True, comment='盐值')
-    encry_password = Column(Text, nullable=True, comment='加密密码')
+    salt = Column(String(255), default='', nullable=False, comment='盐值')
+    encry_password = Column(String(255), default='', nullable=False, comment='加密密码')
 
 
 class CompanyModel(BaseModel):
@@ -52,5 +52,5 @@ class CompanyModel(BaseModel):
     is_test = Column('isTest', Integer, default=0, comment='0永久 1试用')
     end_time = Column('endTime', String(20), nullable=True, comment='试用的截止时间')
     smooth_value = Column(Text, nullable=True, comment='平滑值（pdl1调参专用）')
-    clarity_standards_max = Column(Float, default=0, comment='切片清晰度标准上限值')
-    clarity_standards_min = Column(Float, default=0, comment='切片清晰度标准下限值')
+    clarity_standards_max = Column(Float, default=0.0, comment='切片清晰度标准上限值')
+    clarity_standards_min = Column(Float, default=0.0, comment='切片清晰度标准下限值')
