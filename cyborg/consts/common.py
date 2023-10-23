@@ -23,19 +23,22 @@ class Consts:
     # 系统可用的模型占用显存大小  单位G
     MODEL_SIZE = {
         'tct': (1, 5),
-        'lct': (1, 4),
-        'model_calibrate_lct': (1, 5),
-        'model_calibrate_tct': (1, 5),
-        'dna': (1, 6),
-        'bm': (1, 4),
-        'pdl1': ((1, 5), 8),
+        'lct': (1, 5),
+        'model_calibrate_lct': (1, 10),
+        'model_calibrate_tct': (1, 10),
+        'dna': (1, 5),
+        'dna_ploidy': (1, 5),
+        'bm': (1, 5),
+        'pdl1': ((1, 5), 10),
         'fishTissue': (1, 5),
-        'ki67': (1, 5),
-        'ki67hot': (1, 5),
-        'er': (1, 5),
-        'pr': (1, 5),
-        'her2': ((1, 5), 8),
-        'np': ((1, 5), 10)
+        'ki67': (1, 10),
+        'ki67hot': (1, 10),
+        'er': (1, 10),
+        'pr': (1, 10),
+        'her2': ((1, 5), 10),
+        'np': ((1, 5), 10),
+        'celldet': (1, 10),
+        'cellseg': (1, 10),
     }
 
     # 算法超时时间  单位秒

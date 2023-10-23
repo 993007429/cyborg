@@ -169,18 +169,6 @@ class RocheDomainService(object):
             x = float(coord[0]) if slide_width > float(coord[0]) else float(slide_width - 1)
             y = float(coord[1]) if slide_height > float(coord[1]) else float(slide_height - 1)
 
-            # mark = RocheMark(
-            #     position={'x': [x], 'y': [y]},
-            #     fill_color=Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]],
-            #     mark_type=2,
-            #     diagnosis={'type': Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]},
-            #     radius=1 / mpp,
-            #     editable=0,
-            #     # group_id=group_name_to_id.get(Her2Consts.idx_to_label[int(cls_labels[idx])]),
-            #     area_id=roi_id,
-            #     method='spot'
-            # )
-
             tile_x, tile_y = RocheCellsIndexItem.locate(int(x), int(y))
             cells = cells_in_tile.setdefault((tile_x, tile_y), [])
             cells.append([label, [x, y]])
@@ -189,9 +177,9 @@ class RocheDomainService(object):
         for (tile_x, tile_y), cells in cells_in_tile.items():
             index_item = RocheCellsIndexItem.new_item(tile_x, tile_y)
             for label, cell_group in groupby(cells, lambda c: c[0]):
-                feature = Feature(properties={'label': label}, geometry=MultiPoint(coordinates=[]))
+                feature = Feature(properties={'label': int(label)}, geometry=MultiPoint(coordinates=[]))
                 for cell in cell_group:
-                    feature['geometry']['coordinates'].append(cell[1])
+                    feature['geometry']['coordinates'].append([int(val) for val in cell[1]])
                 index_item.geo_json['features'].append(feature)
             index_items.append(index_item)
 
@@ -202,19 +190,6 @@ class RocheDomainService(object):
             'whole_slide': whole_slide,
             '分级结果': Her2Consts.level[int(lvl)]
         })
-
-        # roi_marks = []
-        # roi_marks.append(RocheMark(
-        #     id=roi_id,
-        #     position={'x': x_coords, 'y': y_coords},
-        #     method='rectangle',
-        #     mark_type=3,
-        #     is_export=1,
-        #     ai_result=ai_result,
-        #     editable=1,
-        #     stroke_color='grey',
-        #     # group_id=group_id
-        # ))
 
         marker_groups = []
         marker_shapes = {}
@@ -230,7 +205,8 @@ class RocheDomainService(object):
                 type=marker_type
             )
             marker_groups.append(marker_group)
-            color = Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(label)]]
+            # color = Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(label)]]
+            color = 'rgba(222,53,32,255)'
             marker_shape = RocheMarkerShape(
                 level=0,
                 outline_width=0,
@@ -252,10 +228,6 @@ class RocheDomainService(object):
             name='Markers',
             description='Markers'
         )
-
-        logger.info(wsi_input)
-        logger.info(marker_shapes)
-        logger.info(marker_shapes)
 
         return RocheALGResult(
             ai_suggest=ai_result['分级结果'],

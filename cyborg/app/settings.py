@@ -64,8 +64,6 @@ class Settings(object):
         'slice/selectTemplate'
     ]
 
-    MEM_PER_GPU = 12
-
     THUMBNAIL_BOUNDING = 500
 
     BLOCK_SIZE = 1024
@@ -90,6 +88,14 @@ class Settings(object):
     # redis配置
     REDIS_HOST = os.environ.get('redis.host') or LOCAL_SETTINGS['redis']['host']
     REDIS_PORT = os.environ.get('redis.port') or LOCAL_SETTINGS['redis']['port']
+
+    REDLOCK_CONNECTION_CONFIG = [{
+        'host': REDIS_HOST,
+        'port': REDIS_PORT,
+        'db': 4,
+        'password': None
+    }]
+
     LOCK_EXPIRATION_TIME = 10  # 分布式锁过期时间
 
     CACHE_REDIS_URI = 'redis://{}:{}'.format(REDIS_HOST, str(REDIS_PORT))
@@ -98,6 +104,7 @@ class Settings(object):
     CELERY_BROKER_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['broker_db'])
     CELERY_BACKEND_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['backend_db'])
 
+    GPU_SETTINGS = LOCAL_SETTINGS['gpu'] if 'gpu' in LOCAL_SETTINGS else None
     MINIO_SETTINGS = LOCAL_SETTINGS['minio'] if 'minio' in LOCAL_SETTINGS else None
     MINIO_ACCESS_KEY = MINIO_SETTINGS['access_key'] if MINIO_SETTINGS else ''
     MINIO_ACCESS_SECRET = MINIO_SETTINGS['access_secret'] if MINIO_SETTINGS else ''
@@ -105,6 +112,8 @@ class Settings(object):
     PUBLIC_ENDPOINT = MINIO_SETTINGS['public_endpoint'] if MINIO_SETTINGS else ''
     BUCKET_NAME = MINIO_SETTINGS['bucket_name'] if MINIO_SETTINGS else ''
     USE_HTTPS = MINIO_SETTINGS['use_https'].lower() == 'true' if MINIO_SETTINGS else False
+
+    TOTAL_GPU_MEM = GPU_SETTINGS['total_gpu_mem'] if GPU_SETTINGS else 12
 
     IMAGE_SERVER = LOCAL_SETTINGS['default']['image_server']
 

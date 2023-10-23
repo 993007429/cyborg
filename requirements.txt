@@ -274,6 +274,10 @@ pyyaml==6.0
 pyzbar==0.1.9
     # via -r requirements.in
 redis==4.3.4
+    # via
+    #   -r requirements.in
+    #   redlock
+redlock==1.2.0
     # via -r requirements.in
 requests==2.27.1
     # via -r requirements.in

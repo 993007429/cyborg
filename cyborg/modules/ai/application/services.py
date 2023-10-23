@@ -39,14 +39,18 @@ class AIService(object):
 
     def start_ai(
             self, ai_name: str, rois: Optional[list] = None, upload_batch_number: Optional[str] = None,
-            ip_address: Optional[str] = None, is_calibrate: bool = False) -> AppResponse:
+            ip_address: Optional[str] = None, is_calibrate: bool = False, force: bool = False) -> AppResponse:
         ai_type = AIType.get_by_value(ai_name)
         request_context.ai_type = ai_type
 
         task = self.domain_service.repository.get_latest_ai_task(
             case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
-        if task and task.is_analyzing:
-            return AppResponse(err_code=3, message='切片已在分析中')
+        if task:
+            if force:
+                app.control.revoke(task.result_id, terminate=True)
+                self.domain_service.update_ai_task(task, status=AITaskStatus.default)
+            elif task.is_analyzing:
+                return AppResponse(err_code=3, message='切片已在分析中')
 
         res = self.user_service.update_company_trial(ai_name=ai_name)
         if res.err_code:
@@ -89,12 +93,13 @@ class AIService(object):
 
         slice_info = res.data
 
-        task = self.domain_service.create_ai_task(
-            ai_type,
-            slice_info['caseid'],
-            slice_info['fileid'],
-            **task_params
-        )
+        if not task:
+            task = self.domain_service.create_ai_task(
+                ai_type,
+                slice_info['caseid'],
+                slice_info['fileid'],
+                **task_params
+            )
 
         if task:
             result = tasks.run_ai_task(task.id)
@@ -123,15 +128,16 @@ class AIService(object):
         if torch.cuda.is_available():
             gpu_list = []
             while not gpu_list:
-                gpu_list = self.domain_service.check_available_gpu(task.ai_type, task.slide_path)
-                if gpu_list:
+                gpu_list = self.domain_service.check_available_gpu(task, task.slide_path)
+                if gpu_list and self.domain_service.mark_ai_task_running(ai_task=task):
                     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
                 else:
+                    gpu_list = []
                     logger.info('显卡忙或者不可用, 等待5s...')
                     time.sleep(5)
 
-        self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
         self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
+        self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
 
         ai_type = task.ai_type
         request_context.ai_type = ai_type
@@ -171,10 +177,11 @@ class AIService(object):
             else:
                 logger.error(f'{ai_type} does not support')
                 result = ALGResult(ai_suggest='', err_msg=f'{ai_type} does not support')
-
         except Exception as e:
             logger.exception(e)
             result = ALGResult(ai_suggest='', err_msg='run alg error')
+        finally:
+            self.domain_service.unmark_ai_task_running(ai_task=task)
 
         if result.err_msg:
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)
@@ -230,7 +237,7 @@ class AIService(object):
         for slice_info in slices:
             request_context.case_id = slice_info['caseid']
             request_context.file_id = slice_info['fileid']
-            res = self.start_ai(ai_name=ai_name)
+            res = self.start_ai(ai_name=ai_name, force=True)
             if res.err_code == 1:
                 return res
             elif res.err_code:
@@ -265,6 +272,8 @@ class AIService(object):
             return AppResponse(err_code=1, message='ai task not found')
 
         app.control.revoke(task.result_id, terminate=True)
+
+        self.domain_service.unmark_ai_task_running(ai_task=task)
 
         if task.status not in (AITaskStatus.success, AITaskStatus.failed):
             self.domain_service.update_ai_task(task, status=AITaskStatus.failed)

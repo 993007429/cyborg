@@ -137,6 +137,9 @@ class Cache(object):
     def incrby(self, key: str, val: int = 1):
         return self.write_node.incrby(key, val)
 
+    def decrby(self, key: str, val: int = 1):
+        return self.write_node.decrby(key, val)
+
     def has(self, key):
         return self.read_node.exists(key)
 
@@ -305,6 +308,9 @@ class NoCache(Cache):
         ...
 
     def incrby(self, key: str, val: int = 1):
+        ...
+
+    def decrby(self, key: str, val: int = 1):
         ...
 
     def has(self, key):

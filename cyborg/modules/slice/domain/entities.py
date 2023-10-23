@@ -448,9 +448,9 @@ class CaseRecordEntity(BaseDomainEntity):
             report_info['opinion'] = opinion_data.get('opinion')
 
             if slice_entity:
-                report_info['isStatisfied'] = 1 if slice_entity.slideQuality == '1' else 0
+                report_info['isStatisfied'] = 1 if slice_entity.slide_quality == '1' else 0
                 if slice_entity.cell_num:
-                    report_info['cellNum'] = 'greater' if (slice_entity.cellNum or 0) > 5000 else 'less'
+                    report_info['cellNum'] = 'greater' if (slice_entity.cell_num or 0) > 5000 else 'less'
                 if slice_entity.check_result:
                     items = slice_entity.check_result.split(' ')
                     report_info['pathogen'] = items[2].split(',') if len(items) >= 3 else []
