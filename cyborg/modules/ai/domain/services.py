@@ -20,6 +20,7 @@ from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.consts.tct import TCTConsts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
+from cyborg.infra.redlock import with_redlock
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
@@ -89,16 +90,17 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
-    def check_available_gpu(self, ai_type: AIType, slide_path: str) -> List[str]:
+    def check_available_gpu(self, ai_task: AITaskEntity, slide_path: str) -> List[str]:
+
+        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE.get(ai_task.ai_type, (1, 10))
+
         from cyborg.modules.ai.utils.gpu import get_gpu_status
         gpu_status = get_gpu_status()
-        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE[ai_type.value]
         if isinstance(required_gpu_num, tuple):
             min_gpu_num, max_gpu_num = required_gpu_num
         else:
             min_gpu_num, max_gpu_num = required_gpu_num, required_gpu_num
 
-        logger.info(slide_path)
         # single gpu for small images is enough
         if isinstance(slide_path, str) and fs.path_splitext(slide_path.lower())[1] in ['.jpg', '.png', '.jpeg', '.bmp']:
             min_gpu_num, max_gpu_num = 1, 1
@@ -114,6 +116,30 @@ class AIDomainService(object):
             return selected_gpus
         else:
             return []
+
+    @with_redlock('mark_ai_task_running')
+    def mark_ai_task_running(self, ai_task: AITaskEntity) -> bool:
+        cache_key = 'running_ai_tasks'
+        ai_task_ids = cache.smembers(cache_key)
+        logger.info('>>>>>>>>>')
+        logger.info(ai_task_ids)
+        total_gpu_mem = 0
+        for ai_task_id in ai_task_ids:
+            _ai_task = self.repository.get_ai_task_by_id(ai_task_id)
+            if _ai_task:
+                _, current_gpu_memory = Consts.MODEL_SIZE.get(_ai_task.ai_type, (1, 10))
+                total_gpu_mem += current_gpu_memory
+
+        _, required_gpu_memory = Consts.MODEL_SIZE.get(ai_task.ai_type, (1, 10))
+
+        if total_gpu_mem + required_gpu_memory >= Settings.TOTAL_GPU_MEM:
+            return False
+
+        cache.sadd(cache_key, ai_task.id)
+        return True
+
+    def unmark_ai_task_running(self, ai_task: AITaskEntity):
+        return cache.srem('running_ai_tasks', ai_task.id)
 
     def get_ai_statistics(self, ai_type: AIType, company: str, start_date: str, end_date: str) -> List[dict]:
         stats_list = self.repository.get_ai_stats(

@@ -453,7 +453,7 @@ class SliceAnalysisService(object):
         for manual_mark in manual_marks:
             d = manual_mark.to_roi(ai_type=ai_type)
             d['type'] = ai_type.value
-            d['image_url'] = MarkEntity.make_image_url(caseid=slice_info['caseid'], company=company, **d)
+            d['image_url'] = MarkEntity.make_roi_image_url(caseid=slice_info['caseid'], company=company, **d)
             res['human'].append(d)
 
         _, marks = self.domain_service.repository.get_marks(mark_type=[2, 3])
@@ -474,7 +474,7 @@ class SliceAnalysisService(object):
                         temp_dict['fileid'] = slice_info['fileid']
                         temp_dict['remark'] = temp_roi.get('remark', '')
                         temp_dict['ai_type'] = ai_type.value
-                        temp_dict['image_url'] = MarkEntity.make_image_url(
+                        temp_dict['image_url'] = MarkEntity.make_roi_image_url(
                             caseid=slice_info['caseid'], company=company, **temp_dict)
                         if ai_type in [AIType.lct, AIType.tct]:
                             res['tct'].append(temp_dict)
@@ -492,7 +492,7 @@ class SliceAnalysisService(object):
                     temp_dict['ai_type'] = ai_type.value
                     temp_dict['iconType'] = 'dnaIcon'
                     temp_dict['di'] = nucleus.get('dna_index')
-                    temp_dict['image_url'] = MarkEntity.make_image_url(
+                    temp_dict['image_url'] = MarkEntity.make_roi_image_url(
                         caseid=slice_info['caseid'], company=company, **temp_dict)
                     res[ai_type.value].append(temp_dict)
 
@@ -500,3 +500,19 @@ class SliceAnalysisService(object):
             res['dnaStatics'] = dna_statics
 
         return res
+
+    def get_capture_images(self) -> AppResponse:
+        case_id = request_context.case_id
+        file_id = request_context.file_id
+        company = request_context.current_company
+        result = {
+            'captureImages': [
+                MarkEntity.make_image_url(caseid=case_id, fileid=file_id, filename='global.jpg', company=company),
+                MarkEntity.make_image_url(caseid=case_id, fileid=file_id, filename='local.jpg', company=company),
+            ],
+            'captureImagesAI': [
+                MarkEntity.make_image_url(caseid=case_id, fileid=file_id, filename='global_ai.jpg', company=company),
+                MarkEntity.make_image_url(caseid=case_id, fileid=file_id, filename='local_ai.jpg', company=company),
+            ]
+        }
+        return AppResponse(data=result)

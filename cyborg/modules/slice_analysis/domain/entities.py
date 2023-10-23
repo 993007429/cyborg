@@ -297,12 +297,16 @@ class MarkEntity(BaseDomainEntity):
         return item
 
     @classmethod
-    def make_image_url(cls, id: str, caseid: str, fileid: str, filename: str, path: dict, company: str, **_):
+    def make_roi_image_url(cls, id: str, caseid: str, fileid: str, filename: str, path: dict, company: str, **_):
         roi = [
             [min(path['x']), min(path['y'])],
             [max(path['x']), max(path['y'])]
         ]
-        return f'{Settings.IMAGE_SERVER}/files/ROI?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&roi={json.dumps(roi)}&roiid={id}&company={company}'
+        return f'{Settings.IMAGE_SERVER}/files/ROI2?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&roi={json.dumps(roi)}&roiid={id}&companyid={company}'
+
+    @classmethod
+    def make_image_url(cls, caseid: str, fileid: str, filename: str, company: str, **_):
+        return f'{Settings.IMAGE_SERVER}/files/image?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&companyid={quote(company)}'
 
     def to_roi(self, ai_type: AIType, ai_suggest: Optional[dict] = None):
         d = self.to_dict()

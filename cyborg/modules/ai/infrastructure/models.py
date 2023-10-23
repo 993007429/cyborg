@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean
+from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean, func
 
 from cyborg.seedwork.infrastructure.models import BaseModel
 
@@ -83,3 +83,5 @@ class AITaskModel(BaseModel):
     template_id = Column(Integer, nullable=False, default=0)
     result_id = Column(String(50), nullable=False, default='')
     expired_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    last_modified = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

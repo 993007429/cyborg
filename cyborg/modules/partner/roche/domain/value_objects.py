@@ -142,21 +142,6 @@ class RocheCellsIndexItem(BaseValueObject):
     geo_json: FeatureCollection
 
     @classmethod
-    def gen_items(cls, width: int, height: int, size: int = 2048):
-        items = []
-        for i in range(math.ceil(width / size)):
-            for j in range(math.ceil(height / size)):
-                items.append(RocheCellsIndexItem(
-                    filename=f'tile{i}_{j}',
-                    bbox=[
-                        i * size,
-                        j * size,
-                        min((i + 1) * size, width) - 1,
-                        min((j + 1) * size, height) - 1]
-                ))
-        return items
-
-    @classmethod
     def locate(cls, x: int, y: int) -> Tuple[int, int]:
         tile_x = math.ceil(x / ROCHE_TILE_SIZE) - 1
         tile_y = math.ceil(y / ROCHE_TILE_SIZE) - 1

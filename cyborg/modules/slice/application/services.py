@@ -536,6 +536,7 @@ class SliceService(object):
             roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])
 
         report_data['roiImages'] = roi_images
+        report_data.update(AppServiceFactory.new_slice_analysis_service().get_capture_images().data)
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
         report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}' # noqa

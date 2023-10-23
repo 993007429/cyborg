@@ -47,7 +47,7 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         return None
 
     def get_ai_tasks(
-            self, status: Optional[AITaskStatus], until_id: Optional[int], limit: int = 100) -> List[AITaskEntity]:
+            self, status: Optional[AITaskStatus], until_id: Optional[int] = None, limit: int = 100) -> List[AITaskEntity]:
         query = self.session.query(AITaskModel)
         if status is not None:
             query = query.filter(AITaskModel.status == status.value)

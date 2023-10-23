@@ -83,8 +83,10 @@ class AIType(BaseEnum):
     cd30 = 'cd30'
     ki67hot = 'ki67hot'
     celldet = 'celldet'
+    cellseg = 'cellseg'
     fish_tissue = 'fishTissue'
     model_calibrate_tct = 'model_calibrate_tct'
+    model_calibrate_lct = 'model_calibrate_lct'
 
     @property
     def ai_name(self) -> str:
