@@ -157,7 +157,7 @@ class WindowAttention(nn.Module):
         x = self.proj_drop(x)
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f'dim={self.dim}, window_size={self.window_size}, num_heads={self.num_heads}'
 
     def flops(self, N):
@@ -295,7 +295,7 @@ class SwinTransformerBlock(nn.Module):
 
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, " \
                f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
 
@@ -353,7 +353,7 @@ class PatchMerging(nn.Module):
 
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f"input_resolution={self.input_resolution}, dim={self.dim}"
 
     def flops(self):
@@ -424,7 +424,7 @@ class BasicLayer(nn.Module):
             x = self.downsample(x)
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f"dim={self.dim}, input_resolution={self.input_resolution}, depth={self.depth}"
 
     def flops(self):
