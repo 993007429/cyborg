@@ -1797,7 +1797,7 @@ class WindowAttention_v2(nn.Module):
         x = self.proj_drop(x)
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f'dim={self.dim}, window_size={self.window_size}, ' \
                f'pretrained_window_size={self.pretrained_window_size}, num_heads={self.num_heads}'
 
@@ -1959,7 +1959,7 @@ class SwinTransformerLayer_v2(nn.Module):
 
         return x
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, " \
                f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
 

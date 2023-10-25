@@ -66,6 +66,8 @@ csaps==1.1.0
     # via -r requirements.in
 cycler==0.11.0
     # via matplotlib
+cython==3.0.4
+    # via -r requirements.in
 decorator==5.1.1
     # via paddlepaddle
 dependency-injector==4.39.1
