@@ -15,10 +15,6 @@ from shutil import rmtree
 
 """
 
-MODEL_NAMES = {
-    'her2': 'Her2New_'
-}
-
 
 def walk_dir(data_dir, file_types=['.py']):
     path_list = []
@@ -32,10 +28,6 @@ def walk_dir(data_dir, file_types=['.py']):
 
 
 if __name__ == '__main__':
-    model_name = MODEL_NAMES.get(sys.argv[1])
-    if not model_name:
-        sys.exit(0)
-
     compiled_ext = '.so'
 
     ignore_list = []
@@ -46,8 +38,10 @@ if __name__ == '__main__':
 
     path_list = os.listdir(algo_dir)
 
+    algo_whitelist = ['Her2New_']
+
     for filepath in path_list:
-        if filepath != model_name:
+        if filepath not in algo_whitelist:
             shutil.rmtree(os.path.join(algo_dir, filepath), ignore_errors=True)
             continue
 
