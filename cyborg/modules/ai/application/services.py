@@ -45,12 +45,9 @@ class AIService(object):
 
         task = self.domain_service.repository.get_latest_ai_task(
             case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
-        if task:
-            if force:
-                app.control.revoke(task.result_id, terminate=True)
-                self.domain_service.update_ai_task(task, status=AITaskStatus.default)
-            elif task.is_analyzing:
-                return AppResponse(err_code=3, message='切片已在分析中')
+        if task and not task.is_finished:
+            app.control.revoke(task.result_id, terminate=True)
+            self.domain_service.update_ai_task(task, status=AITaskStatus.canceled)
 
         res = self.user_service.update_company_trial(ai_name=ai_name)
         if res.err_code:
@@ -93,13 +90,12 @@ class AIService(object):
 
         slice_info = res.data
 
-        if not task:
-            task = self.domain_service.create_ai_task(
-                ai_type,
-                slice_info['caseid'],
-                slice_info['fileid'],
-                **task_params
-            )
+        task = self.domain_service.create_ai_task(
+            ai_type,
+            slice_info['caseid'],
+            slice_info['fileid'],
+            **task_params
+        )
 
         if task:
             result = tasks.run_ai_task(task.id)
@@ -115,6 +111,8 @@ class AIService(object):
             return AppResponse(err_code=1, message='任务不存在')
         if task.is_finished:
             return AppResponse()
+
+        logger.info(f'收到任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id}')
 
         request_context.case_id = task.case_id
         request_context.file_id = task.file_id
