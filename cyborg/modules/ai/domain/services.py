@@ -208,9 +208,11 @@ class AIDomainService(object):
     ) -> Optional[Type]:
         from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v2_2.tct_alg import (
             LCT_mobile_micro0324, LCT40k_convnext_nofz, LCT40k_convnext_HDX, LCT_mix80k0417_8)
+        from cyborg.modules.ai.libs.algorithms.TCTAnalysis_v3_1.tct_alg import TCT_ALG2
         if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             models = {
                 "1": LCT_mobile_micro0324,
+                "2": TCT_ALG2,
                 "LCT40k_convnext_nofz": LCT40k_convnext_nofz,
                 "LCT40k_convnext_HDX": LCT40k_convnext_HDX,
                 "LCT_mobile_micro0324": LCT_mobile_micro0324,
@@ -248,15 +250,23 @@ class AIDomainService(object):
 
         roi_marks = []
         prob_dict = None
-        alg_obj = alg_class(threshold)
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
-            result = alg_obj.cal_tct(slide)
+            if alg_class.__name__ == 'TCT_ALG2':
+                config_path = task.ai_type.ai_name + model_type if model_type.isdigit() else model_type
+                alg_obj = alg_class(config_path=config_path, threshold=threshold)
+                result = alg_obj.cal_tct(slide)
+
+                from cyborg.modules.ai.utils.tct import generate_ai_result2
+                ai_result = generate_ai_result2(result=result, roiid=roi['id'])
+            else:
+                alg_obj = alg_class(threshold=threshold)
+                result = alg_obj.cal_tct(slide)
+
+                from cyborg.modules.ai.utils.tct import generate_ai_result
+                ai_result = generate_ai_result(result=result, roiid=roi['id'])
 
             from cyborg.modules.ai.utils.prob import save_prob_to_file
-            prob_dict = save_prob_to_file(slide_path=task.slide_path, result=result, alg_name=alg_class.__name__)
-
-            from cyborg.modules.ai.utils.tct import generate_ai_result
-            ai_result = generate_ai_result(result=result, roiid=roi['id'])
+            prob_dict = save_prob_to_file(slide_path=task.slide_path, result=result)
 
             roi_marks.append(Mark(
                 id=roi['id'],
@@ -302,7 +312,7 @@ class AIDomainService(object):
             tbs_result = alg_class(threshold).cal_tct(slide)
             dna_result = dna_alg_class().dna_test(slide)
 
-            prob_dict = save_prob_to_file(slide_path=task.slide_path, result=tbs_result, alg_name=alg_class.__name__)
+            prob_dict = save_prob_to_file(slide_path=task.slide_path, result=tbs_result)
 
             from cyborg.modules.ai.utils.tct import generate_ai_result, generate_dna_ai_result
             ai_result = generate_ai_result(result=tbs_result, roiid=roi['id'])
@@ -330,6 +340,50 @@ class AIDomainService(object):
             prob_dict=prob_dict
         )
 
+    def run_dna_ploidy(self, task: AITaskEntity) -> ALGResult:
+        model_info = task.model_info
+        threshold = model_info.get('ai_threshold')
+        if isinstance(threshold, dict):
+            iod_ratio = threshold.get("iod_ratio", 0.25)
+            conf_thres = threshold.get("conf_thres", 0.42)
+        else:
+            iod_ratio = 0.25
+            conf_thres = 0.42
+
+        from cyborg.modules.ai.libs.algorithms.DNA2.dna_alg import DNA_1020
+        dna_alg_class = DNA_1020
+        dna_alg_obj = dna_alg_class(iod_ratio=iod_ratio, conf_thres=conf_thres)
+
+        slide = open_slide(task.slide_path)
+
+        roi_marks = []
+
+        for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
+            dna_result = dna_alg_obj.dna_test(slide)
+
+            from cyborg.modules.ai.utils.tct import generate_dna_ploidy_ai_result
+            ai_result = generate_dna_ploidy_ai_result(result=dna_result, roiid=roi['id'])
+
+            roi_marks.append(Mark(
+                id=roi['id'],
+                position={'x': [], 'y': []},
+                mark_type=3,
+                method='rectangle',
+                radius=5,
+                is_export=1,
+                stroke_color='grey',
+                ai_result=ai_result,
+            ))
+
+        ai_result = roi_marks[0].ai_result
+
+        return ALGResult(
+            ai_suggest=ai_result['dna_diagnosis'],
+            roi_marks=roi_marks,
+            slide_quality=ai_result['slide_quality'],
+            cell_num=ai_result['cell_num']
+        )
+
     def run_her2(self, task: AITaskEntity, group_name_to_id: dict):
         cell_marks = []
         roi_marks = []
@@ -341,8 +395,10 @@ class AIDomainService(object):
         rois = task.rois or [task.new_default_roi()]
 
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
+
         center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
             slide_path=task.slide_path, roi_list=rois)
+
         for roi in rois:
             roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
             center_coords, cls_labels = roi_filter(
@@ -755,6 +811,96 @@ class AIDomainService(object):
             cell_marks=cell_marks,
             roi_marks=roi_marks
         )
+
+    def run_ki67_new(self, task: AITaskEntity, group_name_to_id: dict):
+        slide = open_slide(task.slide_path)
+        mpp = slide.mpp if slide.mpp is not None else 0.242042
+        total_pos_tumor_num, total_neg_tumor_num = 0, 0
+        xcent = int(slide.width / 2)
+        ycent = int(slide.height / 2)
+        all_center_coords_list = []
+        all_cell_types_list = []
+        all_ori_cell_types_list = []
+        all_probs_list = []
+        roi_marks, cell_marks = [], []
+
+        from cyborg.modules.ai.libs.algorithms.Ki67New.run_ki67 import cal_ki67
+        from cyborg.consts.ki67new import Ki67NewConsts
+
+        for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
+            roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
+            whole_slide = 1 if len(x_coords) == 0 else 0
+
+            center_coords_np, cls_labels_np, probs_np = cal_ki67(task.slide_path, x_coords=x_coords, y_coords=y_coords)
+            changed_cls_labels = cls_labels_np
+            remap_changed_cls_labels = np.vectorize(Ki67NewConsts.map_dict.get)(changed_cls_labels)
+            remap_ori_cls_labels = np.vectorize(Ki67NewConsts.map_dict.get)(cls_labels_np)
+            if remap_changed_cls_labels is not None:
+                cell_count = Counter(remap_changed_cls_labels)
+                count_summary_dict = {'pos_tumor': int(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']]),
+                                      'neg_tumor': int(cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']]),
+                                      'normal_cell': int(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性组织细胞']] +
+                                                         cell_count[Ki67NewConsts.annot_clss_map_dict['阴性组织细胞']]),
+                                      'total': int(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] +
+                                                   cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']]),
+                                      'index': round(float(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] /
+                                                           (cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] +
+                                                            cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']] + 1e-8)), 4)}
+                center_coords = center_coords_np.tolist()
+                cls_labels = remap_changed_cls_labels.tolist()
+                probs = probs_np.tolist()
+                annot_cls_labels = changed_cls_labels.tolist()
+                ori_labels = remap_ori_cls_labels.tolist()
+
+                total_pos_tumor_num += count_summary_dict['pos_tumor']
+                total_neg_tumor_num += count_summary_dict['neg_tumor']
+
+                count_summary_dict['whole_slide'] = whole_slide
+
+                all_center_coords_list += center_coords
+                all_cell_types_list += cls_labels
+                all_ori_cell_types_list += ori_labels
+                all_probs_list += probs
+
+                for center_coords, cell_type, annot_type in zip(center_coords, cls_labels, annot_cls_labels):
+                    mark = Mark(
+                        position={'x': [center_coords[0]], 'y': [center_coords[1]]},
+                        fill_color=Ki67NewConsts.type_color_dict[cell_type],
+                        mark_type=2,
+                        method='spot',
+                        diagnosis={'type': cell_type},
+                        radius=1 / mpp,
+                        area_id=roi_id,
+                        editable=0,
+                        group_id=group_name_to_id.get(Ki67NewConsts.reversed_annot_clss_map_dict[annot_type]),
+                    )
+                    cell_marks.append(mark)
+
+                count_summary_dict['center_coords'] = [xcent, ycent]
+
+                roi_marks.append(Mark(
+                    id=roi_id,
+                    position={'x': x_coords, 'y': y_coords},
+                    mark_type=3,
+                    method='rectangle',
+                    is_export=1,
+                    stroke_color='grey',
+                    ai_result=count_summary_dict,
+                    group_id=group_name_to_id.get('ROI')
+                ))
+
+        if total_pos_tumor_num+total_neg_tumor_num >100:
+            ki67_index = round(total_pos_tumor_num/(total_neg_tumor_num+total_pos_tumor_num)*100,2)
+            return_value = f'{ki67_index}%'
+        else:
+            return_value = '肿瘤细胞检出不足'
+
+        return ALGResult(
+            ai_suggest=return_value,
+            roi_marks=roi_marks,
+            cell_marks=cell_marks,
+        )
+
 
     def run_fish_tissue(self, task: AITaskEntity, group_name_to_id: dict):
         nucleus_group_id = group_name_to_id['可计数细胞核(组织)']

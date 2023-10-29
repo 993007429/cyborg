@@ -156,16 +156,18 @@ class AIService(object):
                 result = self.domain_service.run_lct(task)
             elif ai_type == AIType.dna:
                 result = self.domain_service.run_tbs_dna(task)
+            elif ai_type == AIType.dna_ploidy:
+                result = self.domain_service.run_dna_ploidy(task)
             elif ai_type == AIType.her2:
                 result = self.domain_service.run_her2(task, group_name_to_id)
             elif ai_type == AIType.ki67:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+                result = self.domain_service.run_ki67_new(task, group_name_to_id)
             elif ai_type == AIType.ki67hot:
                 result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=False)
             elif ai_type == AIType.er:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+                result = self.domain_service.run_ki67_new(task, group_name_to_id)
             elif ai_type == AIType.pr:
-                result = self.domain_service.run_ki67(task, group_name_to_id, compute_wsi=not has_manual_roi)
+                result = self.domain_service.run_ki67_new(task, group_name_to_id)
             elif ai_type == AIType.fish_tissue:
                 result = self.domain_service.run_fish_tissue(task, group_name_to_id)
             elif ai_type == AIType.pdl1:

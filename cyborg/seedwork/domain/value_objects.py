@@ -87,6 +87,7 @@ class AIType(BaseEnum):
     fish_tissue = 'fishTissue'
     model_calibrate_tct = 'model_calibrate_tct'
     model_calibrate_lct = 'model_calibrate_lct'
+    dna_ploidy = 'dna_ploidy'
 
     @property
     def ai_name(self) -> str:

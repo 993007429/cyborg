@@ -48,13 +48,12 @@ class TctBaseConfig(object):
     is_nms = True
     is_qc = True
     is_microbe_detect = True
-    is_microbe_qc = True
     cell_calibrate=True
 
-    num_workers = 10
+    num_workers = 1
     min_cellnum = 5000 # if cell num < min_cellnum: quality -> bad
     min_roi = 3000 # if roi num < min_roi: quality -> bad
-    qc_threshold = 0.15 # quality control model threshold
+    qc_threshold = 0.5 # quality control model threshold
 
     min_return_pos_cell = 20 # in case of positive slide has no positive cell
     min_return_neg_cell = 20  # in case of negative slide has no positive cell

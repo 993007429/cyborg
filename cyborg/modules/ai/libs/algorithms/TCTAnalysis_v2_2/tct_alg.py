@@ -67,7 +67,7 @@ class AlgBase:
         self.cell_net = None
         self.qc_net1 = None
         self.microbe_qc_net = None
-        self.cell_cls_func = detect_mix20x_scale1_qc3
+        self.cell_cls_func = detect_mix20x_scale1_qc
         self.cell_det_func = count_cells_slide_thread_noqc
         self.pos_threshold = None
 
@@ -88,7 +88,7 @@ class AlgBase:
             model.eval()
             model.cuda()
             if use_trt:
-                model = torch2trt(model, [torch.zeros(1, 1, 512, 512).cuda()], max_batch_size=8, fp16_mode=True)
+                model = torch2trt(model, [torch.zeros(1, 1, 512, 512).cuda()], max_batch_size=8, fp16_mode=False)
                 buffer = BytesIO()
                 torch.save(model.state_dict(), buffer)
                 oss.put_object_from_io(buffer, trt_model_file_key)
@@ -131,15 +131,17 @@ class AlgBase:
             model = convnext_microbe(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], in_chans=3, num_classes=5)
             model_weights_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
             if 'model' in model_weights_dict:
+                # torch.save(model_weights_dict['model_ema'], model_path)
                 model_weights_dict = model_weights_dict['model']
             elif 'model_ema' in model_weights_dict:
+                # torch.save(model_weights_dict['model'], model_path)
                 model_weights_dict = model_weights_dict['model_ema']
-
             model.load_state_dict(model_weights_dict)
+
             model.eval()
             model.cuda()
             if use_trt:
-                model = torch2trt(model, [torch.zeros(1, 3, 224, 224).cuda()], max_batch_size=64, fp16_mode=True)
+                model = torch2trt(model, [torch.zeros(1, 3, 224, 224).cuda()], max_batch_size=64, fp16_mode=False)
                 buffer = BytesIO()
                 torch.save(model.state_dict(), buffer)
                 buffer.seek(0)
@@ -170,37 +172,37 @@ class AlgBase:
             model.cuda()
             return model
 
-    def load_qc_net1(self, model_name='', weights_name='.pth'):
+    def load_microbe_cvnxt(self, model_name='', weights_name=''):
         model_file_key = oss.path_join('AI', MODEL_NAME, 'Model', model_name, weights_name)
         model_file = oss.get_object_to_io(model_file_key)
-        model = mobilenet_v3_small(num_classes=2)
-        print('load:{}'.format(model_file_key))
-        model_weights_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
-        if 'model_ema' in model_weights_dict:
-            model_weights_dict = model_weights_dict['model_ema']
-        elif 'model' in model_weights_dict:
-            model_weights_dict = model_weights_dict['model']
-        model.load_state_dict(model_weights_dict)
-        model.eval()
-        model.cuda()
-        return model
+        trt_model_file_key = os.path.splitext(model_file_key)[0] + '.cc'
+        if use_trt and os.path.exists(trt_model_file_key):
+            print('load:{}'.format(trt_model_file_key))
+            model = TRTModule()
+            trt_model_file = oss.get_object_to_io(trt_model_file_key)
+            model.load_state_dict(torch.load(trt_model_file))
+            return model
+        else:
+            model = convnext_microbe(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], in_chans=3, num_classes=6)
+            model_weights_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
+            if 'model' in model_weights_dict:
+                # torch.save(model_weights_dict['model_ema'], model_path)
+                model_weights_dict = model_weights_dict['model']
+            elif 'model_ema' in model_weights_dict:
+                # torch.save(model_weights_dict['model'], model_path)
+                model_weights_dict = model_weights_dict['model_ema']
+            model.load_state_dict(model_weights_dict)
+            model.eval()
+            model.cuda()
+            if use_trt:
+                model = torch2trt(model, [torch.zeros(1, 3, 224, 224).cuda()], max_batch_size=64, fp16_mode=False)
+                buffer = BytesIO()
+                torch.save(model.state_dict(), buffer)
+                buffer.seek(0)
+                oss.put_object_from_io(buffer, trt_model_file_key)
+            return model
 
-    def load_mobile_net(self, model_name='', weights_name='.pth'):
-        model_file_key = oss.path_join('AI', MODEL_NAME, 'Model', model_name, weights_name)
-        model_file = oss.get_object_to_io(model_file_key)
-        model = mobilenet_v3_small(num_classes=6)
-        print('load:{}'.format(model_file_key))
-        model_weights_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
-        if 'model_ema' in model_weights_dict:
-            model_weights_dict = model_weights_dict['model_ema']
-        elif 'model' in model_weights_dict:
-            model_weights_dict = model_weights_dict['model']
-        model.load_state_dict(model_weights_dict)
-        model.eval()
-        model.cuda()
-        return model
-
-    def cal_tct(self, slide, is_cs=False, save_result=True):
+    def cal_tct(self, slide, is_cs=False, save_result=False):
         with torch.no_grad():
 
             save_result_path = os.path.join(os.path.dirname(slide.filename),
@@ -223,12 +225,11 @@ class AlgBase:
                                                    batch_size=4, x_coords=x_coords, y_coords=y_coords)
 
                 bboxes, cell_soft, microbe_soft, feat, qc_soft = self.cell_cls_func(slide, center_coords,
-                                                                                    cell_classifier=self.cell_net,
-                                                                                    microbe_classifier=self.microbe_net,
-                                                                                    qc_model=self.qc_net1,
-                                                                                    microbe_qc=self.microbe_qc_net,
-                                                                                    patch_size=224, overlap=56,
-                                                                                    batch_size=64)
+                                                                          cell_classifier=self.cell_net,
+                                                                          microbe_classifier=self.microbe_net,
+                                                                          qc_model=self.qc_net1,
+                                                                          patch_size=224, overlap=56,
+                                                                          batch_size=64)
 
                 cell_num = int(center_coords.shape[0])
 
@@ -349,72 +350,47 @@ class AlgBase:
 class LCT40k_convnext_nofz(AlgBase):
     def __init__(self, threshold=None):
         super(LCT40k_convnext_nofz, self).__init__()
-        global use_trt
-        use_trt = False
         self.cell_det_net = self.load_celldet_model()
-        self.wsi_net = self.load_wsi_model_768_global(model_name='lct_convnext_nofz',
-                                                      weights_name='wsi_weights_epoch_4.pth')
-        self.microbe_net = self.load_mobile_net(model_name='microbe_mobilenet_0324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_detect else None
-        self.cell_net = self.load_cell0921_model(model_name='lct_convnext_nofz',
-                                                 weights_name='cell_weights_epoch_4.pth')
-        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0220',
-                                        weights_name='checkpoint-best.pth') if self.config.is_qc else None
-        self.microbe_qc_net = self.load_qc_net1(model_name='microbe_qc_20230324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_qc else None
-        self.cell_cls_func = detect_mix20x_scale1_qc3
+        self.wsi_net = self.load_wsi_model_768_global(model_name='lct_convnext_nofz', weights_name='wsi_weights_epoch_4.pth')
+        self.microbe_net = self.load_microbe_cvnxt(model_name='microbe_cvnxt1016', weights_name='checkpoint-56.pth') if self.config.is_microbe_detect else None
+        self.cell_net = self.load_cell0921_model(model_name='lct_convnext_nofz', weights_name='cell_weights_epoch_4.pth')
+        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0927', weights_name='checkpoint-25.pth') if self.config.is_qc else None
+        self.cell_cls_func = detect_mix20x_scale1_qc
         self.cell_det_func = count_cells_slide_thread_noqc
         self.pos_threshold = 0.33 if threshold is None else threshold
-
 
 class LCT40k_convnext_HDX(AlgBase):
     def __init__(self, threshold=None):
         super(LCT40k_convnext_HDX, self).__init__()
-        global use_trt
-        use_trt = False
         self.cell_det_net = self.load_celldet_model()
         self.wsi_net = self.load_wsi_model_768_global(model_name='海德星', weights_name='wsi_weights_epoch_4.pth')
-        self.microbe_net = self.load_mobile_net(model_name='microbe_mobilenet_0324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_detect else None
+        self.microbe_net = self.load_microbe_cvnxt(model_name='microbe_cvnxt1016', weights_name='checkpoint-56.pth') if self.config.is_microbe_detect else None
         self.cell_net = self.load_cell0921_model(model_name='海德星', weights_name='cell_weights_epoch_4.pth')
-        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0220',
-                                        weights_name='checkpoint-best.pth') if self.config.is_qc else None
-        self.microbe_qc_net = self.load_qc_net1(model_name='microbe_qc_20230324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_qc else None
-        self.cell_cls_func = detect_mix20x_scale1_qc3
+        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0927', weights_name='checkpoint-25.pth') if self.config.is_qc else None
+        self.cell_cls_func = detect_mix20x_scale1_qc
         self.cell_det_func = count_cells_slide_thread_noqc
         self.pos_threshold = 0.33 if threshold is None else threshold
-
 
 class LCT_mobile_micro0324(AlgBase):
     def __init__(self, threshold=None):
         super(LCT_mobile_micro0324, self).__init__()
         self.cell_det_net = self.load_celldet_model()
         self.wsi_net = self.load_wsi_model_768_global(model_name='mix80k0303', weights_name='wsi_weights_epoch_11.pth')
-        self.microbe_net = self.load_mobile_net(model_name='microbe_mobilenet_0324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_detect else None
+        self.microbe_net = self.load_microbe_cvnxt(model_name='microbe_cvnxt1016', weights_name='checkpoint-56.pth') if self.config.is_microbe_detect else None
         self.cell_net = self.load_cell0921_model(model_name='mix80k0303', weights_name='checkpoint-10.pth')
-        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0220',
-                                        weights_name='checkpoint-best.pth') if self.config.is_qc else None
-        self.microbe_qc_net = self.load_qc_net1(model_name='microbe_qc_20230324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_qc else None
-        self.cell_cls_func = detect_mix20x_scale1_qc3
+        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0927', weights_name='checkpoint-25.pth') if self.config.is_qc else None
+        self.cell_cls_func = detect_mix20x_scale1_qc
         self.cell_det_func = count_cells_slide_thread_noqc
         self.pos_threshold = 0.33 if threshold is None else threshold
-
 
 class LCT_mix80k0417_8(AlgBase):
     def __init__(self, threshold=None):
         super(LCT_mix80k0417_8, self).__init__()
         self.cell_det_net = self.load_celldet_model()
         self.wsi_net = self.load_wsi_model_768_global(model_name='mix80k0417', weights_name='wsi_weights_epoch_8.pth')
-        self.microbe_net = self.load_mobile_net(model_name='microbe_mobilenet_0324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_detect else None
+        self.microbe_net = self.load_microbe_cvnxt(model_name='microbe_cvnxt1016', weights_name='checkpoint-56.pth') if self.config.is_microbe_detect else None
         self.cell_net = self.load_cell0921_model(model_name='mix80k0417', weights_name='cell_weights_epoch_8.pth')
-        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0220',
-                                        weights_name='checkpoint-best.pth') if self.config.is_qc else None
-        self.microbe_qc_net = self.load_qc_net1(model_name='microbe_qc_20230324',
-                                                weights_name='checkpoint-best-ema.pth') if self.config.is_microbe_qc else None
-        self.cell_cls_func = detect_mix20x_scale1_qc3
+        self.qc_net1 = self.load_qc_net(model_name='qc_mobilenetv3_0927', weights_name='checkpoint-25.pth') if self.config.is_qc else None
+        self.cell_cls_func = detect_mix20x_scale1_qc
         self.cell_det_func = count_cells_slide_thread_noqc
         self.pos_threshold = 0.33 if threshold is None else threshold

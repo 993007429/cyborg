@@ -180,7 +180,7 @@ def apply_dilation(bw_remove, iterations=3):
 def locate_tct_disk(slide, iterations=2):
     # Step1. get small slide image
     H, W = slide.height, slide.width
-    slide_img = np.array(slide.get_thumbnail(1024))
+    slide_img = np.array(slide.getThumbnail(1024))
     h, w = slide_img.shape[0:2]
     ratio_x, ratio_y = W/w, H/h
 
@@ -198,7 +198,7 @@ def locate_tct_disk(slide, iterations=2):
 
     cnts = find_tissue_cnts(bw_closing)
     if len(cnts) == 0:
-        x_coords, y_coords  = [0,0,W,W], [0,0,H,H]
+        x_coords, y_coords = [0,0,W,W], [0,0,H,H]
     else:
         max_idx = 0
         max_area = 0
@@ -217,8 +217,8 @@ def locate_tct_disk(slide, iterations=2):
             x_coords = [0,0,W, W]
             y_coords = [0,0,H, H]
 
-        # cv2.drawContours(slide_img, [cnts[max_idx]], -1, (0, 255, 0), 5)
-        # imsave("test.jpg", slide_img)
+        cv2.drawContours(slide_img, [cnts[max_idx]], -1, (0, 255, 0), 5)
+        imsave("test.jpg", slide_img)
 
     return x_coords, y_coords
 

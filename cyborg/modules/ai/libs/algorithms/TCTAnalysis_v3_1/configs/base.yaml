@@ -1,0 +1,98 @@
+#
+
+disc_det: true
+cell_count: true
+microbe_det: true
+neg_det: true
+
+cell_det_labels: [ASC-US, LSIL, ASC-H, HSIL, AGC, CC, TRI, CAN, ACT, HSV, INF, ATR, RAP, META, GC, FB, Unsure]
+pos_labels: ['ASC-US', 'LSIL', 'ASC-H', 'HSIL', 'AGC']
+microbe_labels: ['CC', 'TRI', 'CAN', 'ACT', 'HSV']
+neg_labels: ['INF', ATR, RAP, META, GC]
+wsi_labels: ['NILM', 'ASC-US', 'LSIL', 'ASC-H', 'HSIL', 'AGC']
+
+# cell conf threshold
+cell_thres:
+  ASC-US: 0.35
+  LSIL: 0.35
+  ASC-H: 0.35
+  HSIL: 0.35
+  AGC: 0.35
+  CC: 0.35
+  TRI: 0.35
+  CAN: 0.35
+  ACT: 0.35
+  HSV: 0.35
+  INF: 0.35
+  ATR: 0.35
+  RAP: 0.35
+  META: 0.35
+  GC: 0.35
+
+# if detected cell num > wsi_report_num ->  report on wsi result
+wsi_report_num:
+  CC: 200
+  TRI: 200
+  CAN: 30
+  ACT: 10
+  HSV: 10
+  INF: 100
+  ATR: 100
+  RAP: 100
+  META: 100
+  GC: 100
+
+min_cellnum:  5000 # if cell num < min_cellnum: quality -> bad
+qc_threshold: 0.5 # quality control model threshold
+wsi_calibrite_cell: true
+min_return_cell: 20 # in case of no positive cells
+min_pos_cell_threshold: -1 # if pos cell num < min_pos_cell_threshold:  slide -> negative
+
+#============ CELL COUNTING=======================#
+count:
+  model: ''
+  weights: ''
+  mpp: 1.936336   #0.242042*8, 5X
+  trt: true
+  img_size: 512
+  crop_size: 40960 #5120*8 in level0
+  batch_size: 8
+  threshold: 0.15
+  workers: 8
+  scale: adapt #wsi read scale, int or adapt(choose from the best layer)
+
+
+#============ CELL DETECTION===================#
+det:
+  model: ''
+  weights: ''
+  mpp: 0.968168   #0.242042*4, 10X
+  trt: true
+  img_szie: 1024
+  overlap: 128
+  crop_size:  20480 #5120*4 in level0
+  batch_size: 1
+  conf_thres: 0.1
+  iou_thres: 0.45
+  workers: 8
+  scale: adapt   #wsi read scale, int or adapt(choose from the best layer)
+  max_det: 300
+  agnostic: false
+  drop_edge: true # remove detections near or outside the edge of  patch image
+  clamp: false # keep box inside the patch image
+
+#============Cell Classification====================#
+wsi:
+  model: ''
+  weights: ''
+  rerank: true
+  topk: 128  #topk features
+  img_szie: 224
+  mpp: 0.484084  #0.242042*2, 20X
+  trt: true
+  batch_size: 32
+  workers: 8
+  scale: adapt   #wsi read scale, int or adapt(choose from the best layer)
+  crop_scale: 1
+  merge_hsil: true
+  cell_calibrate: true
