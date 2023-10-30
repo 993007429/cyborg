@@ -126,7 +126,7 @@ class AIService(object):
         if torch.cuda.is_available():
             gpu_list = []
             while not gpu_list:
-                gpu_list = self.domain_service.check_available_gpu(task, task.slide_path)
+                gpu_list = self.domain_service.check_available_gpu(task.ai_type, task.slide_path)
                 if gpu_list and self.domain_service.mark_ai_task_running(ai_task=task):
                     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(gpu_list)
                 else:
