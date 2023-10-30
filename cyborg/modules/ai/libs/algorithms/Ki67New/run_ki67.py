@@ -9,7 +9,6 @@
 import os
 import sys
 import stat
-from typing import List
 import cv2
 import torch
 import numpy as np
@@ -99,7 +98,6 @@ def cal_ki67(slide_path, x_coords=[], y_coords=[]):
 
     status = subprocess.Popen(
         os.path.join(current_dir, bat_name), cwd=libs_root, shell=True, env=os.environ.copy(), preexec_fn=os.setsid)
-
 
     returncode = status.wait()
     if returncode == 0:

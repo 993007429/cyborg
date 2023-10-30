@@ -1,5 +1,6 @@
 import os
 
+
 def save_prob_to_file(slide_path: str, result: dict):
     if 'slide_pos_prob' in result:
         if result['slide_pos_prob'].shape == (6,):

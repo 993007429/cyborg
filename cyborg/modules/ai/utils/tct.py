@@ -172,8 +172,8 @@ def save_roi(slide_path, result, num_row=6, num_col=7, patch_size=2048, scale=1,
             col = cur_roi_indx % num_col
             row = cur_roi_indx // num_col
 
-            start_x, start_y = (col + 1) * border_thickness + col * patch_size, (
-                row + 1) * border_thickness + row * patch_size
+            start_x = (col + 1) * border_thickness + col * patch_size
+            start_y = (row + 1) * border_thickness + row * patch_size
 
             xmin, ymin = contour_coords[0]
             xmax, ymax = contour_coords[2]
@@ -354,6 +354,7 @@ def generate_ai_result(result: dict, roiid: int):
         }
     return ai_result
 
+
 def generate_ai_result2(result: dict, roiid: int):
     cells = deepcopy(cells_result_template)
 
@@ -364,16 +365,16 @@ def generate_ai_result2(result: dict, roiid: int):
         wsi_cell_num = result['cell_num']
 
         for cell in result['cells']:
-            box, label, prob = cell['bbox'],cell['label'],cell['prob']
+            box, label, prob = cell['bbox'], cell['label'], cell['prob']
             color = 'red' if label not in color_map else color_map[label]
-            cells[translate_map[label]]['num']+=1
-            if cells[translate_map[label]]['num']<=100:
+            cells[translate_map[label]]['num'] += 1
+            if cells[translate_map[label]]['num'] <= 100:
                 xmin, ymin, xmax, ymax = box
                 cells[translate_map[label]]['data'].append(
-                                      {"id": cell_id,"path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
-                                      "image": 0,"editable": 0,"dashed": 0,"fillColor": "","mark_type": 2,"area_id": roiid,
-                                      "method": "rectangle","strokeColor": color,"radius": 0,"cell_pos_prob": prob})
-                cell_id+=1
+                    {"id": cell_id, "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
+                     "image": 0, "editable": 0, "dashed": 0, "fillColor": "", "mark_type": 2, "area_id": roiid,
+                     "method": "rectangle", "strokeColor": color, "radius": 0, "cell_pos_prob": prob})
+                cell_id += 1
         microbe = [translate_map[k] for k in result['microbe']]
         background = [translate_map[k] for k in result['background']]
         aiResult = {
@@ -382,14 +383,16 @@ def generate_ai_result2(result: dict, roiid: int):
             'slide_quality': quality,
             'diagnosis': diagnosis,
             'microbe': microbe,
-            'background':background,
+            'background': background,
             'cells': cells,
             'whole_slide': 1
         }
 
     else:
-        aiResult = {'cell_num': 0,'slide_quality': 0,'diagnosis': [],'microbe': [],'background':[],'cells': [],'whole_slide': 1}
-    return  aiResult
+        aiResult = {'cell_num': 0, 'slide_quality': 0, 'diagnosis': [], 'microbe': [], 'background': [], 'cells': [],
+                    'whole_slide': 1}
+    return aiResult
+
 
 def generate_dna_ai_result(result: dict, roiid: int):
     nuclei_list = []
@@ -439,6 +442,7 @@ def generate_dna_ai_result(result: dict, roiid: int):
 
     return ai_result
 
+
 def generate_dna_ploidy_ai_result(result: dict, roiid: int):
     nuclei_list = []
     cell_id = 1
@@ -455,27 +459,27 @@ def generate_dna_ploidy_ai_result(result: dict, roiid: int):
             lesion_type = "abnormal_high"
             strokeColor = "rgb(217,0,27)"  # red
         nuclei_list.append({"id": cell_id,
-                          "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
-                          "image": 1,
-                          "editable": 0,
-                          "dashed": 0,
-                          "fillColor": "",
-                          "mark_type": 2,
-                          "area_id": roiid,
-                          "method": "rectangle",
-                          "strokeColor": strokeColor,
-                          "radius": 0,
-                          "dna_iod" : round(float(result['iod_values'][idx]),2),
-                          "dna_index" : round(float(result['dna_index_values'][idx]),2),
-                          "dna_amount" : round(float(result['iod_values'][idx]), 2),
-                          "area" : round(float(result['area'][idx]), 2),
+                            "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
+                            "image": 1,
+                            "editable": 0,
+                            "dashed": 0,
+                            "fillColor": "",
+                            "mark_type": 2,
+                            "area_id": roiid,
+                            "method": "rectangle",
+                            "strokeColor": strokeColor,
+                            "radius": 0,
+                            "dna_iod": round(float(result['iod_values'][idx]), 2),
+                            "dna_index": round(float(result['dna_index_values'][idx]), 2),
+                            "dna_amount": round(float(result['iod_values'][idx]), 2),
+                            "area": round(float(result['area'][idx]), 2),
                             "is_deleted": 0,
                             "lesion_type": lesion_type
-                          })
+                            })
         cell_id += 1
 
     diagnosis_dict = {'insufficient_nuclei': '有效检测细胞不足',
-                      'no_abnormal_nucleus': '未见DNA倍体异常细胞' ,
+                      'no_abnormal_nucleus': '未见DNA倍体异常细胞',
                       'a_few_abnormal_nuclei': '可见少量DNA倍体异常细胞（1-2个）',
                       'plenty_of_abnormal_nuclei': '可见DNA倍体异常细胞（≥3个）',
                       'normal_proliferation': '可见少量细胞增生（5%-10%）',
@@ -484,15 +488,15 @@ def generate_dna_ploidy_ai_result(result: dict, roiid: int):
                       }
 
     aiResult = {
-                'nuclei': nuclei_list,
-                'num_abnormal_low': int(result['num_abnormal_low']),
-                'num_abnormal_high': int(result['num_abnormal_high']),
-                'num_normal': int(result['num_normal']),
-                'dna_diagnosis': diagnosis_dict[result['dna_diagnosis']],
-                'nuclei_num': int(result['num_nuclei']),
-                "control_iod": round(float(result['control_iod']), 2),
-                'dna_statics': result['dna_statics'],
-                "cell_num" : int(result['num_nuclei'])
-                }
+        'nuclei': nuclei_list,
+        'num_abnormal_low': int(result['num_abnormal_low']),
+        'num_abnormal_high': int(result['num_abnormal_high']),
+        'num_normal': int(result['num_normal']),
+        'dna_diagnosis': diagnosis_dict[result['dna_diagnosis']],
+        'nuclei_num': int(result['num_nuclei']),
+        "control_iod": round(float(result['control_iod']), 2),
+        'dna_statics': result['dna_statics'],
+        "cell_num": int(result['num_nuclei'])
+    }
 
     return aiResult

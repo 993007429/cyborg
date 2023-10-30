@@ -145,8 +145,6 @@ class AIService(object):
         groups = self.analysis_service.get_mark_groups(template_id=task.template_id).data
         group_name_to_id = {group['label']: int(group['id']) for group in groups}
 
-        has_manual_roi = task.rois and task.rois[0]['x']
-
         try:
             if ai_type == AIType.tct:
                 result = self.domain_service.run_tct(task)

@@ -31,7 +31,9 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
     @abstractmethod
     def get_slices(
             self, file_name: Optional[str] = None, ai_type: Optional[AIType] = None,
-            started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None, company: Optional[str] = None,
+            started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
+            slice_type: Optional[str] = None,
+            company: Optional[str] = None,
             page: int = 0, per_page: int = sys.maxsize
     ) -> List[SliceEntity]:
         ...

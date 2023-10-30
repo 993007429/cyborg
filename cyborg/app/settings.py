@@ -47,9 +47,10 @@ class Settings(object):
         '/aipath/api/files/getInfo',
         '/aipath/api/files/thumbnail',
         '/aipath/api/files/ROI2',
+        '/aipath/api/files/downloadTemplate',
+        '/aipath/api/files/getImage',
         '/aipath/api/ai/inform',
         '/aipath/api/ai/connect',
-        '/aipath/api/files/downloadTemplate',
         '/aipath/api/ai/cailibrateInform',
     ]
 
@@ -106,6 +107,8 @@ class Settings(object):
 
     GPU_SETTINGS = LOCAL_SETTINGS['gpu'] if 'gpu' in LOCAL_SETTINGS else None
     MINIO_SETTINGS = LOCAL_SETTINGS['minio'] if 'minio' in LOCAL_SETTINGS else None
+    ROCHE_SETTINGS = LOCAL_SETTINGS['roche'] if 'roche' in LOCAL_SETTINGS else None
+
     MINIO_ACCESS_KEY = MINIO_SETTINGS['access_key'] if MINIO_SETTINGS else ''
     MINIO_ACCESS_SECRET = MINIO_SETTINGS['access_secret'] if MINIO_SETTINGS else ''
     PRIVATE_ENDPOINT = MINIO_SETTINGS['private_endpoint'] if MINIO_SETTINGS else ''
@@ -127,6 +130,8 @@ class Settings(object):
     PLUGINS = []
 
     SYNC_OPERATIONS = []
+
+    ROCHE_IMAGE_SERVER = ROCHE_SETTINGS['image_server'] if ROCHE_SETTINGS else None
 
     # 版本号（用于算法用量统计）
     VERSION = '4.0.0'

@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 class AIDomainService(object):
-
     RANK0_TASK_ID_CACHE_KEY = 'cyborg:ai_task:rank0'
 
     def __init__(self, repository: AIRepository):
@@ -841,9 +840,11 @@ class AIDomainService(object):
                                                          cell_count[Ki67NewConsts.annot_clss_map_dict['阴性组织细胞']]),
                                       'total': int(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] +
                                                    cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']]),
-                                      'index': round(float(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] /
-                                                           (cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] +
-                                                            cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']] + 1e-8)), 4)}
+                                      'index': round(
+                                          float(cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] /
+                                                (cell_count[Ki67NewConsts.annot_clss_map_dict['阳性肿瘤细胞']] +
+                                                 cell_count[Ki67NewConsts.annot_clss_map_dict['阴性肿瘤细胞']] + 1e-8)),
+                                          4)}
                 center_coords = center_coords_np.tolist()
                 cls_labels = remap_changed_cls_labels.tolist()
                 probs = probs_np.tolist()
@@ -887,8 +888,8 @@ class AIDomainService(object):
                     group_id=group_name_to_id.get('ROI')
                 ))
 
-        if total_pos_tumor_num+total_neg_tumor_num >100:
-            ki67_index = round(total_pos_tumor_num/(total_neg_tumor_num+total_pos_tumor_num)*100,2)
+        if total_pos_tumor_num + total_neg_tumor_num > 100:
+            ki67_index = round(total_pos_tumor_num / (total_neg_tumor_num + total_pos_tumor_num) * 100, 2)
             return_value = f'{ki67_index}%'
         else:
             return_value = '肿瘤细胞检出不足'
@@ -898,7 +899,6 @@ class AIDomainService(object):
             roi_marks=roi_marks,
             cell_marks=cell_marks,
         )
-
 
     def run_fish_tissue(self, task: AITaskEntity, group_name_to_id: dict):
         nucleus_group_id = group_name_to_id['可计数细胞核(组织)']
