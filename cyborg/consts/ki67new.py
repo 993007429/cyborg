@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time    : 2023/10/29 18:19
-# @Author  : Can Cui
-# @File    : ki67new.py
-# @Software: PyCharm
-
-
 class Ki67NewConsts(object):
 
     map_dict = {0: 1, 1: 0, 2: 2, 3: 2}

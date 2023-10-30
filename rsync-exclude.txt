@@ -1,0 +1,7 @@
+*.pyc
+.git/
+.gitignore
+Makefile
+fabfile.py
+*.sql
+*.swp
