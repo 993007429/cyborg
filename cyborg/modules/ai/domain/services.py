@@ -90,9 +90,9 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
-    def check_available_gpu(self, ai_task: AITaskEntity, slide_path: str) -> List[str]:
+    def check_available_gpu(self, ai_type: AIType, slide_path: str) -> List[str]:
 
-        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE.get(ai_task.ai_type, (1, 10))
+        required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE.get(ai_type, (1, 10))
 
         from cyborg.modules.ai.utils.gpu import get_gpu_status
         gpu_status = get_gpu_status()
@@ -121,8 +121,6 @@ class AIDomainService(object):
     def mark_ai_task_running(self, ai_task: AITaskEntity) -> bool:
         cache_key = 'running_ai_tasks'
         ai_task_ids = cache.smembers(cache_key)
-        logger.info('>>>>>>>>>')
-        logger.info(ai_task_ids)
         total_gpu_mem = 0
         for ai_task_id in ai_task_ids:
             _ai_task = self.repository.get_ai_task_by_id(ai_task_id)

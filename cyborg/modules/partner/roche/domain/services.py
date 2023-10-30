@@ -18,6 +18,7 @@ from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
     RocheDiplomat, RocheWsiInput, RocheCellsIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
     RocheMarkerShape, RochePanel
+from cyborg.modules.partner.roche.utils.color import hex_to_rgba
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.encoding import CyborgJsonEncoder
 from cyborg.utils.id_worker import IdWorker
@@ -205,8 +206,8 @@ class RocheDomainService(object):
                 type=marker_type
             )
             marker_groups.append(marker_group)
-            # color = Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(label)]]
-            color = 'rgba(222,53,32,255)'
+            color = Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(label)]]
+            color = hex_to_rgba(color)
             marker_shape = RocheMarkerShape(
                 level=0,
                 outline_width=0,
