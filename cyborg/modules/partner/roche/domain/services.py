@@ -6,10 +6,12 @@ from io import BytesIO
 from itertools import groupby
 from typing import Optional
 from urllib import request
+from urllib.parse import urlparse
 
 import h5py
 from geojson import Feature, MultiPoint
 
+from cyborg.app.settings import Settings
 from cyborg.consts.her2 import Her2Consts
 from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
@@ -87,7 +89,15 @@ class RocheDomainService(object):
         return self.repository.save_ai_task(task)
 
     def download_slide(self, task: RocheAITaskEntity) -> str:
-        request.urlretrieve(task.slide_url, task.slide_path)
+        if 'amazonaws' not in task.slide_url and Settings.ROCHE_IMAGE_SERVER:
+            parsed_url = urlparse(task.slide_url)
+            slide_url = task.slide_url.replace(
+                f'{parsed_url.scheme}://{parsed_url.netloc}', Settings.ROCHE_IMAGE_SERVER)
+        else:
+            slide_url = task.slide_url
+
+        logger.info(slide_url)
+        request.urlretrieve(slide_url, task.slide_path)
         return task.slide_path
 
     def run_her2(self, task: RocheAITaskEntity) -> RocheALGResult:

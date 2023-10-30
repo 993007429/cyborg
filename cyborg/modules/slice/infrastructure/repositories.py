@@ -47,7 +47,9 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
     def get_slices(
             self, file_name: Optional[str] = None, ai_type: Optional[AIType] = None,
-            started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None, company: Optional[str] = None,
+            started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
+            slice_type: Optional[str] = None,
+            company: Optional[str] = None,
             page: int = 0, per_page: int = sys.maxsize
     ) -> List[SliceEntity]:
         query = self.session.query(SliceModel)
@@ -59,6 +61,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter_by(started=started.value)
         if case_ids is not None:
             query = query.filter(SliceModel.caseid.in_(case_ids))
+        if slice_type is not None:
+            query = query.filter(SliceModel.type == 'slice')
         if company is not None:
             query = query.filter_by(company=company)
 
