@@ -3,5 +3,6 @@
 .gitignore
 Makefile
 fabfile.py
+__pycache__
 *.sql
 *.swp

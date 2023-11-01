@@ -97,6 +97,12 @@ class RocheDomainService(object):
             slide_url = task.slide_url
 
         logger.info(slide_url)
+        opener = request.build_opener()
+        opener.addheaders = [(
+            'User-agent',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
+        )]
+        request.install_opener(opener)
         request.urlretrieve(slide_url, task.slide_path)
         return task.slide_path
 

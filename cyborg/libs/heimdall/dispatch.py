@@ -35,6 +35,12 @@ def open_slide(filename):
     elif ext == 'czi':  # 蔡司
         from .CziSlide import CziSlide
         slide = CziSlide(filename)
+    elif ext == 'ibl':  # 爱病理
+        from .IblSlide import IblSlide
+        slide = IblSlide(filename)
+    elif ext == 'tron':  # 英特美迪
+        from .TronSlide import TronSlide
+        slide = TronSlide(filename)
     else:  # openslide支持的切片格式
         from .OtherSlide import OtherSlide
         slide = OtherSlide(filename)
