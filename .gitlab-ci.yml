@@ -29,7 +29,7 @@ job deploy_uat:
     - pip3 install fabric-virtualenv
 
   script:
-    - cd /data/www/technis
-    - fab deploy:cyborg
+    - cd /home//www/technis
+    - fab uat
   only:
     - pre_release
