@@ -1,6 +1,5 @@
 import json
 import logging
-import urllib
 import uuid
 from datetime import datetime
 from io import BytesIO
@@ -98,13 +97,13 @@ class RocheDomainService(object):
             slide_url = task.slide_url
 
         logger.info(slide_url)
-        opener = urllib.request.build_opener()
+        opener = request.build_opener()
         opener.addheaders = [(
             'User-agent',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
         )]
-        urllib.request.install_opener(opener)
-        urllib.request.urlretrieve(slide_url, task.slide_path)
+        request.install_opener(opener)
+        request.urlretrieve(slide_url, task.slide_path)
         return task.slide_path
 
     def run_her2(self, task: RocheAITaskEntity) -> RocheALGResult:
