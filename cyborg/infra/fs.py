@@ -29,8 +29,8 @@ class LocalFileSystem(FileSystem):
     def path_isfile(self, path) -> bool:
         return os.path.isfile(path)
 
-    def path_splitext(self, path) -> str:
-        return os.path.splitext(path)[1]
+    def path_splitext(self, path) -> tuple:
+        return os.path.splitext(path)
 
     def get_free_space(self, file_path: str):
         if sys.platform == 'win32':

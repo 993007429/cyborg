@@ -28,8 +28,11 @@ class RocheAITaskEntity(BaseDomainEntity):
     @property
     def slide_path(self) -> str:
         parsed = urlparse(self.slide_url)
-        suffix = parsed.path.split('.')[-1] if parsed.path else ''
-        return f'/tmp/{self.analysis_id}.{suffix}'
+        suffix = parsed.path.split('.')[-1] if parsed.path and '.' in parsed.path else ''
+        if suffix:
+            return f'/tmp/{self.analysis_id}.{suffix}'
+        else:
+            return f'/tmp/{self.analysis_id}'
 
     def setup_expired_time(self):
         expired_at = datetime.now() + timedelta(seconds=Consts.ALGOR_OVERTIME.get(self.ai_type.value, 1800))
