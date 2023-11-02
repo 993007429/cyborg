@@ -56,8 +56,13 @@ if __name__ == '__main__':
                 if os.path.basename(f).startswith("__init__") or os.path.basename(f) in ignore_list:
                     continue
                 if 'Her2New_' in f:
-                    if 'utils' in f: continue
-                    if 'common.py' in f: continue
+                    if 'utils' in f:
+                        continue
+                    if 'common.py' in f:
+                        continue
+                    if 'main.py' in f:
+                        continue
+
                 extensions = [Extension(os.path.splitext(os.path.basename(f))[0], [f])]
                 setup(ext_modules=cythonize(extensions, compiler_directives={'always_allow_keywords':True}))
 

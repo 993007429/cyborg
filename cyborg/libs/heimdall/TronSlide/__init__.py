@@ -18,7 +18,6 @@ class TronSlide(SlideBase):
         self.top_bound = self.slide.metadata.content_region['top']
         self.width = self.slide.metadata.content_region['width']
         self.height = self.slide.metadata.content_region['height']
-        self.mpp = self.slide.metadata.resolution['horizontal']
         self.file_max_lvl = self.slide.metadata.maximumLODLevel
         self.file_min_lvl = self.slide.metadata.minimumLODLevel
         try:
@@ -85,6 +84,10 @@ class TronSlide(SlideBase):
 
     def is_power_of_two(self, n: int) -> bool:
         return n > 0 and (n & (n - 1)) == 0
+
+    @property
+    def mpp(self):
+        return self.slide.metadata.resolution['horizontal'] if self.slide else 0.242042
 
     def __del__(self):
         self.slide.close()

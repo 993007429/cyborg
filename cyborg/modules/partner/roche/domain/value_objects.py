@@ -99,7 +99,8 @@ class RocheAlgorithm(BaseValueObject):
     tissue_types: List[dict]
     indication_types: List[dict]
     vendor: str
-    supported_magnification: str
+    # supported_magnification: str
+    supported_mpp_ranges: List[list]
     supported_image_formats: List[str]
     supported_scanners: List[str]
     required_slide_types: List[str]

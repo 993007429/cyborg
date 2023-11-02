@@ -1,4 +1,4 @@
-FROM dipath/cyborg:4.0.0
+FROM registry.cn-hangzhou.aliyuncs.com/dipath/cyborg:base
 
 WORKDIR /data/www/cyborg
 

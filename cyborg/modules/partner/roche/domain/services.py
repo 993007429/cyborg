@@ -89,7 +89,7 @@ class RocheDomainService(object):
         return self.repository.save_ai_task(task)
 
     def download_slide(self, task: RocheAITaskEntity) -> str:
-        if 'amazonaws' not in task.slide_url and Settings.ROCHE_IMAGE_SERVER:
+        if 'amazonaws' not in task.slide_url and 'dipath.cn' not in task.slide_url and Settings.ROCHE_IMAGE_SERVER:
             parsed_url = urlparse(task.slide_url)
             slide_url = task.slide_url.replace(
                 f'{parsed_url.scheme}://{parsed_url.netloc}', Settings.ROCHE_IMAGE_SERVER)

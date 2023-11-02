@@ -21,8 +21,7 @@ import os
 if sys.platform == 'win32':
     raise NotImplementedError('该格式暂不支持windows系统')
 elif sys.platform == 'linux':
-    _lib = cdll.LoadLibrary(os.path.join(os.path.dirname(os.path.abspath(__file__)),'linux_libs','libtronc.so'))
-
+    _lib = cdll.LoadLibrary('libtronc.so')
 
 
 class OpenSlideError(Exception):

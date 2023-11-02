@@ -206,7 +206,9 @@ class SliceService(object):
 
         if slide_type == 'slices':
             file_list = os.listdir(upload_path)
+            logger.info('>>>>>>>>>>')
             for local_file_name in file_list:
+                logger.info('>>>>>>>>>>')
                 slice_info = self.domain_service.create_slice(
                     case_id=case_id, file_id=file_id, company_id=company_id, upload_path=upload_path,
                     file_name=file_name, local_file_name=local_file_name, slide_type=slide_type, tool_type=tool_type,
@@ -214,6 +216,7 @@ class SliceService(object):
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
                     sample_num=upload_id if high_through else case_id, high_through=high_through,
                 )
+                logger.info(slice_info)
                 if slice_info:
                     return AppResponse(data=slice_info)
         else:
