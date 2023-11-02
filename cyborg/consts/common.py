@@ -64,7 +64,7 @@ class Consts:
 
     ALLOWED_EXTENSIONS = [
         '.svs', '.tiff', '.tif', '.jpeg', '.vmu', '.ndpi', '.png', '.mrxs', '.svslide', '.kfb', '.scn',
-        '.vms', '.svslide', '.bif', '.jpg', '.bmp', '.czi', '.sdpc', '.mdsx', '.hdx', '.zyp', '.tmap'
+        '.vms', '.svslide', '.bif', '.jpg', '.bmp', '.czi', '.sdpc', '.mdsx', '.hdx', '.zyp', '.tmap', '.tron'
     ]
 
     OBJECTIVE_RATE_DICT = {

@@ -29,7 +29,8 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
                 {'key': 'UROTHELIAL_CARCINOMA', 'name': 'Urothelial Carcinoma'}
             ],
             vendor='dipath1',
-            supported_magnification='40',
+            # supported_magnification='20',
+            supported_mpp_ranges=[[0.1, 1]],
             supported_image_formats=['BIF', 'TIF', 'TIFF'],
             supported_scanners=['VENTANA DP 200', 'VENTANA DP 600'],
             required_slide_types=['HER-2'],

@@ -384,7 +384,7 @@ def cal_cell(o_slide_path, roi_list, opt):
         num_process_per_gpu = 1
         command = ['mpiexec', '-np', str(gpu_num * num_process_per_gpu),
                    sys.executable,
-                   '-m', 'cell_detection']
+                   '-m', 'main']
         command.insert(1, '--allow-run-as-root')
         command.append('--ppid {}'.format(pid))
         command.append('--slide {}'.format(slide_path))
@@ -397,7 +397,7 @@ def cal_cell(o_slide_path, roi_list, opt):
 
         bat_name = '{}.sh'.format(
             os.path.splitext(
-                os.path.basename(slide_path))[0].strip().replace(
+                os.path.basename(o_slide_path))[0].strip().replace(
                 " ", '').replace("(", '').replace(")", '').replace("+", ''))
         with open(os.path.join(current_root, bat_name), 'w', encoding='utf-8') as f:
             f.write(command_str)

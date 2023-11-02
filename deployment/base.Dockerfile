@@ -1,7 +1,5 @@
-FROM registry.cn-shanghai.aliyuncs.com/space1/compile-python:3.8.12
+FROM dipath/cyborg:4.0.0
 
-WORKDIR /data/www/sp-saas/
-ADD ./requirements.txt ./requirements.txt
-ADD ./requirements-dynamic.txt ./requirements-dynamic.txt
-RUN pip3 install -i http://mirrors.idiaoyan.cn/repository/pypi/simple/ --trusted-host mirrors.idiaoyan.cn -r requirements.txt
-RUN pip3 install -i http://mirrors.idiaoyan.cn/repository/pypi/simple/ --trusted-host mirrors.idiaoyan.cn -r requirements-dynamic.txt
+WORKDIR /data/www/cyborg
+
+RUN pip install torch==1.13.1 -f https://download.pytorch.org/whl/torch_stable.html
