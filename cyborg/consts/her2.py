@@ -23,6 +23,8 @@ class Her2Consts(object):
         '5': '组织细胞',
     }
 
+    sorted_labels = ['5', '2', '0', '1', '4', '3']
+
     type_color_dict = {
         1: '#FFC1C1', 2: '#FC7915', 3: '#9974FE', 4: '#FF0000', 7: '#3D901F', 9: '#A8FC8E', 10: '#A8FC8E',
         11: '#A8FC8E', 12: '#A8FC8E', 13: '#A8FC8E'}

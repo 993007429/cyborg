@@ -131,6 +131,7 @@ class Settings(object):
 
     SYNC_OPERATIONS = []
 
+    ROCHE_API_SERVER = ROCHE_SETTINGS['api_server'] if ROCHE_SETTINGS else None
     ROCHE_IMAGE_SERVER = ROCHE_SETTINGS['image_server'] if ROCHE_SETTINGS else None
 
     # 版本号（用于算法用量统计）

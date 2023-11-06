@@ -1,6 +1,7 @@
 from typing import Optional, List
 
 from cyborg.infra.session import transaction
+from cyborg.modules.partner.roche.domain.consts import HER2_ALGORITHM_ID, HER2_ALGORITHM_DISPLAY_ID, HER2_ALGORITHM_NAME
 from cyborg.modules.partner.roche.domain.value_objects import RocheAlgorithmType, RocheTissueType, RocheAlgorithm
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemyRepository
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity, RocheAlgorithmEntity
@@ -11,14 +12,14 @@ from cyborg.modules.partner.roche.infrastructure.models import RocheAITaskModel
 class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
 
     algorithms = {
-        '8bacbdb5-46d7-1578-11a0-00e2a7b7a9d1': RocheAlgorithm(
-            algorithm_id='8bacbdb5-46d7-1578-11a0-00e2a7b7a9d1',
-            algorithm_display_id='123456',
-            algorithm_name='her2',
+        HER2_ALGORITHM_ID: RocheAlgorithm(
+            algorithm_id=HER2_ALGORITHM_ID,
+            algorithm_display_id=HER2_ALGORITHM_DISPLAY_ID,
+            algorithm_name=HER2_ALGORITHM_NAME,
             algorithm_description='Dipath Her2 algorithm',
             algorithm_type=RocheAlgorithmType.IUO.value,
             version_number='1.1.0',
-            software_build='4.0.3.123',
+            software_build='4.0.5.123',
             status='Active',
             stain_name='HER-2',
             tissue_types=[
