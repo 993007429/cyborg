@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple, Dict
 
 from geojson import FeatureCollection
 
+from cyborg.modules.partner.roche.domain.consts import HER2_ALGORITHM_DISPLAY_ID
 from cyborg.seedwork.domain.value_objects import BaseEnum, BaseValueObject
 from cyborg.utils.strings import snake_to_camel
 
@@ -137,10 +138,11 @@ class RocheWsiInput(BaseValueObject):
     dimensions: List[List[int]]
 
 
-class RocheCellsIndexItem(BaseValueObject):
+class RocheIndexItem(BaseValueObject):
     filename: str
     bbox: List[int]
     geo_json: FeatureCollection
+    heatmap_points: List[list]
 
     @classmethod
     def locate(cls, x: int, y: int) -> Tuple[int, int]:
@@ -153,7 +155,7 @@ class RocheCellsIndexItem(BaseValueObject):
         return FeatureCollection(features=[])
 
     @classmethod
-    def new_item(cls, tile_x: int, tile_y: int) -> Optional['RocheCellsIndexItem']:
+    def new_item(cls, tile_x: int, tile_y: int) -> Optional['RocheIndexItem']:
         return cls(
             filename=f'tile{tile_x}_{tile_y}',
             bbox=[
@@ -162,7 +164,8 @@ class RocheCellsIndexItem(BaseValueObject):
                 (tile_x + 1) * ROCHE_TILE_SIZE - 1,
                 (tile_y + 1) * ROCHE_TILE_SIZE - 1
             ],
-            geo_json=cls.new_geo()
+            geo_json=cls.new_geo(),
+            heatmap_points=[]
         )
 
     def to_dict(self):
@@ -216,6 +219,20 @@ class RocheMarkerShape(BaseValueObject):
     outline_color: str
 
 
+class RocheHeatMap(BaseValueObject):
+    labels: List[dict] = []
+    active: bool = True
+    locked: bool = False
+    level: int = -1
+    colorlut: str = 'heat'
+    description: str = ''
+    gui: str = HER2_ALGORITHM_DISPLAY_ID
+    name: str = HER2_ALGORITHM_DISPLAY_ID
+    overlay: str = HER2_ALGORITHM_DISPLAY_ID
+    visible: bool = True
+    level_opacity: List[float] = [0, 0.15, 0.3, 0.4, 0.45, 0.5]
+
+
 class RochePanel(BaseValueObject):
 
     name: str
@@ -226,9 +243,11 @@ class RochePanel(BaseValueObject):
 
 class RocheALGResult(BaseValueObject):
     wsi_input: Optional[RocheWsiInput] = None
-    cells_index_items: List[RocheCellsIndexItem] = []
+    cells_index_items: List[RocheIndexItem] = []
     marker_presets: List[RocheMarkerPreset] = []
     marker_shapes: Dict[str, RocheMarkerShape] = {}
+    heatmaps: List[RocheHeatMap] = []
+    heatmap_index_items: List[RocheIndexItem] = []
     panels: List[RochePanel] = []
     ai_suggest: str = ''
     err_msg: Optional[str] = None

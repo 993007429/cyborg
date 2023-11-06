@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-
 import math
 import os
 import sys
@@ -28,16 +27,17 @@ class SdpcSlide(SlideBase):
         self.bfilename = self.filename.encode(cur_encoding)
         lib.SqOpenSdpc.restype = POINTER(SqSdpcInfo)
         self.slide = lib.SqOpenSdpc(c_char_p(self.bfilename))
-        self.width = self.slide.contents.picHead.contents.srcWidth
-        self.height = self.slide.contents.picHead.contents.srcHeight
-        self.scale=self.slide.contents.picHead.contents.scale
+
+        slide_contents = self.slide.contents
+        self.width = slide_contents.picHead.contents.srcWidth
+        self.height = slide_contents.picHead.contents.srcHeight
+        self.scale = slide_contents.picHead.contents.scale
         self.correct = True
         if self.slide.contents.extra is not None and self.correct:
             lib.InitColorCollectTable.restype = POINTER(SqColorTable)
             self.colorTable = lib.InitColorCollectTable(self.slide)
         else:
             self.colorTable = None
-
 
         SlideBase.__init__(self)
 

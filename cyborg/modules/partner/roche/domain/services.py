@@ -9,17 +9,19 @@ from urllib import request
 from urllib.parse import urlparse
 
 import h5py
+import requests
 from geojson import Feature, MultiPoint
 
 from cyborg.app.settings import Settings
 from cyborg.consts.her2 import Her2Consts
 from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
+from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
-    RocheDiplomat, RocheWsiInput, RocheCellsIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
-    RocheMarkerShape, RochePanel
+    RocheDiplomat, RocheWsiInput, RocheIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
+    RocheMarkerShape, RochePanel, RocheHeatMap
 from cyborg.modules.partner.roche.utils.color import hex_to_rgba
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.encoding import CyborgJsonEncoder
@@ -186,19 +188,21 @@ class RocheDomainService(object):
             x = float(coord[0]) if slide_width > float(coord[0]) else float(slide_width - 1)
             y = float(coord[1]) if slide_height > float(coord[1]) else float(slide_height - 1)
 
-            tile_x, tile_y = RocheCellsIndexItem.locate(int(x), int(y))
+            tile_x, tile_y = RocheIndexItem.locate(int(x), int(y))
             cells = cells_in_tile.setdefault((tile_x, tile_y), [])
             cells.append([label, [x, y]])
 
-        index_items = []
+        cell_index_items = []
         for (tile_x, tile_y), cells in cells_in_tile.items():
-            index_item = RocheCellsIndexItem.new_item(tile_x, tile_y)
+            index_item = RocheIndexItem.new_item(tile_x, tile_y)
             for label, cell_group in groupby(cells, lambda c: c[0]):
                 feature = Feature(properties={'label': int(label)}, geometry=MultiPoint(coordinates=[]))
+                hot_value = Her2Consts.sorted_labels.index(label) * 255 / len(Her2Consts.sorted_labels)
                 for cell in cell_group:
                     feature['geometry']['coordinates'].append([int(val) for val in cell[1]])
+                    index_item.heatmap_points.append([int(val) for val in cell[1]] + [hot_value])
                 index_item.geo_json['features'].append(feature)
-            index_items.append(index_item)
+            cell_index_items.append(index_item)
 
         # group_id = group_name_to_id.get('ROI') if whole_slide != 1 else None
 
@@ -210,7 +214,8 @@ class RocheDomainService(object):
 
         marker_groups = []
         marker_shapes = {}
-        for label, roi_name in label_to_roi_name.items():
+        for label in Her2Consts.sorted_labels:
+            roi_name = Her2Consts.cell_label_dict[label]
             marker_type = label
             marker_group = RocheMarkerGroup(
                 label=int(label),
@@ -246,12 +251,17 @@ class RocheDomainService(object):
             description='Markers'
         )
 
+        heatmap = RocheHeatMap(
+            labels=[{'0': '0'}, {'255': '100%'}]
+        )
+
         return RocheALGResult(
             ai_suggest=ai_result['分级结果'],
             wsi_input=wsi_input,
-            cells_index_items=index_items,
+            cells_index_items=cell_index_items,
             marker_presets=[wsi_marker_preset],
             marker_shapes=marker_shapes,
+            heatmaps=[heatmap],
             panels=[panel]
         )
 
@@ -277,6 +287,13 @@ class RocheDomainService(object):
                 {k: v.to_dict() for k, v in result.marker_shapes.items() if v})
             wsi_presentation['markers'] = json.dumps([preset.to_dict() for preset in result.marker_presets if preset])
             wsi_presentation['panels'] = json.dumps([panel.to_dict() for panel in result.panels if panel])
+            wsi_presentation['heatmaps'] = json.dumps([heatmap.to_dict() for heatmap in result.heatmaps])
+            wsi_presentation['colorluts'] = json.dumps(HEAT_COLORLUTS)
+
+            wsi_sparse_heatmaps = file.create_group('wsi_sparse_heatmaps')
+            wsi_cells['index'] = json.dumps([item.to_dict() for item in result.heatmap_index_items])
+            for index_item in result.heatmap_index_items:
+                wsi_sparse_heatmaps.create_dataset(name=index_item.filename, data=[json.dumps(index_item.geo_json)])
 
             # wsi_masks = file.create_group('wsi_masks')
             # wsi_heatmaps = file.create_group('wsi_heatmaps')
@@ -284,3 +301,14 @@ class RocheDomainService(object):
 
         buffer.seek(0)
         return oss.put_object_from_io(buffer, task.result_file_key)
+
+    def callback_analysis_status(self, ai_task: RocheAITaskEntity):
+        url = f'{Settings.ROCHE_API_SERVER}/openapi/v1'
+        requests.post(url, json={
+            'analysis_id': ai_task.analysis_id,
+            'status': ai_task.status_name,
+            'status_detail_message': '',
+            'percentage_completed': ai_task.percentage_completed,
+            'started_timestamp': ai_task.started_at,
+            'last_updated_timestamp': ai_task.last_modified
+        })

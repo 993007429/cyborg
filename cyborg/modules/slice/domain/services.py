@@ -82,6 +82,7 @@ class SliceDomainService(object):
         slide_save_name = os.path.join(upload_path, local_file_name)
         if _ext == ".jpeg":
             rotate_jpeg(slide_save_name)
+
         slide = open_slide(slide_save_name)
 
         try:
@@ -494,9 +495,6 @@ class SliceDomainService(object):
     def create_slice_link_file(self, slide_path: str, file_name: str, check_slide: bool = False) -> bool:
         """
         校验文件夹类型切片的合法性
-        :param slide_path:
-        :param file_name:
-        :return:
         """
         try:
             if os.path.splitext(file_name)[-1] in ['.mdsx', '.svs']:  # 上传麦克奥迪和海德星切片的处理
