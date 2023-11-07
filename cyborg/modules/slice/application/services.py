@@ -604,10 +604,21 @@ class SliceService(object):
                 [{'name': item['name'], 'value': item['stats']['area'], 'color': item['stats']['color']}
                  for item in area_statics[:-1]])
 
+        # 拼接report name
+        template_name = '默认模板'
+        for item in report_templates:
+            if item.get('active') is True:
+                template_name = item.get('templateName')
+                break
+
+        prefix = record.sample_num if record.sample_num else record.caseid
+        report_name = prefix + '_' + template_name
+
         async with aiohttp.ClientSession() as client:
             params = {
                 'bizType': Consts.REPORT_BIZ_TYPE,
                 'bizUid': record.id,
+                'reportName': report_name,
                 'reportData': report_data
             }
             async with client.post(f'{Settings.REPORT_SERVER}/report/api/reports', json=params, verify_ssl=False) as resp:
