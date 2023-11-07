@@ -48,7 +48,6 @@ class AIService(object):
         if task and not task.is_finished:
             app.control.revoke(task.result_id, terminate=True)
             self.domain_service.update_ai_task(task, status=AITaskStatus.canceled)
-
         res = self.user_service.update_company_trial(ai_name=ai_name)
         if res.err_code:
             return res
@@ -60,7 +59,7 @@ class AIService(object):
         company_info = res.data
 
         model_type = ai_name.strip(ai_type.value)
-        is_tld = ai_type in [AIType.tct, AIType.lct, AIType.dna]
+        is_tld = ai_type in [AIType.tct, AIType.lct, AIType.dna, AIType.dna_ploidy]
 
         if is_calibrate:
             task_params.update({'model_info': {
@@ -101,7 +100,6 @@ class AIService(object):
             result = tasks.run_ai_task(task.id)
             if result:
                 self.domain_service.update_ai_task(task, result_id=result.id)
-
         return AppResponse(data=task.to_dict() if task else None)
 
     def run_ai_task(self, task_id):

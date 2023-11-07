@@ -443,8 +443,9 @@ def generate_dna_ai_result(result: dict, roiid: int):
     return ai_result
 
 
-def generate_dna_ploidy_ai_result(result: dict, roiid: int):
+def generate_dna_ploidy_aiResult(result, roiid):
     nuclei_list = []
+    # print(result['nuclei_bboxes'])
     cell_id = 1
     for idx in range(result['nuclei_bboxes'].shape[0]):
         xmin, ymin, xmax, ymax = result['nuclei_bboxes'][idx]
@@ -458,34 +459,36 @@ def generate_dna_ploidy_ai_result(result: dict, roiid: int):
         if dna_index >= 2.5:
             lesion_type = "abnormal_high"
             strokeColor = "rgb(217,0,27)"  # red
-        nuclei_list.append({"id": cell_id,
-                            "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
-                            "image": 1,
-                            "editable": 0,
-                            "dashed": 0,
-                            "fillColor": "",
-                            "mark_type": 2,
-                            "area_id": roiid,
-                            "method": "rectangle",
-                            "strokeColor": strokeColor,
-                            "radius": 0,
-                            "dna_iod": round(float(result['iod_values'][idx]), 2),
-                            "dna_index": round(float(result['dna_index_values'][idx]), 2),
-                            "dna_amount": round(float(result['iod_values'][idx]), 2),
-                            "area": round(float(result['area'][idx]), 2),
-                            "is_deleted": 0,
-                            "lesion_type": lesion_type
-                            })
+        nuclei_list.append({
+            "id": cell_id,
+            "path": {"x": [xmin, xmax, xmax, xmin], "y": [ymin, ymin, ymax, ymax]},
+            "image": 1,
+            "editable": 0,
+            "dashed": 0,
+            "fillColor": "",
+            "mark_type": 2,
+            "area_id": roiid,
+            "method": "rectangle",
+            "strokeColor": strokeColor,
+            "radius": 0,
+            "dna_iod": round(float(result['iod_values'][idx]), 2),
+            "dna_index": round(float(result['dna_index_values'][idx]), 2),
+            "dna_amount": round(float(result['iod_values'][idx]), 2),
+            "area": round(float(result['area'][idx]), 2),
+            "is_deleted": 0,
+            "lesion_type": lesion_type
+        })
         cell_id += 1
 
-    diagnosis_dict = {'insufficient_nuclei': '有效检测细胞不足',
-                      'no_abnormal_nucleus': '未见DNA倍体异常细胞',
-                      'a_few_abnormal_nuclei': '可见少量DNA倍体异常细胞（1-2个）',
-                      'plenty_of_abnormal_nuclei': '可见DNA倍体异常细胞（≥3个）',
-                      'normal_proliferation': '可见少量细胞增生（5%-10%）',
-                      'abnormal_proliferation': '可见细胞异常增生（≥10%）',
-                      'abnormal_nuclei_peak': '可见异倍体细胞峰'
-                      }
+    diagnosis_dict = {
+        'insufficient_nuclei': '有效检测细胞不足',
+        'no_abnormal_nucleus': '未见DNA倍体异常细胞',
+        'a_few_abnormal_nuclei': '可见少量DNA倍体异常细胞（1-2个）',
+        'plenty_of_abnormal_nuclei': '可见DNA倍体异常细胞（≥3个）',
+        'normal_proliferation': '可见少量细胞增生（5%-10%）',
+        'abnormal_proliferation': '可见细胞异常增生（≥10%）',
+        'abnormal_nuclei_peak': '可见异倍体细胞峰'
+    }
 
     aiResult = {
         'nuclei': nuclei_list,

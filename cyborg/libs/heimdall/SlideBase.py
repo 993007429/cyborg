@@ -2,6 +2,7 @@ import abc
 import math
 from typing import Optional, Union, Tuple
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -160,6 +161,97 @@ class SlideBase(object):
             roi_img = roi_img.convert('RGB')
 
         return roi_img
+
+    def get_roi_and_segment(self, roi, DI, standard_mpp=None):
+        # 根据DI决定颜色
+        if DI >= 2.5:
+            selected_color = [255, 0, 0]  # 红色
+        elif 1.25 <= DI < 2.5:
+            selected_color = [255, 165, 0]  # 橘黄色
+        else:
+            selected_color = [0, 128, 0]  # 绿色
+        # 从slide中获取ROI
+        max_x, max_y = self.width, self.height
+        sx, sy = list(map(int, roi[0]))
+        ex, ey = list(map(int, roi[1]))
+
+        # 确保roi在slide内
+        sx, sy, ex, ey = max(sx, 0), max(sy, 0), max(ex, 0), max(ey, 0)
+        sx, sy, ex, ey = min(sx, max_x), min(sy, max_y), min(ex, max_x), min(ey, max_y)
+        sx, sy, ex, ey = math.ceil(sx), math.ceil(sy), math.ceil(ex), math.ceil(ey)
+
+        _size = (max(ex - sx, ey - sy), max(ex - sx, ey - sy))
+        _location = (sx + (ex - sx) // 2 - _size[0] // 2, sy + (ey - sy) // 2 - _size[1] // 2)
+
+        img_np = self.read(location=_location, size=_size)
+        lab = cv2.cvtColor(img_np, cv2.COLOR_BGR2Lab)
+        value_channel = lab[:, :, 0]
+
+        pixels = value_channel.reshape((-1, 1))
+        pixels = np.float32(pixels)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.05)
+
+        k = 2
+        _, labels, centers = cv2.kmeans(pixels, k, None, criteria, 8, cv2.KMEANS_RANDOM_CENTERS)
+
+        nucleus_label = 0 if centers[0] < centers[1] else 1
+        mask = np.zeros_like(value_channel)
+        mask[labels.reshape(value_channel.shape) == nucleus_label] = 255
+
+        kernel = np.ones((2, 2), np.uint8)
+        mask = cv2.dilate(mask, kernel, iterations=1)
+        mask = cv2.erode(mask, kernel, iterations=1)
+        kernel = np.ones((9, 9), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        kernel = np.ones((3, 3), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        best_iou = 0
+        final_mask = np.zeros_like(mask)
+        for contour in contours:
+            if len(contour) >= 5:
+                ellipse = cv2.fitEllipse(contour)
+                temp_mask = np.zeros_like(mask)
+                cv2.ellipse(temp_mask, ellipse, 255, -1)
+                intersection = np.logical_and(mask, temp_mask)
+                union = np.logical_or(mask, temp_mask)
+                iou = np.sum(intersection) / np.sum(union)
+                if iou > best_iou:
+                    best_iou = iou
+                    final_mask = temp_mask
+        final_mask = np.logical_and(mask, final_mask)
+        contours_final, _ = cv2.findContours(final_mask.astype(np.uint8) * 255, cv2.RETR_EXTERNAL,
+                                             cv2.CHAIN_APPROX_SIMPLE)
+        if contours_final:
+            contour_final = contours_final[0]
+            # 获取最佳椭圆的中心和主轴
+            center, axes, angle = cv2.fitEllipse(contour_final)
+            # 重新计算主轴长度为原来的90%
+            axes = (axes[0] * 0.9, axes[1] * 0.9)
+
+            # 使用新的主轴和原始中心，画一个新的椭圆并填充
+            smaller_ellipse_mask = np.zeros_like(mask)
+            cv2.ellipse(smaller_ellipse_mask, (center, axes, angle), 255, -1)
+
+            # 使用逻辑或将新的椭圆mask与final_mask合并
+            final_mask = np.logical_or(final_mask, smaller_ellipse_mask)
+
+        roi_img = Image.fromarray(img_np)
+        if roi_img.mode == 'RGBA':
+            roi_img = roi_img.convert('RGB')
+
+        height, width = final_mask.shape
+        white_background = np.ones((height, width, 3), dtype=np.uint8) * 255
+
+        # 将final_mask的目标区域设置为指定颜色
+        white_background[final_mask == 1] = selected_color
+
+        # cv2.imwrite('1.jpg', white_background)
+        white_background = Image.fromarray(white_background)
+
+        return roi_img, white_background
 
     @abc.abstractmethod
     def save_label(self, path: str):

@@ -101,8 +101,65 @@ def delete_mark():
 @api_blueprint.route('/slice/getROIList', methods=['get', 'post'])
 def get_roi_list():
     ai_type = request.form.get('ai_type')
+    is_deleted = int(request.form.get('is_deleted', 0))  # 0 未删除 1 已删除
+    lesion_type = request.form.get('lesion_type', 'normal')  # normal 正常二倍体细胞 abnormal_low 疑似病变细胞 abnormal_high 病变细胞
+    page = int(request.form.get('page', 1))
+    page_size = int(request.form.get('page_size', 100))
+
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
-    res = AppServiceFactory.new_slice_analysis_service().get_rois()
+    res = AppServiceFactory.new_slice_analysis_service().get_rois(
+        is_deleted=is_deleted,
+        lesion_type=lesion_type,
+        page=page,
+        page_size=page_size
+    )
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/deleteDnaRoi', methods=['get', 'post'])
+def delete_dna_roi():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+    mark_id_list = json.loads(request.form.get('marks')) if request.form.get('marks') else []
+    deleted = int(request.form.get('deleted'))
+
+    res = AppServiceFactory.new_slice_analysis_service().delete_dna_roi(mark_id_list=mark_id_list, deleted=deleted)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/getStatistics', methods=['get', 'post'])
+def get_statistics():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+
+    res = AppServiceFactory.new_slice_analysis_service().get_statistics()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/getFeat', methods=['get', 'post'])
+def get_feat():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+
+    res = AppServiceFactory.new_slice_analysis_service().get_feat()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/getHistplot', methods=['get', 'post'])
+def get_histplot():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+
+    res = AppServiceFactory.new_slice_analysis_service().get_histplot()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/getScatterplot', methods=['get', 'post'])
+def get_scatterplot():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+
+    res = AppServiceFactory.new_slice_analysis_service().get_scatterplot()
     return jsonify(res.dict())
 
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 import sys
@@ -5,6 +6,8 @@ import time
 from collections import OrderedDict
 from itertools import groupby
 from typing import List, Tuple, Optional, Union
+
+import numpy as np
 
 from cyborg.app.settings import Settings
 from cyborg.infra.session import transaction
@@ -784,14 +787,17 @@ class SliceAnalysisDomainService(object):
                 })
             return result
 
-    def get_rois(self, ai_type: AIType, ai_suggest: dict, ai_status: int):
+    def get_rois(self, ai_type: AIType, ai_suggest: dict, ai_status: int,
+                 is_deleted: int, lesion_type: str, page: int, page_size: int):
         if ai_type in [AIType.human_tl, AIType.human_bm]:
             rois = self.get_human_rois(ai_type)
         else:
             _, marks = self.repository.get_marks(mark_type=3 if ai_type != AIType.human else None)
             rois = list()
             for mark in marks:
-                roi = mark.to_roi(ai_type=ai_type, ai_suggest=ai_suggest)
+                roi = mark.to_roi(ai_type=ai_type, ai_suggest=ai_suggest,
+                                  is_deleted=is_deleted, lesion_type=lesion_type,
+                                  page=page, page_size=page_size)
                 # todo fish算法比较特殊，标注本身包含层级关系，细胞核和红绿信号点是包含关系，要做处理，只能返回全场roi
                 if ai_type != AIType.fish_tissue or roi['aiResult']:
                     rois.append(roi)
@@ -906,7 +912,7 @@ class SliceAnalysisDomainService(object):
         return 'change group status success'
 
     def update_ai_result(
-        self, marks: List[MarkEntity], option: int, ai_type: AIType, tiled_slice: TiledSlice
+            self, marks: List[MarkEntity], option: int, ai_type: AIType, tiled_slice: TiledSlice
     ):
         """
         更新算法结果
@@ -1090,7 +1096,6 @@ class SliceAnalysisDomainService(object):
                 slide_total = ai_result_before_modify['pos_tumor'] + ai_result_before_modify['neg_tumor']
                 slide_heterogeneous = ai_result_before_modify['pos_tumor']
                 region_ai_result = ai_result_before_modify
-
             elif ai_type == AIType.fish_tissue:
                 count_fields = {
                     0: 'nuclues_num',
@@ -1340,3 +1345,233 @@ class SliceAnalysisDomainService(object):
                 mark.update_data(ai_result=AIResult.initialize(ai_type=ai_type).to_dict())
                 self.repository.save_mark(mark)
         return True
+
+    def delete_dna_roi(self, mark_id_list: list, deleted: int) -> Tuple[bool, int, int, int]:
+        _, marks = self.repository.get_marks()
+        ai_result = marks[0].ai_result if marks else None
+        nuclei = ai_result.get('nuclei') if ai_result else []
+
+        total = 0
+        normal = 0
+        abnormal_low = 0
+        abnormal_high = 0
+        deleted_count = 0
+
+        for nucleus in nuclei:
+            if nucleus["id"] in mark_id_list:
+                nucleus["is_deleted"] = deleted
+
+        for nucleus in nuclei:
+            if nucleus["is_deleted"] == 1:
+                deleted_count += 1
+            else:
+                total += 1
+                if nucleus["lesion_type"] == "normal":
+                    normal += 1
+                if nucleus["lesion_type"] == "abnormal_low":
+                    abnormal_low += 1
+                if nucleus["lesion_type"] == "abnormal_high":
+                    abnormal_high += 1
+
+        ai_result["nuclei"] = nuclei
+        for mark in marks:
+            mark.update_data(ai_result=json.dumps(ai_result))
+            self.repository.save_mark(mark)
+
+        return True, abnormal_high, abnormal_low, total
+
+    def get_statistics(self) -> dict:
+        total = 0
+        normal = 0
+        abnormal_low = 0
+        abnormal_high = 0
+        deleted = 0
+
+        _, marks = self.repository.get_marks()
+
+        if not marks:
+            data = {
+                "total": total,
+                "normal": normal,
+                "abnormal_low": abnormal_low,
+                "abnormal_high": abnormal_high,
+                "deleted": deleted
+            }
+            return data
+
+        ai_result = marks[0].ai_result if marks else None
+        nuclei = ai_result.get('nuclei') if ai_result else []
+
+        for nucleus in nuclei:
+            if nucleus["is_deleted"] == 1:
+                deleted += 1
+            else:
+                total += 1
+                if nucleus["lesion_type"] == "normal":
+                    normal += 1
+                if nucleus["lesion_type"] == "abnormal_low":
+                    abnormal_low += 1
+                if nucleus["lesion_type"] == "abnormal_high":
+                    abnormal_high += 1
+        data = {
+            "total": total,
+            "normal": normal,
+            "abnormal_low": abnormal_low,
+            "abnormal_high": abnormal_high,
+            "deleted": deleted
+        }
+        return data
+
+    def get_feat(self) -> dict:
+        return {}
+
+    def get_histplot(self) -> dict:
+        _, marks = self.repository.get_marks()
+
+        if not marks:
+            data = {
+                "x": [],
+                "y": []
+            }
+            return data
+
+        ai_result = marks[0].ai_result if marks else None
+        nuclei = ai_result.get('nuclei') if ai_result else []
+
+        dna_index = [i["dna_index"] for i in nuclei]
+        np_dna_index = np.array(dna_index)
+        step = 0.05
+        temp = (np_dna_index // step) * step
+        x, count = np.unique(temp, return_counts=True)
+        x = np.round(x, decimals=2)
+
+        data = {
+            "x": np.append(x, x[-1] + step).tolist(),
+            "y": count.tolist()
+        }
+        return data
+
+    def get_scatterplot(self) -> dict:
+        _, marks = self.repository.get_marks()
+
+        if not marks:
+            data = {"x": [], "y": []}
+            return data
+
+        ai_result = marks[0].ai_result if marks else None
+        nuclei = ai_result.get('nuclei') if ai_result else []
+
+        dna_index_area = []
+        for i in nuclei:
+            if i["is_deleted"] != 0:
+                continue
+            if i["lesion_type"] != "normal" or i["id"] % 10 == 1:
+                dna_index_area.append({"dna_index": i["dna_index"], "area": i["area"]})
+
+        data = {
+            "x": [i["dna_index"] for i in dna_index_area],
+            "y": [i["area"] for i in dna_index_area],
+        }
+        return data
+
+    def get_dna_statistics(self) -> dict:
+        _, marks = self.repository.get_marks()
+        if not marks:
+            data = {'header': [], 'data': []}
+            return data
+
+        ai_result = marks[0].ai_result if marks else None
+
+        total, total_di = 0, 0
+        normal, normal_di = 0, 0
+        abnormal_low, abnormal_low_di = 0, 0
+        abnormal_high, abnormal_high_di = 0, 0
+        deleted = 0
+
+        nuclei = ai_result.get("nuclei", [])
+        for nucleus in nuclei:
+            if nucleus["is_deleted"] == 1:
+                deleted += 1
+            else:
+                total += 1
+                total_di += nucleus["dna_index"]
+                if nucleus["lesion_type"] == "normal":
+                    normal += 1
+                    normal_di += nucleus["dna_index"]
+                if nucleus["lesion_type"] == "abnormal_low":
+                    abnormal_low += 1
+                    abnormal_low_di += nucleus["dna_index"]
+                if nucleus["lesion_type"] == "abnormal_high":
+                    abnormal_high += 1
+                    abnormal_high_di += nucleus["dna_index"]
+
+        dna_statistics = {
+            'header': ['', '数量', 'percent', 'DI均值'],
+            'data': [
+                [{'color': '#8fc53a', 'val': '正常二倍体细胞'}, {'color': '', 'val': normal},
+                 {'color': '', 'val': '{:.2%}'.format(round((normal / total), 4)) if total != 0 else '0'},
+                 {'color': '', 'val': round(total_di / total, 2) if total != 0 else 0}],
+                [{'color': '#f5a337', 'val': '疑似病变细胞'}, {'color': '', 'val': abnormal_low},
+                 {'color': '', 'val': '{:.2%}'.format(round((abnormal_low / total), 4)) if total != 0 else '0'},
+                 {'color': '', 'val': round(abnormal_low_di / abnormal_low, 2) if abnormal_low != 0 else 0}],
+                [{'color': '#e24055', 'val': '病变细胞'}, {'color': '', 'val': abnormal_high},
+                 {'color': '', 'val': '{:.2%}'.format(round((abnormal_high / total), 4)) if total != 0 else '0'},
+                 {'color': '', 'val': round(abnormal_high_di / abnormal_high, 2) if abnormal_high != 0 else 0}],
+                [{'color': '#444444', 'val': '全部细胞'}, {'color': '', 'val': total},
+                 {'color': '', 'val': '{:.0%}'.format(1) if total != 0 else '0'},
+                 {'color': '', 'val': round(total_di / total, 2)} if total != 0 else 0]
+            ]
+        }
+        return dna_statistics
+
+    def get_np_info(self) -> Tuple[list, list]:
+        _, rois = self.repository.get_marks()
+
+        if not rois:
+            return [], []
+
+        _cell_statics = {
+            '嗜酸性粒细胞': {'count': 0, 'area': 0, 'index': 0, 'color': '#f00'},
+            '淋巴细胞': {'count': 0, 'area': 0, 'index': 0, 'color': '#0ef'},
+            '浆细胞': {'count': 0, 'area': 0, 'index': 0, 'color': '#eafd00'},
+            '中性粒细胞': {'count': 0, 'area': 0, 'index': 0, 'color': '#66fd00'},
+            '总体炎症细胞': {'count': 0, 'area': 0, 'index': 0, 'color': ''},
+        }
+        _area_statics = {
+            '上皮区域': {'count': 0, 'area': 0, 'index': 0, 'color': '#00febb'},
+            '腺体区域': {'count': 0, 'area': 0, 'index': 0, 'color': '#ab86ff'},
+            '血管区域': {'count': 0, 'area': 0, 'index': 0, 'color': '#d32cd6'},
+            '总体区域': {'count': 0, 'area': 0, 'index': 0, 'color': ''},
+        }
+
+        export_count = 0
+        total_area = 0
+        for roi in rois:
+            if roi.isExport and roi.aiResult:
+                export_count += 1
+                ai_result = json.loads(roi.aiResult)
+                for cell_name in list(_cell_statics.keys())[:-1]:
+                    _cell_statics[cell_name]['count'] += ai_result.get(cell_name, {}).get('count', 0)
+                    _cell_statics['总体炎症细胞']['count'] += ai_result.get(cell_name, {}).get('count', 0)
+                for area_name in list(_area_statics.keys())[:-1]:
+                    _area_statics[area_name]['area'] += ai_result.get(area_name, {}).get('area', 0)
+                    _area_statics['总体区域']['area'] += ai_result.get(area_name, {}).get('area', 0)
+                    total_area = ai_result.get(area_name, {}).get('total_area', 0)
+
+        for cell_name in _cell_statics.keys():
+            cell_count = _cell_statics[cell_name]['count']
+            _cell_statics[cell_name]['index'] = format(
+                round(cell_count * 100 / _cell_statics['总体炎症细胞']['count'], 2) if cell_count else 0, '0.2f')
+            _cell_statics[cell_name]['average'] = format(round(cell_count / export_count, 2), '0.2f')
+
+        for area_name in _area_statics.keys():
+            area = _area_statics[area_name]['area']
+            _area_statics[area_name]['area'] = format(round(area / 1000000, 2), '0.2f')
+            _area_statics[area_name]['index'] = format(round(area * 100 / total_area, 2) if area else 0, '0.2f')
+            _area_statics[area_name]['average'] = format(round((area / 1000000) / export_count, 2), '0.2f')
+        _area_statics['总体区域']['index'] = '-'
+
+        cell_statics = [{'name': cell_name, 'stats': item} for cell_name, item in _cell_statics.items()]
+        area_statics = [{'name': area_name, 'stats': item} for area_name, item in _area_statics.items()]
+
+        return cell_statics, area_statics

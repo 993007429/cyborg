@@ -258,6 +258,30 @@ class SliceDomainService(object):
                 self.repository.save(record)
         return True
 
+    def update_slice_ai_suggest(self, abnormal_high: int, abnormal_low: int, total: int) -> bool:
+        slice = self.repository.get_slice(case_id=request_context.case_id,
+                                          file_id=request_context.file_id,
+                                          company=request_context.current_company)
+        new_ai_suggest = slice.ai_suggest
+        if abnormal_high == 0:
+            assert total != 0
+            temp = abnormal_low / total
+            if temp <= 0.05:
+                new_ai_suggest = "未见DNA倍体异常细胞"
+            if 0.05 < temp < 0.1:
+                new_ai_suggest = "可见少量细胞增生（5%-10%）"
+            if temp >= 0.1:
+                new_ai_suggest = "可见细胞异常增生（≥10%）"
+        elif abnormal_high in [1, 2]:
+            new_ai_suggest = "可见少量DNA倍体异常细胞（1-2个）"
+        else:
+            new_ai_suggest = "可见DNA倍体异常细胞（≥3个）"
+
+        slice.update_data(ai_suggest=new_ai_suggest)
+        self.repository.save_slice(slice)
+
+        return True
+
     def update_mark_config(
             self, case_id: str, file_id: str, radius: Optional[float] = None, is_solid: Optional[int] = None
     ) -> bool:
@@ -325,6 +349,13 @@ class SliceDomainService(object):
             return 2, 'no such file or directory', None
 
         return 0, '', slice
+
+    def get_alg_type(self, case_id: str, file_id: str, company_id: str) -> str:
+        slice = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
+        if not slice:
+            return 'human'
+
+        return slice.ai_type
 
     @cache.cache('cyborg:slice_analysis:slice_file_info:{case_id}:{file_id}', expire=cache.ONE_HOUR)
     def get_slice_file_info(self, case_id: str, file_id: str, company_id: str) -> Optional[dict]:
@@ -775,6 +806,46 @@ class SliceDomainService(object):
 
     def get_disabled_record_columns(self) -> List[str]:
         return CaseRecordEntity.get_disabled_columns()
+
+    def gen_pie_chart_data(self, data):
+        return {
+            'tooltip': {
+                'trigger': 'item'
+            },
+            'series': [{
+                'type': 'pie',
+                'radius': ['40%', '70%'],
+                'avoidLabelOverlap': False,
+                'label': {
+                    'show': False,
+                    'position': 'center'
+                },
+                'emphasis': {
+                    'label': {
+                        'show': True,
+                        'fontSize': 40,
+                        'fontWeight': 'bold'
+                    }
+                },
+                'labelLine': {
+                    'show': False
+                },
+                'color': [item['color'] for item in data],
+                'data': data
+            }]
+        }
+
+    def get_dna_check_result(self, case_id: str, file_id: str, company: str) -> Tuple[str, str]:
+        slic = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company)
+        if not slic:
+            return '', ''
+
+        check_result = slic.check_result.split(';')
+        if len(check_result) >= 2:
+            return check_result[-1], check_result[-2]
+        if len(check_result) >= 1:
+            return check_result[-1], ''
+        return '', ''
 
 
 if __name__ == '__main__':

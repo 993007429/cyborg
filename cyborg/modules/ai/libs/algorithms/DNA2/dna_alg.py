@@ -7,13 +7,12 @@
 
 import os
 
-
+from cyborg.infra.oss import oss
 # sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # from src.detect_tct_disk import *
 # from src.detect_nuclei import *
 # from src.utils import *
 # from configs import *
-from cyborg.infra.oss import oss
 
 from .src.detect_tct_disk import disc_detect
 from .src.detect_nuclei import nuclei_det
@@ -25,6 +24,7 @@ import torch
 import numpy as np
 
 
+model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Model')
 class DnaAlgBase:
     def __init__(self, iod_ratio=None, conf_thres=None):
         self.config = DnaBaseConfig()
@@ -38,7 +38,7 @@ class DnaAlgBase:
         self.conf_thres = conf_thres if isinstance(conf_thres, float) else 0.42
 
     def load_nuclei_detector(self, model_name='yolov7_1024', weights_name='DNA_LJ_V1.4.torchscript'):
-        det_model_file = oss.get_object_to_io(oss.path_join('AI', 'DNA1', 'Model', model_name, weights_name))
+        det_model_file = oss.get_object_to_io(oss.path_join('AI', 'DNA2', 'Model', model_name, weights_name))
         model = torch.jit.load(det_model_file)
         model = model if not torch.cuda.is_available() else model.cuda()
         model.eval()
@@ -72,7 +72,10 @@ class DnaAlgBase:
         abnormal_low_idx = np.where(np.logical_and(nuclei_dna_index.round(2) > self.config.abnormal_low_thres,
                                                    nuclei_dna_index.round(2) < self.config.abnormal_high_thres))[0]
 
-
+        # print(bboxes[abnormal_high_idx])
+        for i in bboxes[abnormal_high_idx]:
+            img_index = [i[1] // 2048 + 2, i[0] // 2048 - 2]
+            # print(img_index)
         num_normal = normal_idx.size
         num_abnormal_high = abnormal_high_idx.size
         num_abnormal_low = abnormal_low_idx.size

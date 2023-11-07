@@ -22,7 +22,7 @@ from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 
 from cyborg.modules.slice.domain.services import SliceDomainService
-from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
+from cyborg.modules.slice.domain.value_objects import AIType, SliceStartedStatus
 
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
@@ -230,6 +230,12 @@ class SliceService(object):
             case_id=case_id, file_id=file_id, high_through=high_through, info=info)
         return AppResponse(data=updated)
 
+    def update_slice_ai_suggest(self, abnormal_high: int, abnormal_low: int, total: int) -> AppResponse:
+        updated = self.domain_service.update_slice_ai_suggest(abnormal_high=abnormal_high,
+                                                              abnormal_low=abnormal_low,
+                                                              total=total)
+        return AppResponse(data=updated)
+
     def finish_ai(
             self, status: SliceStartedStatus, ai_suggest: Optional[str] = None, slide_quality: Optional[int] = None,
             cell_num: Optional[int] = None, as_id: Optional[int] = None
@@ -433,6 +439,19 @@ class SliceService(object):
 
         return AppResponse(data=buf)
 
+    def get_roi_and_segment(self, case_id: str, file_id: str, roi: list, dna_index: float) -> AppResponse[BytesIO]:
+        slice = self.domain_service.repository.get_slice(
+            case_id=case_id, file_id=file_id, company=request_context.current_company)
+        if not (slice and fs.path_exists(slice.slice_file_path)):
+            return AppResponse(err_code=1, message='slice does not exist')
+
+        _, white_background = open_slide(slice.slice_file_path).get_roi_and_segment(roi, dna_index, None)
+        os.makedirs(slice.roi_dir, exist_ok=True)
+        buf = BytesIO()
+        white_background.save(buf, 'jpeg')
+
+        return AppResponse(data=buf)
+
     def get_screenshot(self, case_id: str, file_id: str, roi: list, roi_id: str) -> AppResponse[str]:
         slice = self.domain_service.repository.get_slice(
             case_id=case_id, file_id=file_id, company=request_context.current_company)
@@ -532,22 +551,60 @@ class SliceService(object):
         report_config = self.domain_service.get_report_config(company=request_context.current_company)
         report_templates = record.get_report_templates(
             template_config=report_config.template_config, file_id=request_context.file_id)
+        alg_type = self.domain_service.get_alg_type(case_id=request_context.case_id, file_id=request_context.file_id,
+                                                    company_id=request_context.current_company)
 
         report_data = record.to_dict_for_report()
+        report_data['histplot'] = report_data['histplot'] + f'&company={request_context.current_company}'
+        report_data['scatterplot'] = report_data['scatterplot'] + f'&company={request_context.current_company}'
 
         # TODO 设计上这里不应该调用slice_analysis模块的服务，勾选的roi应该保存在病例模块，后续需要优化这个逻辑
         from cyborg.app.service_factory import AppServiceFactory
         roi_data = AppServiceFactory.new_slice_analysis_service().get_report_roi().data
         roi_images = []
-        for k in ['human', 'tct', 'lct', 'dna']:
+        for k in [AIType.human, AIType.tct, AIType.lct, AIType.dna]:
             roi_images.extend([roi.get('image_url', '') for roi in roi_data[k] if roi.get('iconType') != 'dnaIcon'])
+
+        if alg_type == AIType.dna_ploidy:
+            rois_list = roi_data[alg_type]
+            sorted_rois = sorted(rois_list, key=lambda item: item['di'], reverse=True)
+            sorted_rois_50 = sorted_rois[:50]
+            dnaIcons = [{'id': roi['id'], 'di': roi['di'], 'image_url': roi['image_url']} for roi in sorted_rois_50]
+        else:
+            dnaIcons = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
 
         report_data['roiImages'] = roi_images
         report_data.update(AppServiceFactory.new_slice_analysis_service().get_capture_images().data)
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
-        report_data['dnaIcons'] = [roi for roi in roi_data[k] if roi.get('iconType') == 'dnaIcon']
+        report_data['dnaIcons'] = dnaIcons
         report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}' # noqa
         report_data['reportTime'] = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        if alg_type == AIType.dna_ploidy:
+            report_data['dna_statistics'] = AppServiceFactory.new_slice_analysis_service().get_dna_statistics().data
+            report_data['dna_suggest'], report_data['dna_diagnose'] = AppServiceFactory.slice_service.get_dna_check_result().data
+        elif alg_type == AIType.np:
+            cell_statics, area_statics = AppServiceFactory.new_slice_analysis_service().get_np_info().data
+            report_data['cellTypeTable'] = {
+                'header': ['', '总数', '指数（%）'],
+                'data': [[
+                    {'color': item['stats']['color'], 'val': item['name']},
+                    {'color': item['stats']['color'], 'val': item['stats']['count']},
+                    {'color': item['stats']['color'], 'val': item['stats']['index']}] for item in cell_statics]
+            }
+            report_data['cellTypePie'] = self.domain_service.gen_pie_chart_data(
+                [{'name': item['name'], 'value': item['stats']['count'], 'color': item['stats']['color']}
+                 for item in cell_statics[:-1]])
+            report_data['areaTypeTable'] = {
+                'header': ['', '总面积(mm²)', '指数(%)'],
+                'data': [[
+                    {'color': item['stats']['color'], 'val': item['name']},
+                    {'color': item['stats']['color'], 'val': item['stats']['area']},
+                    {'color': item['stats']['color'], 'val': item['stats']['index']}] for item in area_statics]
+            }
+            report_data['areaTypePie'] = self.domain_service.gen_pie_chart_data(
+                [{'name': item['name'], 'value': item['stats']['area'], 'color': item['stats']['color']}
+                 for item in area_statics[:-1]])
 
         async with aiohttp.ClientSession() as client:
             params = {
@@ -718,3 +775,12 @@ class SliceService(object):
         }
 
         return AppResponse(data=config)
+
+    def get_dna_check_result(self) -> AppResponse:
+        case_id = request_context.case_id
+        file_id = request_context.file_id
+        company = request_context.current_company
+
+        data = self.domain_service.get_dna_check_result(case_id=case_id, file_id=file_id, company=company)
+
+        return AppResponse(data=data)
