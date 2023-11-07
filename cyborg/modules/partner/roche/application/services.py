@@ -86,11 +86,11 @@ class RocheService(object):
                 result = self.domain_service.run_her2(task)
             else:
                 logger.error(f'{ai_type} does not support')
-                result = RocheALGResult(ai_suggest='', err_msg=f'{ai_type} does not support')
+                result = RocheALGResult(err_msg=f'{ai_type} does not support')
 
         except Exception as e:
             logger.exception(e)
-            result = RocheALGResult(ai_suggest='', err_msg='run alg error')
+            result = RocheALGResult(err_msg='run alg error')
 
         if result.err_msg:
             self.domain_service.update_ai_task(task, status=RocheAITaskStatus.failed)
@@ -116,7 +116,8 @@ class RocheService(object):
             result_file = oss.generate_sign_url(method='GET', key=task.result_file_key, expire_in=24 * 3600)
             return RocheAppResponse(data=[{
                 'analysis_id': analysis_id,
-                'result_file': result_file
+                'result_file': result_file,
+                'results': task.ai_results
             }])
         else:
             return RocheAppResponse(err_code=1, message='暂无结果')
