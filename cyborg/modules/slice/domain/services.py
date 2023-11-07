@@ -83,7 +83,11 @@ class SliceDomainService(object):
         if _ext == ".jpeg":
             rotate_jpeg(slide_save_name)
 
-        slide = open_slide(slide_save_name)
+        try:
+            slide = open_slide(slide_save_name)
+        except Exception as e:
+            logger.warning(e)
+            return
 
         try:
             if _ext == ".svs":

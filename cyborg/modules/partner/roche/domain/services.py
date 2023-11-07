@@ -16,7 +16,7 @@ from cyborg.app.settings import Settings
 from cyborg.consts.her2 import Her2Consts
 from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
-from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS, ROCHE_TIME_FORMAT
+from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS, ROCHE_TIME_FORMAT, HER2_ALGORITHM_DISPLAY_ID
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
@@ -166,7 +166,6 @@ class RocheDomainService(object):
                 slide_path=task.slide_path, roi_list=[{'id': roi_id, 'x': x_coords, 'y': y_coords}])
 
             result_data = json.dumps([center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg])
-            logger.info(result_data)
             buffer = BytesIO()
             buffer.write(result_data.encode('utf-8'))
             buffer.seek(0)
@@ -249,9 +248,14 @@ class RocheDomainService(object):
             data=marker_groups
         )
 
-        panel = RochePanel(
+        markers_panel = RochePanel(
             name='Markers',
             description='Markers'
+        )
+
+        heatmap_panel = RochePanel(
+            name='Heatmaps',
+            description='Heatmaps'
         )
 
         heatmap = RocheHeatMap(
@@ -266,7 +270,7 @@ class RocheDomainService(object):
             marker_presets=[wsi_marker_preset],
             marker_shapes=marker_shapes,
             heatmaps=[heatmap],
-            panels=[panel]
+            panels=[markers_panel, heatmap_panel]
         )
 
     def save_ai_result(self, task: RocheAITaskEntity, result: RocheALGResult) -> bool:
@@ -300,7 +304,9 @@ class RocheDomainService(object):
             wsi_sparse_heatmaps = file.create_group('wsi_sparse_heatmaps')
             wsi_sparse_heatmaps['index'] = json.dumps([item.to_dict() for item in result.cells_index_items])
             for index_item in result.cells_index_items:
-                wsi_sparse_heatmaps.create_dataset(name=index_item.filename, data=[json.dumps(index_item.heatmap_points)])
+                wsi_sparse_heatmaps.create_dataset(name=index_item.filename, data=[json.dumps([{
+                    HER2_ALGORITHM_DISPLAY_ID: index_item.heatmap_points
+                }])])
 
             # wsi_masks = file.create_group('wsi_masks')
             # wsi_heatmaps = file.create_group('wsi_heatmaps')
@@ -310,8 +316,8 @@ class RocheDomainService(object):
         return oss.put_object_from_io(buffer, task.result_file_key)
 
     def callback_analysis_status(self, ai_task: RocheAITaskEntity) -> bool:
-        url = f'{Settings.ROCHE_API_SERVER}/openapi/v1/analysis'
-        res = requests.put(url, json={
+        url = f'{Settings.ROCHE_API_SERVER}/analysis'
+        data = {
             'analysis_id': ai_task.analysis_id,
             'status': ai_task.status_name,
             'status_detail_message': '',
@@ -319,11 +325,13 @@ class RocheDomainService(object):
             'started_timestamp': ai_task.started_at.strftime(ROCHE_TIME_FORMAT) if ai_task.started_at else None,
             'last_updated_timestamp': ai_task.last_modified.strftime(
                 ROCHE_TIME_FORMAT) if ai_task.last_modified else None
-        }, timeout=5)
+        }
+        res = requests.put(url, json=data, timeout=10)
 
+        logger.info(url)
+        logger.info(data)
         logger.info(res.status_code)
         if res.status_code == 200:
-            logger.info(res.json())
             return True
         else:
             return False
