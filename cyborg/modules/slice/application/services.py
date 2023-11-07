@@ -22,10 +22,11 @@ from cyborg.infra.fs import fs
 from cyborg.libs.heimdall.dispatch import open_slide
 
 from cyborg.modules.slice.domain.services import SliceDomainService
-from cyborg.modules.slice.domain.value_objects import AIType, SliceStartedStatus
+from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
+from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.pagination import Pagination
 
 
