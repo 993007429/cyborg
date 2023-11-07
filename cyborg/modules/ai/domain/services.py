@@ -349,17 +349,17 @@ class AIDomainService(object):
 
         from cyborg.modules.ai.libs.algorithms.DNA2.dna_alg import DNA_1020
         dna_alg_class = DNA_1020
-        dna_alg_obj = dna_alg_class(iod_ratio=iod_ratio, conf_thres=conf_thres)
 
         slide = open_slide(task.slide_path)
 
         roi_marks = []
+        prob_dict = None
 
         for idx, roi in enumerate(task.rois or [task.new_default_roi()]):
-            dna_result = dna_alg_obj.dna_test(slide)
+            dna_ploidy_result = dna_alg_class(iod_ratio=iod_ratio, conf_thres=conf_thres).dna_test(slide)
 
-            from cyborg.modules.ai.utils.tct import generate_dna_ploidy_ai_result
-            ai_result = generate_dna_ploidy_ai_result(result=dna_result, roiid=roi['id'])
+            from cyborg.modules.ai.utils.tct import generate_dna_ploidy_aiResult
+            ai_result = generate_dna_ploidy_aiResult(result=dna_ploidy_result, roiid=roi['id'])
 
             roi_marks.append(Mark(
                 id=roi['id'],
@@ -377,8 +377,8 @@ class AIDomainService(object):
         return ALGResult(
             ai_suggest=ai_result['dna_diagnosis'],
             roi_marks=roi_marks,
-            slide_quality=ai_result['slide_quality'],
-            cell_num=ai_result['cell_num']
+            cell_num=ai_result['cell_num'],
+            prob_dict=prob_dict
         )
 
     def run_her2(self, task: AITaskEntity, group_name_to_id: dict):

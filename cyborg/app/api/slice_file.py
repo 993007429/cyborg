@@ -1,4 +1,5 @@
 import ast
+import base64
 import json
 import logging
 import mimetypes
@@ -15,6 +16,7 @@ from cyborg.app.service_factory import AppServiceFactory
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
 from cyborg.modules.slice.application import tasks
+from cyborg.modules.slice.domain.value_objects import SliceImageType
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.celery.app import app as celery_app
 
@@ -165,19 +167,50 @@ def ocr_label():
         return resp
 
 
+@api_blueprint.route('/files/saveImage', methods=['get', 'post'])
+def save_image():
+    caseid = request.form.get('caseid')
+    fileid = request.form.get('fileid')
+    img_type = request.form.get('img_type', type=str)
+    img_base64 = request.form.get('img_base64')
+
+    if img_type == SliceImageType.histplot:
+        img_path = os.path.join(request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'dna_index.png')
+    elif img_type == SliceImageType.scatterplot:
+        img_path = os.path.join(request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'scatterplot.png')
+    else:
+        return jsonify(AppResponse(err_code=1).dict())
+
+    binary_data = base64.b64decode(img_base64.split(',')[1])
+    with open(img_path, 'wb') as output_file:
+        output_file.write(binary_data)
+
+    return jsonify(AppResponse(err_code=0, message='success').dict())
+
+
 @api_blueprint.route('/files/getImage', methods=['get', 'post'])
 def get_image():
     caseid = request.args.get('caseid')
     fileid = request.args.get('fileid')
+    company = request.args.get('company')
     img_type = request.args.get('type', type=str)
-    if img_type == 'histplot':
-        img_path = fs.path_join(
-            request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'dna_index.png')
-    elif img_type == 'scatterplot':
-        img_path = fs.path_join(
-            request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'scatterplot.png')
+
+    if company:
+        if img_type == SliceImageType.histplot:
+            img_path = fs.path_join(Settings.DATA_DIR, company, 'data', caseid, 'slices', fileid, 'dna_index.png')
+        elif img_type == SliceImageType.scatterplot:
+            img_path = fs.path_join(Settings.DATA_DIR, company, 'data', caseid, 'slices', fileid, 'scatterplot.png')
+        else:
+            img_path = ''
     else:
-        img_path = ''
+        if img_type == SliceImageType.histplot:
+            img_path = fs.path_join(
+                request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'dna_index.png')
+        elif img_type == SliceImageType.scatterplot:
+            img_path = fs.path_join(
+                request_context.current_user.data_dir, 'data', caseid, 'slices', fileid, 'scatterplot.png')
+        else:
+            img_path = ''
 
     logger.info(img_path)
     if os.path.exists(img_path) and os.path.getsize(img_path):
@@ -242,6 +275,24 @@ def get_roi():
     roi_id = request.args.get('roiid')
 
     res = AppServiceFactory.slice_service.get_roi(case_id=case_id, file_id=file_id, roi=roi, roi_id=roi_id)
+    if res.err_code:
+        return jsonify(res.dict())
+
+    resp = make_response(res.data.getvalue())
+    resp.mimetype = 'image/jpeg'
+    res.data.close()
+    return resp
+
+
+@api_blueprint.route('/files/SEG', methods=['get', 'post'])
+def seg():
+    case_id = request.args.get('caseid')
+    file_id = request.args.get('fileid')
+    dna_index = float(request.args.get('dna_index', 0))
+    roi = request.args.get('roi')
+    roi = ast.literal_eval(roi)
+
+    res = AppServiceFactory.slice_service.get_roi_and_segment(case_id=case_id, file_id=file_id, roi=roi, dna_index=dna_index)
     if res.err_code:
         return jsonify(res.dict())
 

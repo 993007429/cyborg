@@ -27,7 +27,6 @@ class MarkGroupEntity(BaseDomainEntity):
 
 
 class MarkEntity(BaseDomainEntity):
-
     group: Optional[MarkGroupEntity] = None
     area: float = 0
     is_in_manual: bool = False
@@ -153,12 +152,13 @@ class MarkEntity(BaseDomainEntity):
         y_coords = mark_position.y_coords
         return any(polygon.contains(Point(x, y_coords[i])) for i, x in enumerate(x_coords))
 
-    def parse_ai_result(self, ai_type: AIType, ai_suggest: Optional[dict] = None) -> dict:
+    def parse_ai_result(self, ai_type: AIType, is_deleted: int, lesion_type: str, page: int, page_size: int,
+                        ai_suggest: Optional[dict] = None) -> dict:
         ai_result = self.ai_result
         if not ai_result:
             return {}
         new_ai_result = dict()
-        if ai_type in ['tct', 'lct', 'dna']:
+        if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             if ai_suggest:
                 diagnosis, tbs_label = '', ''
                 if '阴性' in ai_suggest:
@@ -175,7 +175,7 @@ class MarkEntity(BaseDomainEntity):
                 ai_result['diagnosis'] = [diagnosis, tbs_label]
             else:
                 ai_result['diagnosis'] = ['', '']
-        elif ai_type == 'her2':
+        elif ai_type == AIType.her2:
             if ai_result:
                 mark_1 = ai_result.get('微弱的不完整膜阳性肿瘤细胞') if ai_result.get(
                     '微弱的不完整膜阳性肿瘤细胞') else 0
@@ -229,11 +229,37 @@ class MarkEntity(BaseDomainEntity):
                 new_ai_result['whole_slide'] = ai_result.get('whole_slide') if ai_result.get(
                     'whole_slide') is not None else 1
                 ai_result = new_ai_result
+        elif ai_type == AIType.dna_ploidy:
+            nuclei = ai_result.get('nuclei', [])
+            if is_deleted == 1:
+                new_nuclei = []
+                for nucleus in nuclei:
+                    if nucleus["is_deleted"] == 1:
+                        new_nuclei.append(nucleus)
+            if lesion_type == "all":
+                new_nuclei = []
+                for nucleus in nuclei:
+                    if nucleus["is_deleted"] == 0:
+                        new_nuclei.append(nucleus)
+            if is_deleted == 0 and lesion_type != "all":
+                new_nuclei = []
+                for nucleus in nuclei:
+                    if nucleus["lesion_type"] == lesion_type and nucleus["is_deleted"] == 0:
+                        new_nuclei.append(nucleus)
+            total = len(new_nuclei)
+            start = (page - 1) * page_size if page > 1 else 0
+            end = page * page_size
+            paged_data = new_nuclei[start: end]
+            ai_result["total"] = total
+            ai_result["nuclei"] = paged_data
+            if ai_suggest:
+                ai_result["dna_diagnosis"] = ai_suggest
+
         return ai_result
 
     def to_dict_for_show(
-        self, ai_type: AIType, radius_ratio: float = 1, is_max_level: bool = False,
-        mark_config: Optional[SliceMarkConfig] = None, show_groups: Optional[List[int]] = None
+            self, ai_type: AIType, radius_ratio: float = 1, is_max_level: bool = False,
+            mark_config: Optional[SliceMarkConfig] = None, show_groups: Optional[List[int]] = None
     ):
         item = super().to_dict()
         item.update({
@@ -308,9 +334,17 @@ class MarkEntity(BaseDomainEntity):
     def make_image_url(cls, caseid: str, fileid: str, filename: str, company: str, **_):
         return f'{Settings.IMAGE_SERVER}/files/image?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&companyid={quote(company)}'
 
-    def to_roi(self, ai_type: AIType, ai_suggest: Optional[dict] = None):
+    def to_roi(self, ai_type: AIType, is_deleted: int, lesion_type: str, page: int, page_size: int,
+               ai_suggest: Optional[dict] = None):
         d = self.to_dict()
-        ai_result = self.parse_ai_result(ai_type=ai_type, ai_suggest=ai_suggest)
+        ai_result = self.parse_ai_result(
+            ai_type=ai_type,
+            is_deleted=is_deleted,
+            lesion_type=lesion_type,
+            page=page,
+            page_size=page_size,
+            ai_suggest=ai_suggest
+        )
         d['aiResult'] = ai_result
         d['path'] = self.position
         d['id'] = str(self.id)

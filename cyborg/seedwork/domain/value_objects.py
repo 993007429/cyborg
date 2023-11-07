@@ -58,7 +58,7 @@ class AIType(BaseEnum):
     def get_by_value(cls, value: Optional[str]):
         if isinstance(value, AIType):
             value = value.value
-        if value and (value.startswith('tct') or value.startswith('lct') or value.startswith('dna')):
+        if value and (value.startswith('tct') or value.startswith('lct')):
             value = value[0:3]
         if value and value.startswith('fish'):
             value = 'fishTissue'
@@ -77,6 +77,7 @@ class AIType(BaseEnum):
     tct = 'tct'
     lct = 'lct'
     dna = 'dna'
+    dna_ploidy = 'dna_ploidy'
     her2 = 'her2'
     ki67 = 'ki67'
     pdl1 = 'pdl1'
@@ -87,7 +88,6 @@ class AIType(BaseEnum):
     fish_tissue = 'fishTissue'
     model_calibrate_tct = 'model_calibrate_tct'
     model_calibrate_lct = 'model_calibrate_lct'
-    dna_ploidy = 'dna_ploidy'
 
     @property
     def ai_name(self) -> str:

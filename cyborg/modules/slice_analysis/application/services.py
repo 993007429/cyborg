@@ -16,7 +16,6 @@ from cyborg.modules.slice_analysis.domain.services import SliceAnalysisDomainSer
 from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlice, SliceMarkConfig
 from cyborg.seedwork.application.responses import AppResponse
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -294,15 +293,21 @@ class SliceAnalysisService(object):
         return AppResponse()
 
     @connect_slice_db()
-    def get_rois(self) -> AppResponse:
-        res = self.slice_service.get_slice_info(
-            case_id=request_context.case_id, file_id=request_context.file_id)
+    def get_rois(self, is_deleted: int, lesion_type: str, page: int, page_size: int) -> AppResponse:
+        res = self.slice_service.get_slice_info(case_id=request_context.case_id, file_id=request_context.file_id)
         if res.err_code:
             return res
         slice_info = res.data
 
         rois = self.domain_service.get_rois(
-            ai_type=request_context.ai_type, ai_suggest=slice_info['ai_suggest'], ai_status=slice_info['ai_status'])
+            ai_type=request_context.ai_type,
+            ai_suggest=slice_info['ai_suggest'],
+            ai_status=slice_info['ai_status'],
+            is_deleted=is_deleted,
+            lesion_type=lesion_type,
+            page=page,
+            page_size=page_size
+        )
         return AppResponse(message='query succeed', data={'ROIS': rois})
 
     @connect_slice_db()
@@ -430,14 +435,14 @@ class SliceAnalysisService(object):
 
     def get_report_roi(self) -> AppResponse:
         slices = self.slice_service.get_slices(case_ids=[request_context.case_id]).data
-        data = {"human": [], 'lct': [], 'tct': [], 'dna': []}
+        data = {"human": [], 'lct': [], 'tct': [], 'dna': [], 'dna_ploidy': []}
 
         for slice_info in slices:
             request_context.file_id = slice_info['fileid']
             request_context.ai_type = AIType.get_by_value(slice_info['alg'])
             if request_context.ai_type:
                 res = self._get_slice_report_roi(slice_info)
-                for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna]:
+                for ai_type in [AIType.human, AIType.lct, AIType.tct, AIType.dna, AIType.dna_ploidy]:
                     data[ai_type.value].extend(res[ai_type.value])
                 data['dnaStatics'] = res.get('dnaStatics')
 
@@ -447,7 +452,7 @@ class SliceAnalysisService(object):
     def _get_slice_report_roi(self, slice_info: dict):
         ai_type = request_context.ai_type
         company = request_context.current_company
-        res = {"human": [], 'lct': [], 'tct': [], 'dna': []}
+        res = {"human": [], 'lct': [], 'tct': [], 'dna': [], 'dna_ploidy': []}
 
         _, manual_marks = self.domain_service.repository.manual.get_marks(is_export=1)
         for manual_mark in manual_marks:
@@ -516,3 +521,43 @@ class SliceAnalysisService(object):
             ]
         }
         return AppResponse(data=result)
+
+    @connect_slice_db()
+    def delete_dna_roi(self, mark_id_list: list, deleted: int) -> AppResponse:
+        success, abnormal_high, abnormal_low, total = self.domain_service.delete_dna_roi(mark_id_list, deleted)
+        if not success:
+            return AppResponse(err_code=1, message='delete dna roi failed 1')
+
+        if not self.slice_service.update_slice_ai_suggest(abnormal_high, abnormal_low, total).data:
+            return AppResponse(err_code=1, message='delete dna roi failed 2')
+        return AppResponse(message='delete dna roi success')
+
+    @connect_slice_db()
+    def get_statistics(self) -> AppResponse:
+        data = self.domain_service.get_statistics()
+        return AppResponse(message='get dna statistics success', data=data)
+
+    @connect_slice_db()
+    def get_feat(self) -> AppResponse:
+        data = self.domain_service.get_feat()
+        return AppResponse(message='get dna feat success', data=data)
+
+    @connect_slice_db()
+    def get_histplot(self) -> AppResponse:
+        data = self.domain_service.get_histplot()
+        return AppResponse(message='get dna histplot success', data=data)
+
+    @connect_slice_db()
+    def get_scatterplot(self) -> AppResponse:
+        data = self.domain_service.get_scatterplot()
+        return AppResponse(message='get dna scatterplot success', data=data)
+
+    @connect_slice_db()
+    def get_dna_statistics(self) -> AppResponse:
+        data = self.domain_service.get_dna_statistics()
+        return AppResponse(message='get dna statistics success', data=data)
+
+    @connect_slice_db()
+    def get_np_info(self) -> AppResponse:
+        data = self.domain_service.get_np_info()
+        return AppResponse(message='get np info success', data=data)
