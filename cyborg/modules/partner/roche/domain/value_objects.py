@@ -138,6 +138,15 @@ class RocheWsiInput(BaseValueObject):
     dimensions: List[List[int]]
 
 
+class RocheWsiScores(BaseValueObject):
+    whole_slide_score: str
+
+    def to_dict(self):
+        return {
+            'WholeSlideScore': self.whole_slide_score
+        }
+
+
 class RocheIndexItem(BaseValueObject):
     filename: str
     bbox: List[int]
@@ -242,12 +251,12 @@ class RochePanel(BaseValueObject):
 
 
 class RocheALGResult(BaseValueObject):
+    ai_results: dict = {}
     wsi_input: Optional[RocheWsiInput] = None
+    wsi_scores: Optional[RocheWsiScores] = None
     cells_index_items: List[RocheIndexItem] = []
     marker_presets: List[RocheMarkerPreset] = []
     marker_shapes: Dict[str, RocheMarkerShape] = {}
     heatmaps: List[RocheHeatMap] = []
-    heatmap_index_items: List[RocheIndexItem] = []
     panels: List[RochePanel] = []
-    ai_suggest: str = ''
     err_msg: Optional[str] = None

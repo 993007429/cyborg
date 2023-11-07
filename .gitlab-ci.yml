@@ -16,7 +16,7 @@ job lint:
   - flake8 --count cyborg
   # - mypy --config-file .mypy.ini seal
   except:
-    - master
+    - master@dev/cyborg
 
 job deploy_uat:
   tags:
@@ -32,4 +32,4 @@ job deploy_uat:
     - cd /data/www/technis
     - fab uat:cyborg
   only:
-    - pre_release
+    - pre_release@dev/cyborg

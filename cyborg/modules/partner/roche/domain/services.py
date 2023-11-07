@@ -16,7 +16,7 @@ from cyborg.app.settings import Settings
 from cyborg.consts.her2 import Her2Consts
 from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
-from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS
+from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS, ROCHE_TIME_FORMAT
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
@@ -88,7 +88,10 @@ class RocheDomainService(object):
         if result_id is not None:
             task.update_data(result_id=result_id)
 
-        return self.repository.save_ai_task(task)
+        if self.repository.save_ai_task(task):
+            return self.callback_analysis_status(task)
+        else:
+            return False
 
     def download_slide(self, task: RocheAITaskEntity) -> str:
         if 'amazonaws' not in task.slide_url and 'dipath.cn' not in task.slide_url and Settings.ROCHE_IMAGE_SERVER:
@@ -197,7 +200,7 @@ class RocheDomainService(object):
             index_item = RocheIndexItem.new_item(tile_x, tile_y)
             for label, cell_group in groupby(cells, lambda c: c[0]):
                 feature = Feature(properties={'label': int(label)}, geometry=MultiPoint(coordinates=[]))
-                hot_value = Her2Consts.sorted_labels.index(label) * 255 / len(Her2Consts.sorted_labels)
+                hot_value = round(Her2Consts.sorted_labels.index(label) * 255 / len(Her2Consts.sorted_labels))
                 for cell in cell_group:
                     feature['geometry']['coordinates'].append([int(val) for val in cell[1]])
                     index_item.heatmap_points.append([int(val) for val in cell[1]] + [hot_value])
@@ -252,11 +255,12 @@ class RocheDomainService(object):
         )
 
         heatmap = RocheHeatMap(
-            labels=[{'0': '0'}, {'255': '100%'}]
+            gui='HER-2',
+            labels=[{'0': 'None'}, {'255': 'High Density'}]
         )
 
         return RocheALGResult(
-            ai_suggest=ai_result['分级结果'],
+            ai_results={'her2_level': ai_result['分级结果']},
             wsi_input=wsi_input,
             cells_index_items=cell_index_items,
             marker_presets=[wsi_marker_preset],
@@ -266,6 +270,9 @@ class RocheDomainService(object):
         )
 
     def save_ai_result(self, task: RocheAITaskEntity, result: RocheALGResult) -> bool:
+        task.update_data(ai_results=result.ai_results)
+        self.repository.save_ai_task(task)
+
         buffer = BytesIO()
         with h5py.File(buffer, 'w') as file:
             wsi_analysis_info = file.create_group('wsi_analysis_info')
@@ -291,9 +298,9 @@ class RocheDomainService(object):
             wsi_presentation['colorluts'] = json.dumps(HEAT_COLORLUTS)
 
             wsi_sparse_heatmaps = file.create_group('wsi_sparse_heatmaps')
-            wsi_cells['index'] = json.dumps([item.to_dict() for item in result.heatmap_index_items])
-            for index_item in result.heatmap_index_items:
-                wsi_sparse_heatmaps.create_dataset(name=index_item.filename, data=[json.dumps(index_item.geo_json)])
+            wsi_sparse_heatmaps['index'] = json.dumps([item.to_dict() for item in result.cells_index_items])
+            for index_item in result.cells_index_items:
+                wsi_sparse_heatmaps.create_dataset(name=index_item.filename, data=[json.dumps(index_item.heatmap_points)])
 
             # wsi_masks = file.create_group('wsi_masks')
             # wsi_heatmaps = file.create_group('wsi_heatmaps')
@@ -302,13 +309,21 @@ class RocheDomainService(object):
         buffer.seek(0)
         return oss.put_object_from_io(buffer, task.result_file_key)
 
-    def callback_analysis_status(self, ai_task: RocheAITaskEntity):
-        url = f'{Settings.ROCHE_API_SERVER}/openapi/v1'
-        requests.post(url, json={
+    def callback_analysis_status(self, ai_task: RocheAITaskEntity) -> bool:
+        url = f'{Settings.ROCHE_API_SERVER}/openapi/v1/analysis'
+        res = requests.put(url, json={
             'analysis_id': ai_task.analysis_id,
             'status': ai_task.status_name,
             'status_detail_message': '',
             'percentage_completed': ai_task.percentage_completed,
-            'started_timestamp': ai_task.started_at,
-            'last_updated_timestamp': ai_task.last_modified
-        })
+            'started_timestamp': ai_task.started_at.strftime(ROCHE_TIME_FORMAT) if ai_task.started_at else None,
+            'last_updated_timestamp': ai_task.last_modified.strftime(
+                ROCHE_TIME_FORMAT) if ai_task.last_modified else None
+        }, timeout=5)
+
+        logger.info(res.status_code)
+        if res.status_code == 200:
+            logger.info(res.json())
+            return True
+        else:
+            return False

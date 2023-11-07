@@ -20,6 +20,7 @@ class RocheAITaskModel(BaseModel):
     status = Column(SmallInteger, nullable=False, default=0)
     coordinates = Column(JSON)
     model_info = Column(JSON)
+    ai_results = Column(JSON)
     # template_id = Column(Integer, nullable=False, default=0)
     result_id = Column(String(50), nullable=False, default='')
     started_at = Column(DateTime, nullable=True)

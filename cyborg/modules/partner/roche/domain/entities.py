@@ -3,6 +3,7 @@ from typing import Dict, Type
 from urllib.parse import urlparse
 
 from cyborg.consts.common import Consts
+from cyborg.modules.partner.roche.domain.consts import ROCHE_TIME_FORMAT
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheAlgorithmType
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import BaseEnum, AIType
@@ -69,9 +70,8 @@ class RocheAITaskEntity(BaseDomainEntity):
     def to_dict(self):
         return {
             'analysis_id': self.analysis_id,
-            'started_timestamp': self.started_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ') if self.started_at else None,
-            'last_updated_timestamp': self.last_modified.strftime(
-                '%Y-%m-%dT%H:%M:%S.%fZ') if self.last_modified else None,
+            'started_timestamp': self.started_at.strftime(ROCHE_TIME_FORMAT) if self.started_at else None,
+            'last_updated_timestamp': self.last_modified.strftime(ROCHE_TIME_FORMAT) if self.last_modified else None,
             'status': self.status_name,
             'percentage_completed': self.percentage_completed,
             'status_detail_message': ''
