@@ -34,8 +34,6 @@ def make_default_config():
         worker_max_memory_per_child=10000000,
         worker_send_task_events=True,
         task_send_sent_event=True,
-        # task_acks_late=True,
-        broker_transport_options={'visibility_timeout': 60}
     )
     return config
 
