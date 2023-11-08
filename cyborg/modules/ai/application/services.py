@@ -103,7 +103,6 @@ class AIService(object):
         return AppResponse(data=task.to_dict() if task else None)
 
     def run_ai_task(self, task_id):
-        start_time = time.time()
         task = self.domain_service.repository.get_ai_task_by_id(task_id)
         if not task:
             return AppResponse(err_code=1, message='任务不存在')
@@ -131,6 +130,8 @@ class AIService(object):
                     gpu_list = []
                     logger.info('显卡忙或者不可用, 等待5s...')
                     time.sleep(5)
+
+        start_time = time.time()
 
         self.domain_service.update_ai_task(task, status=AITaskStatus.analyzing)
         self.slice_service.update_ai_status(status=SliceStartedStatus.analyzing)
