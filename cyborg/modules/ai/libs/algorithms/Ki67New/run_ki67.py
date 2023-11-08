@@ -7,6 +7,7 @@
 # @Comment:
 
 import os
+import signal
 import sys
 import stat
 import cv2
@@ -96,10 +97,10 @@ def cal_ki67(slide_path, x_coords=[], y_coords=[]):
         f.write(command_str)
     os.chmod(os.path.join(current_dir, bat_name), stat.S_IRWXU)
 
-    status = subprocess.Popen(
+    proc = subprocess.Popen(
         os.path.join(current_dir, bat_name), cwd=libs_root, shell=True, env=os.environ.copy(), preexec_fn=os.setsid)
 
-    returncode = status.wait()
+    returncode = proc.wait()
     if returncode == 0:
         if os.path.exists(os.path.join(current_dir, bat_name)):
             os.remove(os.path.join(current_dir, bat_name))
@@ -117,7 +118,9 @@ def cal_ki67(slide_path, x_coords=[], y_coords=[]):
             probs_np = np.array(probs_np)
     else:
         raise ValueError('run subprocess failed')
+
     return center_coords_np, cls_labels_np, probs_np
+
 
 def compute_process(slide_path, x_coords=[], y_coords=[], patch_size=1024):
     comm = MPI.COMM_WORLD

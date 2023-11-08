@@ -23,6 +23,7 @@ from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus,
     RocheDiplomat, RocheWsiInput, RocheIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
     RocheMarkerShape, RochePanel, RocheHeatMap
 from cyborg.modules.partner.roche.utils.color import hex_to_rgba
+from cyborg.modules.partner.roche.utils.paramid import gen_dimensions, gen_opacities
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.encoding import CyborgJsonEncoder
 from cyborg.utils.id_worker import IdWorker
@@ -118,6 +119,8 @@ class RocheDomainService(object):
         input_info = task.input_info
         slide_width = input_info.get('slide_width', 0)
         slide_height = input_info.get('slide_height', 0)
+
+        dimensions = gen_dimensions(slide_width, slide_height)
         wsi_input = RocheWsiInput(
             image_location='',
             image_id='0',
@@ -131,10 +134,8 @@ class RocheDomainService(object):
             slide_width=slide_width,
             slide_height=slide_height,
             slide_depth=0,
-            number_levels=1,
-            dimensions=[
-                [slide_width, slide_height],
-            ]
+            number_levels=len(dimensions),
+            dimensions=dimensions
         )
         # mpp = slide.mpp or 0.242042
 
@@ -259,8 +260,9 @@ class RocheDomainService(object):
         )
 
         heatmap = RocheHeatMap(
-            gui='HER-2',
-            labels=[{'0': 'None'}, {'255': 'High Density'}]
+            gui=HER2_ALGORITHM_DISPLAY_ID,
+            labels=[{'0': 'None'}, {'255': 'High Density'}],
+            level_opacity=gen_opacities(len(dimensions))
         )
 
         return RocheALGResult(

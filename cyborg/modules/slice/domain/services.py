@@ -48,8 +48,7 @@ class SliceDomainService(object):
                 from cyborg.libs.label_ocr.label_rec import label_recognition
                 return label_recognition(label_path, slice_label_path, mode=label_rec_mode)
             except Exception as e:
-                logger.error('label ocr error :' + str(e))
-                return ''
+                logger.exception(e)
         return ''
 
     def update_clarity(self, slice_id: int, slice_file_path: str):

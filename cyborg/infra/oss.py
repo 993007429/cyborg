@@ -226,4 +226,4 @@ oss: Oss = MinIO(
     private_endpoint=Settings.PRIVATE_ENDPOINT,
     bucket_name=Settings.BUCKET_NAME,
     use_https=Settings.USE_HTTPS
-)
+) if Settings.MINIO_ACCESS_KEY else None

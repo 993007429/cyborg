@@ -184,6 +184,9 @@ class AIService(object):
             self.slice_service.finish_ai(status=SliceStartedStatus.failed)
             return AppResponse(message=result.err_msg)
 
+        alg_time = time.time() - start_time
+        logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 算法部分完成,耗时{alg_time}')
+
         stats = self.domain_service.refresh_ai_statistics(
             is_error=bool(result.err_msg), ai_type=ai_type, ai_suggest=result.ai_suggest, slice_info=task.slice_info
         )
@@ -216,8 +219,8 @@ class AIService(object):
                 threshold_value=result.get('aiThreshold')
             )
 
-        alg_time = time.time() - start_time
-        logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 计算完成,耗时{alg_time}')
+        total_time = time.time() - start_time
+        logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 全部完成,耗时{total_time}')
 
         return AppResponse(message='succeed')
 
