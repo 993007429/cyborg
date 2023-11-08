@@ -45,7 +45,7 @@ class AIService(object):
 
         task = self.domain_service.repository.get_latest_ai_task(
             case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
-        if task and not task.is_finished:
+        if task and not task.is_finished and task.result_id:
             app.control.revoke(task.result_id, terminate=True)
             self.domain_service.update_ai_task(task, status=AITaskStatus.canceled)
         res = self.user_service.update_company_trial(ai_name=ai_name)
@@ -283,6 +283,10 @@ class AIService(object):
                 return res
 
         return AppResponse(data={'result': 'task is terminated successfully', 'status': 1})
+
+    def kill_task_processes(self, pid: int) -> AppResponse:
+        result = self.domain_service.kill_task_processes(pid=pid)
+        return AppResponse(data=result)
 
     def cancel_calibration(self) -> AppResponse:
         task = self.domain_service.repository.get_latest_calibrate_ai_task()

@@ -1,11 +1,14 @@
 import datetime
 import json
 import logging
+import os
+import signal
 from collections import Counter
 from typing import Optional, List, Type, Tuple
 
 import cv2
 import numpy as np
+import psutil
 from celery.result import AsyncResult
 from celery.exceptions import TimeoutError as CeleryTimeoutError
 
@@ -33,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 class AIDomainService(object):
     RANK0_TASK_ID_CACHE_KEY = 'cyborg:ai_task:rank0'
+
+    CELERY_WORKER_PID_CACHE_KEY = 'celery_worker_pid:{0}'
 
     def __init__(self, repository: AIRepository):
         super(AIDomainService, self).__init__()
@@ -137,6 +142,18 @@ class AIDomainService(object):
 
     def unmark_ai_task_running(self, ai_task: AITaskEntity):
         return cache.srem('running_ai_tasks', ai_task.id)
+
+    def kill_task_processes(self, pid: int) -> bool:
+        p = psutil.Process(pid)
+        for process in p.children(recursive=True):
+            logger.info(process.pid)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except Exception as e:
+                logger.warning(e)
+
+        p.terminate()
+        return True
 
     def get_ai_statistics(self, ai_type: AIType, company: str, start_date: str, end_date: str) -> List[dict]:
         stats_list = self.repository.get_ai_stats(

@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 
 from celery import Celery
+from celery.signals import worker_process_shutdown
 from kombu import Exchange, Queue
 
 from cyborg.app.request_context import request_context
@@ -59,6 +60,13 @@ app.conf.update(
         }},
     )
 )
+
+
+@worker_process_shutdown.connect
+def worker_process_shutdown_handler(pid=None, **kwargs):
+    from cyborg.app.service_factory import AppServiceFactory
+    logger.info(f'kill task processes: {pid}')
+    AppServiceFactory.ai_service.kill_task_processes(pid=pid)
 
 
 def celery_task(f):
