@@ -239,7 +239,7 @@ class RocheHeatMap(BaseValueObject):
     name: str = HER2_ALGORITHM_DISPLAY_ID
     overlay: str = HER2_ALGORITHM_DISPLAY_ID
     visible: bool = True
-    level_opacity: List[float] = [0, 0.15, 0.3, 0.4, 0.45, 0.5]
+    level_opacity: List[float] = []
 
 
 class RochePanel(BaseValueObject):
