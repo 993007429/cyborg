@@ -324,6 +324,7 @@ class AIService(object):
         for task in failed:
             request_context.case_id = task['case_id']
             request_context.file_id = task['file_id']
+            request_context.company = None
             self.slice_service.update_ai_status(status=SliceStartedStatus.failed)
             app.control.revoke(task['result_id'], terminate=True)
         return AppResponse(data=failed)
