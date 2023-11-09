@@ -71,7 +71,7 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
-    def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
+    def get_slice(self, case_id: str, file_id: str, company: Optional[str] = None) -> Optional[SliceEntity]:
         ...
 
     @abstractmethod
