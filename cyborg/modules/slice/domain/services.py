@@ -85,7 +85,7 @@ class SliceDomainService(object):
         try:
             slide = open_slide(slide_save_name)
         except Exception as e:
-            logger.warning(e)
+            logger.exception(e)
             return
 
         try:
@@ -549,7 +549,7 @@ class SliceDomainService(object):
                             break
             return True
         except Exception as e:
-            logger.warning(f'切片名为{slide_path}/{file_name}文件损坏: {e}')
+            logger.exception(f'切片名为{slide_path}/{file_name}文件损坏: {e}')
             return False
 
     def save_record(
