@@ -215,14 +215,11 @@ class SliceService(object):
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
                     sample_num=upload_id if high_through else case_id, high_through=high_through,
                 )
-                if not slice_info:
-                    return AppResponse(err_code=3, message='3')
-                else:
+                if slice_info:
                     return AppResponse(data=slice_info)
+            return AppResponse(err_code=3, message='3')
         else:
             return AppResponse(data={'path': os.path.join(Settings.DATA_DIR, company_id, 'data')})
-
-        return AppResponse(err_code=6, message='上传发生异常')
 
     def update_slice_info(
             self, case_id: str, file_id: str, high_through: bool, info: dict) -> AppResponse:
