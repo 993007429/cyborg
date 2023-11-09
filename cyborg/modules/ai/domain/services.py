@@ -146,7 +146,6 @@ class AIDomainService(object):
     def kill_task_processes(self, pid: int) -> bool:
         p = psutil.Process(pid)
         for process in p.children(recursive=True):
-            logger.info(process.pid)
             try:
                 os.killpg(process.pid, signal.SIGTERM)
             except Exception as e:

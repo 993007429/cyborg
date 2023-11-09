@@ -314,7 +314,7 @@ class SliceDomainService(object):
         return None
 
     def update_ai_status(
-            self, case_id: str, file_id: str, company_id: str, status: SliceStartedStatus,
+            self, case_id: str, file_id: str, company_id: Optional[str], status: SliceStartedStatus,
             ai_name: Optional[str] = None, upload_batch_number: Optional[str] = None,
             template_id: Optional[int] = None, ip_address: Optional[str] = None
     ) -> Tuple[Optional[str], Optional[SliceEntity]]:

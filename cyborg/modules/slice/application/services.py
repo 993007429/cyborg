@@ -402,7 +402,7 @@ class SliceService(object):
                 tile_image.save(buf, 'jpeg')
                 return AppResponse(data={'image_data': buf})
             except Exception as e:
-                logger.error(e)
+                logger.exception(e)
                 return AppResponse(err_code=2, message='image encounter error!')
 
     def get_slice_thumbnail(self, case_id: str, file_id: str) -> AppResponse[BytesIO]:

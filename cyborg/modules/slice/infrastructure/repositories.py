@@ -146,8 +146,11 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             SliceModel.upload_batch_number == upload_batch_number
         ).count()
 
-    def get_slice(self, case_id: str, file_id: str, company: str) -> Optional[SliceEntity]:
-        model = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id, company=company).first()
+    def get_slice(self, case_id: str, file_id: str, company: Optional[str] = None) -> Optional[SliceEntity]:
+        query = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id)
+        if company is not None:
+            query = query.filter_by(company=company)
+        model = query.first()
         return SliceEntity.from_dict(model.raw_data) if model else None
 
     def get_slice_by_local_filename(self, user_file_path: str, file_name: str, company: str) -> Optional[SliceEntity]:
