@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from typing import List
 
 from cyborg.app.request_context import request_context
 from cyborg.infra.oss import oss
@@ -12,7 +13,6 @@ from cyborg.modules.partner.roche.domain.services import RocheDomainService
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult
 from cyborg.modules.slice_analysis.application.services import SliceAnalysisService
 from cyborg.seedwork.application.responses import AppResponse
-from cyborg.seedwork.domain.value_objects import AIType
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,27 @@ class RocheService(object):
 
         return RocheAppResponse(data={'analysis_id': task.analysis_id} if task else None)
 
+    def start_secondary_ai(self, analysis_id: str, regions: List[dict]) -> AppResponse:
+
+        task = self.domain_service.repository.get_ai_task_by_analysis_id(analysis_id) if analysis_id else None
+        if not task:
+            return RocheAppResponse(err_code=1, message='参数错误')
+
+        input_info = task.input_info or {}
+        input_info['regions'] = regions
+
+        secondary_task = self.domain_service.create_ai_task(
+            task.algorithm_id,
+            task.slide_url,
+            task.input_info
+        )
+
+        result = tasks.run_ai_task(secondary_task.analysis_id)
+        if result:
+            self.domain_service.update_ai_task(secondary_task, result_id=result.id)
+
+        return RocheAppResponse(data={'analysis_id': secondary_task.analysis_id} if task else None)
+
     def run_ai_task(self, analysis_id: str) -> RocheAppResponse:
         logger.info('run ai task')
         start_time = time.time()
@@ -82,12 +103,7 @@ class RocheService(object):
         # has_manual_roi = task.rois and task.rois[0]['x']
 
         try:
-            if ai_type == AIType.her2:
-                result = self.domain_service.run_her2(task)
-            else:
-                logger.error(f'{ai_type} does not support')
-                result = RocheALGResult(err_msg=f'{ai_type} does not support')
-
+            result = self.domain_service.start_analysis(task)
         except Exception as e:
             logger.exception(e)
             result = RocheALGResult(err_msg='run alg error')

@@ -22,6 +22,18 @@ def analysis():
     return jsonify(res.dict())
 
 
+@roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/secondary', methods=['post'])
+def secondary_analysis(analysis_id: str):
+    logger.info('>>>>>>>>>>')
+    logger.info(request.json)
+    regions = request.json.get('regions')
+
+    res = RocheAppServiceFactory.roche_service.start_secondary_ai(
+        analysis_id=analysis_id, regions=regions)
+
+    return jsonify(res.dict())
+
+
 @roche_blueprint.route('/openapi/v1/analysis/<string:analysis_id>/status', methods=['get'])
 def get_analysis_status(analysis_id: str):
     res = RocheAppServiceFactory.roche_service.get_task_status(analysis_id)

@@ -25,8 +25,7 @@ def open_slide(filename):
     elif ext == 'hdx':  # 海德星5片机
         from .HdxSlide import HdxSlide
         slide = HdxSlide(filename)
-    # 志盈linux版本还有些问题，后期改完再统一
-    elif ext == 'zyp' and sys.platform == 'win32':  # 志盈
+    elif ext == 'zyp':  # 志盈
         from .ZYPSlide import ZYPSlide
         slide = ZYPSlide(filename)
     elif ext == 'tmap':  # 优纳
