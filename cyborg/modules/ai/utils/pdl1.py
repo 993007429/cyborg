@@ -225,6 +225,7 @@ def compute_pdl1_s(slide_path=None, x_coords=None, y_coords=None, fitting_model=
             changed_cls_labels = np.array(changed_cls_labels)
         else:
             changed_cls_labels = cls_labels_np
+
         remap_changed_cls_labels = np.vectorize(Pdl1Consts.label_to_diagnosis_type.get)(changed_cls_labels)
         remap_ori_cls_labels = np.vectorize(Pdl1Consts.label_to_diagnosis_type.get)(cls_labels_np)
         if remap_changed_cls_labels is not None:

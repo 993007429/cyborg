@@ -108,6 +108,7 @@ class RocheAlgorithm(BaseValueObject):
     roi_analysis_support: bool
     primary_analysis_overlay_display: bool
     provides_primary_analysis_score: bool
+    provides_navigational_heatmap_thumbnail: bool
     manual_score_mode: str
     results_parameters: List[dict]
     # clone_type: List[str]
@@ -259,4 +260,12 @@ class RocheALGResult(BaseValueObject):
     marker_shapes: Dict[str, RocheMarkerShape] = {}
     heatmaps: List[RocheHeatMap] = []
     panels: List[RochePanel] = []
+    thumbnail: Optional[bytearray] = None
     err_msg: Optional[str] = None
+
+
+class RocheColor(BaseEnum):
+    purple: str = '#660099'
+    green: str = '#00ff00'
+    yellow: str = '#ffff00'
+    red: str = '#ff0000'

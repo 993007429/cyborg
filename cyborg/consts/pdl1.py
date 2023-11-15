@@ -23,4 +23,14 @@ class Pdl1Consts(object):
         '碳末沉渣': 9,
         '其他': 10
     }
+
+    label_to_en = {
+        0: 'Negative normal cells',
+        1: 'Negative tumor cells',
+        2: 'Positive normal cells',
+        3: 'Positive tumor cells',
+    }
+
+    sorted_labels = [0, 2, 1, 3]
+
     reversed_annot_clss_map_dict = {v: k for k, v in annot_clss_map_dict.items()}

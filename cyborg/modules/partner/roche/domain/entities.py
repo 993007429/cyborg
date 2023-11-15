@@ -31,9 +31,9 @@ class RocheAITaskEntity(BaseDomainEntity):
         parsed = urlparse(self.slide_url)
         suffix = parsed.path.split('.')[-1] if parsed.path and '.' in parsed.path else ''
         if suffix:
-            return f'/tmp/{self.analysis_id}.{suffix}'
+            return f'/data/download/{self.analysis_id}.{suffix}'
         else:
-            return f'/tmp/{self.analysis_id}'
+            return f'/data/download/{self.analysis_id}'
 
     def setup_expired_time(self):
         expired_at = datetime.now() + timedelta(seconds=Consts.ALGOR_OVERTIME.get(self.ai_type.value, 1800))

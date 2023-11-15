@@ -1,8 +1,10 @@
 from typing import Optional, List
 
 from cyborg.infra.session import transaction
-from cyborg.modules.partner.roche.domain.consts import HER2_ALGORITHM_ID, HER2_ALGORITHM_DISPLAY_ID, HER2_ALGORITHM_NAME
-from cyborg.modules.partner.roche.domain.value_objects import RocheAlgorithmType, RocheTissueType, RocheAlgorithm
+from cyborg.modules.partner.roche.domain.consts import HER2_ALGORITHM_ID, HER2_ALGORITHM_DISPLAY_ID, \
+    HER2_ALGORITHM_NAME, PDL1_ALGORITHM_ID, PDL1_ALGORITHM_DISPLAY_ID, PDL1_ALGORITHM_NAME
+from cyborg.modules.partner.roche.domain.value_objects import RocheAlgorithmType, RocheTissueType, RocheAlgorithm, \
+    RocheAnnotationType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemyRepository
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity, RocheAlgorithmEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
@@ -39,11 +41,11 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             primary_analysis_overlay_display=True,
             provides_primary_analysis_score=True,
             manual_score_mode='INCLUSIVE',  # "EXCLUSIVE"
+            provides_navigational_heatmap_thumbnail=True,
             # 'clone_type=['SP142', 'SP263'],
-            # 'supported_mpp_ranges=[[0, 1]],
-            # 'secondary_analysis_support =True,
-            # 'secondary_analysis_annotation_type=RocheAnnotationType.INCLUSION.value,
-            # 'max_secondary_analysis_allowed=0,
+            secondary_analysis_support=True,
+            secondary_analysis_annotation_type=RocheAnnotationType.INCLUSION.value,
+            max_secondary_analysis_allowed=3,
             # 'overlay_acceptance_required=False,
             # 'slide_score_acceptance_required=False,
             # 'requires_analysis_rejection_feedback=False,
@@ -51,6 +53,51 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             results_parameters=[{
                 'name': 'HER-2 Level',
                 'key': 'her2_level',
+                'data_type': 'string',
+                'primary_display': True
+            }]
+        ),
+        PDL1_ALGORITHM_ID: RocheAlgorithm(
+            algorithm_id=PDL1_ALGORITHM_ID,
+            algorithm_display_id=PDL1_ALGORITHM_DISPLAY_ID,
+            algorithm_name=PDL1_ALGORITHM_NAME,
+            algorithm_description='Dipath PD-L1 algorithm',
+            algorithm_type=RocheAlgorithmType.IUO.value,
+            version_number='1.1.0',
+            software_build='4.0.5.123',
+            status='Active',
+            stain_name='PD-L1',
+            tissue_types=[
+                {'key': RocheTissueType.BREAST.name, 'name': RocheTissueType.BREAST.value},
+                {'key': RocheTissueType.LIVER.name, 'name': RocheTissueType.LIVER.value},
+                {'key': RocheTissueType.LUNG.name, 'name': RocheTissueType.LUNG.value},
+            ],
+            indication_types=[
+                {'key': 'MELANOMA', 'name': 'Melanoma'},
+                {'key': 'UROTHELIAL_CARCINOMA', 'name': 'Urothelial Carcinoma'}
+            ],
+            vendor='dipath1',
+            # supported_magnification='20',
+            supported_mpp_ranges=[[0.1, 1]],
+            supported_image_formats=['BIF', 'TIF', 'TIFF'],
+            supported_scanners=['VENTANA DP 200', 'VENTANA DP 600'],
+            required_slide_types=['HER-2'],
+            roi_analysis_support=False,
+            primary_analysis_overlay_display=True,
+            provides_primary_analysis_score=True,
+            manual_score_mode='INCLUSIVE',  # "EXCLUSIVE"
+            provides_navigational_heatmap_thumbnail=True,
+            # 'clone_type=['SP142', 'SP263'],
+            secondary_analysis_support=True,
+            secondary_analysis_annotation_type=RocheAnnotationType.INCLUSION.value,
+            max_secondary_analysis_allowed=3,
+            # 'overlay_acceptance_required=False,
+            # 'slide_score_acceptance_required=False,
+            # 'requires_analysis_rejection_feedback=False,
+            # 'provides_prognostic_score=False,
+            results_parameters=[{
+                'name': '',
+                'key': '',
                 'data_type': 'string',
                 'primary_display': True
             }]
