@@ -2,7 +2,7 @@ import sys
 import math
 from enum import IntEnum
 from threading import Lock
-from ctypes import windll, cdll, c_bool, c_int, POINTER, c_ubyte, c_float, c_uint64, c_char_p, byref
+from ctypes import *  # noqa
 
 import cv2
 import numpy as np
