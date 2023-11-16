@@ -189,6 +189,7 @@ def save_image():
 
 
 @api_blueprint.route('/files/getImage', methods=['get', 'post'])
+@api_blueprint.route('/files/getImage2', methods=['get', 'post'])
 def get_image():
     caseid = request.args.get('caseid')
     fileid = request.args.get('fileid')

@@ -48,7 +48,7 @@ class Settings(object):
         '/aipath/api/files/thumbnail',
         '/aipath/api/files/ROI2',
         '/aipath/api/files/downloadTemplate',
-        '/aipath/api/files/getImage',
+        '/aipath/api/files/getImage2',
         '/aipath/api/ai/inform',
         '/aipath/api/ai/connect',
         '/aipath/api/ai/cailibrateInform',

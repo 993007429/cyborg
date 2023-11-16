@@ -210,7 +210,8 @@ class SliceService(object):
             for local_file_name in file_list:
                 slice_info = self.domain_service.create_slice(
                     case_id=case_id, file_id=file_id, company_id=company_id, upload_path=upload_path,
-                    file_name=file_name, local_file_name=local_file_name, slide_type=slide_type, tool_type=tool_type,
+                    file_name=file_name, local_file_name=local_file_name, slide_type=slide_type,
+                    tool_type=tool_type,
                     label_rec_mode=company['label'], user_file_path=user_file_path,
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
                     sample_num=upload_id if high_through else case_id, high_through=high_through,
