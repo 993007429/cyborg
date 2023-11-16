@@ -1562,13 +1562,15 @@ class SliceAnalysisDomainService(object):
             cell_count = _cell_statics[cell_name]['count']
             _cell_statics[cell_name]['index'] = format(
                 round(cell_count * 100 / _cell_statics['总体炎症细胞']['count'], 2) if cell_count else 0, '0.2f')
-            _cell_statics[cell_name]['average'] = format(round(cell_count / export_count, 2), '0.2f')
+            _cell_statics[cell_name]['average'] = format(
+                round(cell_count / export_count, 2) if export_count else 0, '0.2f')
 
         for area_name in _area_statics.keys():
             area = _area_statics[area_name]['area']
             _area_statics[area_name]['area'] = format(round(area / 1000000, 2), '0.2f')
             _area_statics[area_name]['index'] = format(round(area * 100 / total_area, 2) if area else 0, '0.2f')
-            _area_statics[area_name]['average'] = format(round((area / 1000000) / export_count, 2), '0.2f')
+            _area_statics[area_name]['average'] = format(
+                round((area / 1000000) / export_count, 2) if export_count else 0, '0.2f')
         _area_statics['总体区域']['index'] = '-'
 
         cell_statics = [{'name': cell_name, 'stats': item} for cell_name, item in _cell_statics.items()]

@@ -62,7 +62,7 @@ class SliceEntity(BaseDomainEntity):
         return fs.path_join(self.slice_dir, 'slice_label.jpg')
 
     def get_image_url(self, image_type: SliceImageType):
-        return f'{Settings.IMAGE_SERVER}/files/getImage?caseid={self.caseid}&fileid={self.fileid}&type={image_type.value}'
+        return f'{Settings.IMAGE_SERVER}/files/getImage2?caseid={self.caseid}&fileid={self.fileid}&type={image_type.value}'
 
     def get_tile_path(self, x: int, y: int, z: int) -> str:
         return os.path.join(
