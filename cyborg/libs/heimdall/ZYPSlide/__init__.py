@@ -80,14 +80,16 @@ class ZYPSlide(SlideBase):
             return None
 
         img = POINTER(c_ubyte)()
-        imgLen = lib.GetScaleImage(self.max_scale / scale, int(crop_start_x / scale), int(crop_start_y / scale)
-                                   , math.floor(crop_width / scale), int(crop_height / scale), byref(img), self.slide)
+        imgLen = lib.GetScaleImage(self.max_scale/scale, int(crop_start_x/scale), int(crop_start_y/scale)
+                                   , math.floor(crop_width/scale), int(crop_height/scale), byref(img), self.slide)
 
         bits = np.ctypeslib.as_array(img, (imgLen,))
         crop_region = cv2.imdecode(bits, cv2.IMREAD_COLOR)
         lib.FreePtr(byref(img))
         del bits
         crop_region = crop_region[:, :, ::-1]
+        if greyscale:
+            crop_region = 0.2989 * crop_region[:, :, 0] + 0.5870 * crop_region[:, :, 1] + 0.1140 * crop_region[:, :, 2]
         return crop_region
 
     def save_label(self, path=None):

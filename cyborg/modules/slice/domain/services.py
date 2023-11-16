@@ -116,8 +116,8 @@ class SliceDomainService(object):
         try:
             thumbnail_image = slide.get_thumbnail(Settings.THUMBNAIL_BOUNDING)
             thumbnail_image.save(os.path.join(upload_path, "thumbnail.jpeg"))
-        except Exception:
-            logger.warning(f'获取缩略图失败: {case_id}-{file_id}')
+        except Exception as e:
+            logger.exception(e)
 
         slice_entity = SliceEntity(raw_data={
             'fileid': file_id,

@@ -248,7 +248,7 @@ class SliceService(object):
         if slide_quality is not None:
             slice_entity.update_data(slide_quality=slide_quality)
         if cell_num is not None:
-            slice_entity.update_data(cellNum=cell_num)
+            slice_entity.update_data(cell_num=cell_num)
         if as_id is not None:
             slice_entity.update_data(ai_id=as_id)
         slice_entity.update_data(update_time=datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
