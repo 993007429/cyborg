@@ -20,7 +20,7 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             algorithm_name=HER2_ALGORITHM_NAME,
             algorithm_description='Dipath Her2 algorithm',
             algorithm_type=RocheAlgorithmType.IUO.value,
-            version_number='1.1.0',
+            version_number='1.1.1',
             software_build='4.0.5.123',
             status='Active',
             stain_name='HER-2',
@@ -63,12 +63,11 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             algorithm_name=PDL1_ALGORITHM_NAME,
             algorithm_description='Dipath PD-L1 algorithm',
             algorithm_type=RocheAlgorithmType.IUO.value,
-            version_number='1.1.0',
+            version_number='1.1.1',
             software_build='4.0.5.123',
             status='Active',
             stain_name='PD-L1',
             tissue_types=[
-                {'key': RocheTissueType.BREAST.name, 'name': RocheTissueType.BREAST.value},
                 {'key': RocheTissueType.LIVER.name, 'name': RocheTissueType.LIVER.value},
                 {'key': RocheTissueType.LUNG.name, 'name': RocheTissueType.LUNG.value},
             ],
@@ -81,7 +80,7 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             supported_mpp_ranges=[[0.1, 1]],
             supported_image_formats=['BIF', 'TIF', 'TIFF'],
             supported_scanners=['VENTANA DP 200', 'VENTANA DP 600'],
-            required_slide_types=['HER-2'],
+            required_slide_types=['PD-L1'],
             roi_analysis_support=False,
             primary_analysis_overlay_display=True,
             provides_primary_analysis_score=True,
@@ -96,8 +95,8 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             # 'requires_analysis_rejection_feedback=False,
             # 'provides_prognostic_score=False,
             results_parameters=[{
-                'name': '',
-                'key': '',
+                'name': 'tps',
+                'key': 'tps',
                 'data_type': 'string',
                 'primary_display': True
             }]
