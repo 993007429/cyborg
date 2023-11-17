@@ -76,34 +76,41 @@ class Settings(object):
     CLOUD = False
 
     # mysql配置
+    MYSQL_URI = os.environ.get('mysql.uri') or LOCAL_SETTINGS['mysql']['uri']
     MYSQL_USER = os.environ.get('mysql.user') or LOCAL_SETTINGS['mysql']['user']
     MYSQL_PASSWORD = os.environ.get('mysql.password') or LOCAL_SETTINGS['mysql']['password']
     MYSQL_HOST = os.environ.get('mysql.host') or LOCAL_SETTINGS['mysql']['host']
     MYSQL_PORT = os.environ.get('mysql.port') or LOCAL_SETTINGS['mysql']['port']
-    MYSQL_DATABASE = 'dipath'
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(
-        MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE)
+    MYSQL_DATABASE = os.environ.get('mysql.db') or LOCAL_SETTINGS['mysql']['db']
+    if MYSQL_URI:
+        SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}'.format(
+            MYSQL_USER, MYSQL_PASSWORD, MYSQL_URI)
+    else:
+        SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'.format(
+            MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_COMMIT_ON_TEARDOWN = False
 
     # redis配置
     REDIS_HOST = os.environ.get('redis.host') or LOCAL_SETTINGS['redis']['host']
     REDIS_PORT = os.environ.get('redis.port') or LOCAL_SETTINGS['redis']['port']
+    REDIS_PASSWORD = os.environ.get('redis.password') or LOCAL_SETTINGS['redis']['password']
 
     REDLOCK_CONNECTION_CONFIG = [{
         'host': REDIS_HOST,
         'port': REDIS_PORT,
         'db': 4,
-        'password': None
+        'password': REDIS_PASSWORD
     }]
 
     LOCK_EXPIRATION_TIME = 10  # 分布式锁过期时间
 
-    CACHE_REDIS_URI = 'redis://{}:{}'.format(REDIS_HOST, str(REDIS_PORT))
+    CACHE_REDIS_URI = 'redis://{}{}:{}'.format(
+        f':{REDIS_PASSWORD}@' if REDIS_PASSWORD else '', REDIS_HOST, str(REDIS_PORT))
 
     # celery配置
-    CELERY_BROKER_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['broker_db'])
-    CELERY_BACKEND_URL = 'redis://{}:{}/{}'.format(REDIS_HOST, str(REDIS_PORT), LOCAL_SETTINGS['celery']['backend_db'])
+    CELERY_BROKER_URL = f"{CACHE_REDIS_URI}/{LOCAL_SETTINGS['celery']['broker_db']}"
+    CELERY_BACKEND_URL = f"{CACHE_REDIS_URI}/{LOCAL_SETTINGS['celery']['backend_db']}"
 
     GPU_SETTINGS = LOCAL_SETTINGS['gpu'] if 'gpu' in LOCAL_SETTINGS else None
     MINIO_SETTINGS = LOCAL_SETTINGS['minio'] if 'minio' in LOCAL_SETTINGS else None

@@ -554,6 +554,7 @@ class TiledSlice(BaseValueObject):
     mpp: float
     tile_size: int = 128
     max_num_per_tile: int = 5000
+    use_pyramid: bool = True
 
     def cal_tiles(
             self, x_coords: List[float], y_coords: List[float], level: Optional[int] = None

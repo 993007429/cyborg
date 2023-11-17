@@ -299,6 +299,19 @@ class SliceDomainService(object):
 
         return self.repository.save_slice(entity)
 
+    def update_import_ai_templates(self, case_id: str, file_id: str) -> bool:
+        entity = self.repository.get_slice(
+            case_id=case_id, file_id=file_id, company=request_context.current_company)
+        if not entity:
+            return False
+
+        if entity.template_id:
+            templates = entity.import_ai_templates or []
+            templates.append(entity.template_id)
+            entity.update_data(import_ai_templates=list(set(templates)))
+
+        return self.repository.save_slice(entity)
+
     def reset_ai_status(
             self, case_id: str, file_id: str, company_id: str) -> Optional[SliceEntity]:
         entity = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
