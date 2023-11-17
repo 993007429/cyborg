@@ -266,6 +266,11 @@ class SliceService(object):
             case_id=request_context.case_id, file_id=request_context.file_id, radius=radius, is_solid=is_solid)
         return AppResponse(message='update succeed' if updated else 'update failed')
 
+    def update_import_ai_templates(self) -> AppResponse:
+        updated = self.domain_service.update_import_ai_templates(
+            case_id=request_context.case_id, file_id=request_context.file_id)
+        return AppResponse(message='update succeed' if updated else 'update failed')
+
     def update_template_id(self, template_id: int) -> AppResponse:
         err_code, message = self.domain_service.update_template_id(
             case_id=request_context.case_id, file_id=request_context.file_id, template_id=template_id)
@@ -300,7 +305,7 @@ class SliceService(object):
             data=slice_entity.to_dict() if slice_entity else None
         )
 
-    def get_slice_info(self, case_id: str, file_id: str, company_id: str = '') -> AppResponse[dict]:
+    def get_slice_info(self, case_id: str, file_id: str, company_id: Optional[str] = None) -> AppResponse[dict]:
         err_code, message, entity = self.domain_service.get_slice(
             case_id=case_id, file_id=file_id, company_id=company_id or request_context.current_company)
         if entity:

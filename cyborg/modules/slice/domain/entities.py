@@ -189,6 +189,14 @@ class SliceEntity(BaseDomainEntity):
             print(f"解析 {ai_suggest} 失败: {e}")
         return ai_suggest_dict
 
+    @property
+    def is_imported_from_ai(self):
+        """
+        是否是导入了ai结果的标注
+        :return:
+        """
+        return self.import_ai_templates is None or self.template_id in self.import_ai_templates
+
     def to_dict(self, all_fields: bool = False):
         d = {
             'id': self.fileid,
@@ -216,7 +224,8 @@ class SliceEntity(BaseDomainEntity):
             'as_id': self.ai_id,
             "update_time": self.update_time,
             'aiDiagnosisState': self.ai_diagnosis_state,
-            'checkedDiagnosisState': self.checked_diagnosis_state
+            'checkedDiagnosisState': self.checked_diagnosis_state,
+            'isImportedFromAi': self.is_imported_from_ai
         }
 
         d.update(self.data_paths)

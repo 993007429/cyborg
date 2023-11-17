@@ -209,7 +209,7 @@ class SliceAnalysisDomainService(object):
         if not saved:
             return 'create mark tailed', None
 
-        if tiled_slice:
+        if tiled_slice and tiled_slice.use_pyramid:
             self.generate_mark_in_pyramid(mark=new_mark, tiled_slice=tiled_slice)
 
         if group_id:
@@ -269,7 +269,7 @@ class SliceAnalysisDomainService(object):
         if not saved:
             return 'create ai marks tailed', None
 
-        if tiled_slice:
+        if tiled_slice and tiled_slice.use_pyramid:
             self.generate_ai_marks_in_pyramid(marks=cell_mark_entities, tiled_slice=tiled_slice)
             self.generate_ai_marks_in_pyramid(
                 marks=roi_mark_entities, tiled_slice=tiled_slice, downsample_ratio=2, downsample_threshold=500)
@@ -296,12 +296,16 @@ class SliceAnalysisDomainService(object):
         :return:
         """
         scope, polygon = MarkEntity.parse_scope(scope)
-        tiles = tiled_slice.cal_tiles(x_coords=scope['x'], y_coords=scope['y'])
-        if not tiles:  # 多选框范围超出切片范围
-            return 2, 'no marks'
+        if tiled_slice.use_pyramid:
+            tiles = tiled_slice.cal_tiles(x_coords=scope['x'], y_coords=scope['y'])
+            if not tiles:  # 多选框范围超出切片范围
+                return 2, 'no marks'
+            tile_ids = [tiled_slice.tile_to_id(tile) for tile in tiles]
+        else:
+            tile_ids = None
 
         err_code, message = 0, 'modify marks succeed'
-        _, marks = self.repository.get_marks(tile_ids=[tiled_slice.tile_to_id(tile) for tile in tiles])
+        _, marks = self.repository.get_marks(tile_ids=tile_ids)
 
         marks_for_ai_result = []
         involved_groups = set()
@@ -450,7 +454,8 @@ class SliceAnalysisDomainService(object):
                     else:
                         self.repository.manual.delete_mark_by_id(mark.id)
                 else:
-                    self.generate_mark_in_pyramid(mark=mark, tiled_slice=tiled_slice)
+                    if tiled_slice.use_pyramid:
+                        self.generate_mark_in_pyramid(mark=mark, tiled_slice=tiled_slice)
 
             if 'type' in mark_item:
                 if not mark.is_area_diagnosis_type(ai_type=ai_type):
@@ -498,7 +503,7 @@ class SliceAnalysisDomainService(object):
         group_ids = self.repository.get_visible_mark_group_ids() if ai_type != 'human' else []
 
         # 所有手工标注不再分层，血细胞标注不分层
-        if ai_type in [AIType.human_tl, AIType.human] or self.repository.mark_table_suffix in ['label_bm']:
+        if not tiled_slice.use_pyramid:
             _, marks = self.repository.get_marks()
         else:
             tiles = tiled_slice.cal_tiles(x_coords=x_coords, y_coords=y_coords, level=z)  # 获取视野tile坐标位置列表
@@ -528,6 +533,14 @@ class SliceAnalysisDomainService(object):
 
         return mark_list
 
+    def can_use_pyramid(self, ai_type: AIType, is_imported_from_ai: bool) -> bool:
+        if ai_type in [AIType.human_tl, AIType.human]:
+            return False
+        elif ai_type == AIType.label:
+            return is_imported_from_ai
+        else:
+            return True
+
     def count_marks_in_scope(
             self, scope: Union[str, dict], tiled_slice: TiledSlice, ai_type: AIType
     ) -> Tuple[int, str, int]:
@@ -537,7 +550,7 @@ class SliceAnalysisDomainService(object):
             return 1, '当前框选区域过大，请适当放大切片后框选。', 0
 
         tile_ids = None
-        if ai_type != AIType.human:
+        if tiled_slice.use_pyramid:
             tiles = tiled_slice.cal_tiles(x_coords=scope['x'], y_coords=scope['y'])
             if not tiles:
                 return 0, 'query success', 0
@@ -632,7 +645,7 @@ class SliceAnalysisDomainService(object):
         scope, polygon = MarkEntity.parse_scope(scope)
 
         tile_ids = None
-        if ai_type not in [AIType.human, AIType.human_tl]:
+        if tiled_slice.use_pyramid:
             tiles = tiled_slice.cal_tiles(x_coords=scope['x'], y_coords=scope['y'])
             tile_ids = [tiled_slice.tile_to_id(tile) for tile in tiles]
 
@@ -856,7 +869,7 @@ class SliceAnalysisDomainService(object):
                 'is_empty': group.is_empty,
                 'is_show': group.is_show,
                 'mark_count': mark_count,
-                'children': self.show_mark_groups(sub_groups)
+                'children': self.show_mark_groups(sub_groups) if sub_groups else None
             })
             if sub_groups:
                 group.update_data(is_show=any(group.is_show != -1 for group in sub_groups))

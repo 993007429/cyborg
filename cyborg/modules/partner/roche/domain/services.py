@@ -27,7 +27,7 @@ from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus,
     RocheDiplomat, RocheWsiInput, RocheIndexItem, RocheMarkerPreset, RocheMarkerGroup, \
     RocheMarkerShape, RochePanel, RocheHeatMap, RocheColor
 from cyborg.modules.partner.roche.utils.color import hex_to_rgba
-from cyborg.modules.partner.roche.utils.image import image_to_8bit_binary_stream
+from cyborg.modules.partner.roche.utils.image import convert_image_to_png_data
 from cyborg.modules.partner.roche.utils.paramid import gen_dimensions, gen_opacities
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.encoding import CyborgJsonEncoder
@@ -140,7 +140,7 @@ class RocheDomainService(object):
             slide_magnification=40,
             slide_width=slide_width,
             slide_height=slide_height,
-            slide_depth=0,
+            slide_depth=1,
             number_levels=len(dimensions),
             dimensions=dimensions
         )
@@ -298,7 +298,7 @@ class RocheDomainService(object):
             marker_shapes=marker_shapes,
             heatmaps=[heatmap],
             panels=[markers_panel, heatmap_panel],
-            thumbnail=image_to_8bit_binary_stream(thumbnail)
+            thumbnail=convert_image_to_png_data(thumbnail)
         )
 
     def run_pdl1(self, task: RocheAITaskEntity, roi_list: List[dict], wsi_input: RocheWsiInput):
@@ -427,7 +427,7 @@ class RocheDomainService(object):
             marker_shapes=marker_shapes,
             heatmaps=[heatmap],
             panels=[markers_panel, heatmap_panel],
-            thumbnail=image_to_8bit_binary_stream(thumbnail))
+            thumbnail=convert_image_to_png_data(thumbnail))
 
     def save_ai_result(self, task: RocheAITaskEntity, result: RocheALGResult) -> bool:
         task.update_data(ai_results=result.ai_results)

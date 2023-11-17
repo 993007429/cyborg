@@ -129,7 +129,7 @@ class AbstractSlide(object):
         # Apply on solid background
         bg_color = '#' + self.properties.get(PROPERTY_NAME_BACKGROUND_COLOR,
                 'ffffff')
-        thumb = Image.new('RGB', tile.size, bg_color)
+        thumb = Image.new('RGBA', tile.size, bg_color)
         thumb.paste(tile, None, tile)
         thumb.thumbnail(size, Image.ANTIALIAS)
         return thumb

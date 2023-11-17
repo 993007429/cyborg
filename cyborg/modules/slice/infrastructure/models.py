@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, JSON, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Text, Float, JSON, TIMESTAMP, SmallInteger
 
 from cyborg.seedwork.infrastructure.models import BaseModel
 
@@ -93,6 +93,8 @@ class SliceModel(BaseModel):
     as_id = Column('asId', Integer, comment='用量统计记录id，用于算法用量统计去重')
     ai_angle = Column('aiAngle', Float, default=0, comment='算法给出的旋转角度')
     current_angle = Column('currentAngle', Float, default=0, comment='当前的旋转角度')
+    exported_to_pis = Column(SmallInteger, default=False, comment="导出到pis状态")
+    import_ai_templates = Column(JSON, default=[], comment='当前导入ai结果的标注模板')
     last_modified = Column(TIMESTAMP, nullable=False)
 
 

@@ -5,7 +5,7 @@ import shutil
 import time
 from functools import wraps
 from inspect import getfullargspec
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from cyborg.app.request_context import request_context
 from cyborg.modules.slice.application.services import SliceService
@@ -83,9 +83,11 @@ class SliceAnalysisService(object):
         self.domain_service = domain_service
         self.slice_service = slice_service
 
-    def _get_tiled_slice(self, case_id: str, file_id: str) -> Optional[TiledSlice]:
+    def _get_tiled_slice(self, case_id: str, file_id: str, ai_type: AIType) -> Optional[TiledSlice]:
         info = self.slice_service.get_slice_file_info(case_id=case_id, file_id=file_id).data
-        return TiledSlice(**info) if info else None
+        is_imported_from_ai = info.get('isImportedFromAi', False)
+        use_pyramid = self.domain_service.can_use_pyramid(ai_type=ai_type, is_imported_from_ai=is_imported_from_ai)
+        return TiledSlice(use_pyramid=use_pyramid, **info) if info else None
 
     def _fetch_mark_area(self, ai_type: AIType, case_id: str, file_id: str, marks: List[MarkEntity]):
         slice_info = self.slice_service.get_slice_file_info(case_id=case_id, file_id=file_id).data
@@ -122,7 +124,7 @@ class SliceAnalysisService(object):
         case_id = request_context.case_id
         file_id = request_context.file_id
 
-        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id)
+        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
         err_msg, new_mark = self.domain_service.create_mark(
             ai_type=ai_type, group_id=group_id, position=path, area_id=area_id,
             stroke_color=stroke_color, fill_color=fill_color, radius=radius, method=method, editable=editable,
@@ -154,7 +156,8 @@ class SliceAnalysisService(object):
         file_id = request_context.file_id
         ai_type = request_context.ai_type
 
-        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id) if not skip_mark_to_tile else None
+        tiled_slice = self._get_tiled_slice(
+            case_id=case_id, file_id=file_id, ai_type=ai_type) if not skip_mark_to_tile else None
 
         err_msg, new_marks = self.domain_service.create_ai_marks(
             cell_marks=cell_marks, roi_marks=roi_marks, tiled_slice=tiled_slice)
@@ -179,7 +182,7 @@ class SliceAnalysisService(object):
         ai_type = request_context.ai_type
 
         slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id).data
-        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id)
+        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
         radius = float(format(slice_info['radius'] / tiled_slice.mpp, '.5f'))
         mark_config = SliceMarkConfig(radius=radius, is_solid=slice_info['is_solid'] == 1)
 
@@ -198,8 +201,9 @@ class SliceAnalysisService(object):
         return AppResponse(message=err_msg, data=mark.to_dict() if mark else None)
 
     @connect_slice_db()
-    def count_marks_in_scope(self, scope: dict) -> AppResponse:
-        tiled_slice = self._get_tiled_slice(case_id=request_context.case_id, file_id=request_context.file_id)
+    def count_marks_in_scope(self, scope: Union[str, dict]) -> AppResponse:
+        tiled_slice = self._get_tiled_slice(
+            case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
         err_code, message, count = self.domain_service.count_marks_in_scope(
             scope=scope, tiled_slice=tiled_slice, ai_type=request_context.ai_type)
         return AppResponse(err_code=err_code, message=message, data={'select_count': count})
@@ -209,7 +213,7 @@ class SliceAnalysisService(object):
             self, marks_data: Optional[List[dict]], scope: Optional[dict], target_group_id: int,
     ) -> AppResponse:
         ai_type = request_context.ai_type
-        tiled_slice = self._get_tiled_slice(request_context.case_id, request_context.file_id)
+        tiled_slice = self._get_tiled_slice(request_context.case_id, request_context.file_id, ai_type=ai_type)
         if scope and 'x' in scope and 'y' in scope:
             err_code, message = self.domain_service.update_marks_by_scope(
                 scope, target_group_id, tiled_slice, ai_type, op_name=request_context.current_user.username)
@@ -219,9 +223,10 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def delete_marks(self, mark_ids: Optional[List[int]], scope: Optional[dict]):
-        tiled_slice = self._get_tiled_slice(case_id=request_context.case_id, file_id=request_context.file_id)
         op_name = request_context.current_user.username
         ai_type = request_context.ai_type
+        tiled_slice = self._get_tiled_slice(
+            case_id=request_context.case_id, file_id=request_context.file_id, ai_type=ai_type)
         if scope is not None:
             err_code, message = self.domain_service.delete_marks_by_scope(
                 scope=scope, tiled_slice=tiled_slice, ai_type=ai_type, op_name=op_name)
@@ -246,6 +251,8 @@ class SliceAnalysisService(object):
         _, marks = self.domain_service.repository.get_marks(per_page=1)
         if marks and ai_type in [AIType.fish_tissue]:
             self.slice_service.update_mark_config(radius=marks[0].radius, is_solid=marks[0].is_solid)
+
+        self.slice_service.update_import_ai_templates()
 
         return AppResponse(message='import ai result succeed')
 
@@ -406,7 +413,7 @@ class SliceAnalysisService(object):
         file_id = request_context.file_id
         ai_type = request_context.ai_type
 
-        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id)
+        tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
 
         data = self.domain_service.get_cell_count_in_quadrant(
             view_path=view_path, tiled_slice=tiled_slice, ai_type=ai_type)
@@ -561,3 +568,22 @@ class SliceAnalysisService(object):
     def get_np_info(self) -> AppResponse:
         data = self.domain_service.get_np_info()
         return AppResponse(message='get np info success', data=data)
+
+    def switch_ui(self) -> AppResponse:
+        case_id = request_context.case_id
+        file_id = request_context.file_id
+        ai_type = request_context.ai_type
+
+        res = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id)
+        if res.err_code:
+            return res
+
+        slice_info = res.data
+        is_imported_from_ai = slice_info.get('isImportedFromAi', False) if slice_info else False
+        use_pyramid = self.domain_service.can_use_pyramid(ai_type, is_imported_from_ai)
+
+        data = {
+            'usePyramid': use_pyramid
+        }
+
+        return AppResponse(data=data)

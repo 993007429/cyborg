@@ -302,3 +302,11 @@ def download_template():
 def export_json():
     file_path = AppServiceFactory.new_slice_analysis_service().export_marks()
     return send_file(file_path)
+
+
+@api_blueprint.route('/slice/switchAI', methods=['get', 'post'])
+def switch_ai():
+    ai_type = request.form.get('ai_type')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+    res = AppServiceFactory.new_slice_analysis_service().switch_ui()
+    return jsonify(res.dict())
