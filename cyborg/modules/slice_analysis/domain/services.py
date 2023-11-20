@@ -434,11 +434,12 @@ class SliceAnalysisDomainService(object):
                     involved_groups.add(mark.group_id)
                     involved_groups.add(target_group_id)
                     target_group = self.repository.get_mark_group_by_id(target_group_id)
+
                     if target_group:
                         mark.update_data(
                             group_id=target_group.id,
-                            fill_color=target_group.color if mark.fill_color else None,
-                            stroke_color=target_group.color if mark.stroke_color else None
+                            fill_color=target_group.color,
+                            stroke_color=target_group.color
                         )
 
             if 'position' in mark_item:  # 修改标注位置（形状）
@@ -465,12 +466,6 @@ class SliceAnalysisDomainService(object):
             if 'doctor_diagnosis' in mark_item:
                 if self.repository.manual.mark_table_suffix:
                     mark.update_data(doctor_diagnosis=mark_item['doctor_diagnosis'])
-
-            if not mark.is_area_diagnosis_type(ai_type=ai_type):
-                if 'stroke_color' in mark_item:
-                    mark.update_data(stroke_color=mark_item['stroke_color'])
-                if 'fill_color' in mark_item:
-                    mark.update_data(fill_color=mark_item['fill_color'])
 
             if is_ai:
                 self.repository.save_mark(mark)
