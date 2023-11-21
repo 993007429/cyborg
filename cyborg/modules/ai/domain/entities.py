@@ -21,6 +21,9 @@ class AITaskEntity(BaseDomainEntity):
         expired_at = datetime.now() + timedelta(seconds=Consts.ALGOR_OVERTIME.get(self.ai_type.value, 1800))
         self.update_data(expired_at=expired_at)
 
+    def reset(self):
+        self.update_data(status=AITaskStatus.default)
+
     def set_failed(self):
         self.update_data(status=AITaskStatus.failed)
 

@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 class AIDomainService(object):
     RANK0_TASK_ID_CACHE_KEY = 'cyborg:ai_task:rank0'
 
+    RUNNING_AI_TASKS_CACHE_KEY = 'cyborg:running_ai_tasks'
+
     CELERY_WORKER_PID_CACHE_KEY = 'celery_worker_pid:{0}'
 
     def __init__(self, repository: AIRepository):
@@ -94,6 +96,16 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
+    def reset_running_tasks(self) -> int:
+        tasks = self.repository.get_ai_tasks(status=AITaskStatus.analyzing)
+        purged = 0
+        for task in tasks:
+            task.reset()
+            if self.repository.save_ai_task(task):
+                purged += 1
+        cache.delete(self.RUNNING_AI_TASKS_CACHE_KEY)
+        return purged
+
     def check_available_gpu(self, ai_type: AIType, slide_path: str) -> List[str]:
 
         required_gpu_num, required_gpu_memory = Consts.MODEL_SIZE.get(ai_type, (1, 10))
@@ -123,7 +135,7 @@ class AIDomainService(object):
 
     @with_redlock('mark_ai_task_running')
     def mark_ai_task_running(self, ai_task: AITaskEntity) -> bool:
-        cache_key = 'running_ai_tasks'
+        cache_key = self.RUNNING_AI_TASKS_CACHE_KEY
         ai_task_ids = cache.smembers(cache_key)
         total_gpu_mem = 0
         for ai_task_id in ai_task_ids:
@@ -141,7 +153,7 @@ class AIDomainService(object):
         return True
 
     def unmark_ai_task_running(self, ai_task: AITaskEntity):
-        return cache.srem('running_ai_tasks', ai_task.id)
+        return cache.srem(self.RUNNING_AI_TASKS_CACHE_KEY, ai_task.id)
 
     def kill_task_processes(self, pid: int) -> bool:
         p = psutil.Process(pid)

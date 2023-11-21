@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from cyborg.infra.oss import oss
+from cyborg.modules.ai.utils.file import load_alg_model
 from .common import Conv
 
 
@@ -241,7 +242,7 @@ def attempt_load(weights, map_location=None):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        weight_file = oss.get_object_to_io(w)
+        weight_file = load_alg_model(w)
         ckpt = torch.load(weight_file, map_location=map_location)  # load
         model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
 

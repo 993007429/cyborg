@@ -186,3 +186,9 @@ async def free_up_space():
 def get_config():
     res = AppServiceFactory.slice_service.get_config()
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/purgeTasks', methods=['get', 'post'])
+def purge_tasks():
+    res = AppServiceFactory.ai_service.purge_tasks()
+    return jsonify(res.dict())
