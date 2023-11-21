@@ -96,6 +96,9 @@ class SliceModel(BaseModel):
     exported_to_pis = Column(SmallInteger, default=False, comment="导出到pis状态")
     import_ai_templates = Column(JSON, default=[], comment='当前导入ai结果的标注模板')
     last_modified = Column(TIMESTAMP, nullable=False)
+    is_marked = Column(Integer, default=0, comment='是否已标注(0未标注，1已标注)')
+    labels = Column(JSON, comment='自定义标签')
+    ai_tips = Column(JSON, default=[], comment="AI建议相关的说明文案")
 
 
 class ReportConfigModel(BaseModel):
@@ -104,3 +107,14 @@ class ReportConfigModel(BaseModel):
     id = Column(Integer, primary_key=True, comment='主键ID')
     company = Column(String(255), nullable=True, unique=True, comment='名字')
     template_config = Column(JSON, nullable=True, default=[], comment='报告模版配置')
+
+
+class SliceErrModel(BaseModel):
+    __table_args__ = {'extend_existing': True}
+    __tablename__ = 'slice_err'
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True, comment="主键ID")
+    fileid = Column(String(255), nullable=True, comment="切片id")
+    caseid = Column(String(255), nullable=True, comment="病例号")
+    err_code = Column(Integer, default=0, comment="错误码")
+    err_message = Column(Text, default='', comment="错误信息")
+    update_time = Column(String(255), default='', comment="更新时间")

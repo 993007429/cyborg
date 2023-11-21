@@ -17,7 +17,6 @@ class Settings(object):
     ENV = os.environ.get('CYBORG_ENV', 'default').upper()
 
     LOCAL_SETTINGS = get_local_settings(f'{PROJECT_DIR}/local_settings/cyborg-{ENV.lower()}.ini')
-
     LOG_LEVEL = 'INFO'
 
     # 设置session 秘钥

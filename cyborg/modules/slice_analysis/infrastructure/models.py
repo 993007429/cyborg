@@ -6,7 +6,6 @@ from cyborg.seedwork.infrastructure.models import BaseModel
 
 
 class AIModel(BaseModel):
-
     __tablename__ = 'ai'
 
     __table_args__ = {'extend_existing': True}
@@ -16,7 +15,6 @@ class AIModel(BaseModel):
 
 
 class TemplateModel(BaseModel):
-
     __tablename__ = 'template'
 
     __table_args__ = {'extend_existing': True}
@@ -30,7 +28,6 @@ class TemplateModel(BaseModel):
 
 
 class MarkModel(BaseModel):
-
     __abstract__ = True
 
     __table_args__ = {'extend_existing': True}
@@ -57,7 +54,6 @@ class MarkModel(BaseModel):
 
 
 class MarkToTileModel(BaseModel):
-
     __abstract__ = True
 
     __table_args__ = {'extend_existing': True}
@@ -70,25 +66,22 @@ class MarkToTileModel(BaseModel):
 
 
 def get_ai_mark_model(table_name_suffix: str) -> Type[MarkModel]:
-
     class AIMarkModel(MarkModel):
         __tablename__ = f'Mark_{table_name_suffix}'
-        __import_table_name__ = __tablename__.replace('_label', '') + '_1'    # 对应的算法标注导入源表
+        __import_table_name__ = __tablename__.replace('_label', '') + '_1'  # 对应的算法标注导入源表
 
     return AIMarkModel
 
 
 def get_ai_mark_to_tile_model(table_name_suffix: str) -> Type[MarkToTileModel]:
-
     class AIMarkToTileModel(MarkToTileModel):
         __tablename__ = f'MarkToTile_{table_name_suffix}'
-        __import_table_name__ = __tablename__.replace('_label', '') + '_1'   # 对应的算法标注导入源表
+        __import_table_name__ = __tablename__.replace('_label', '') + '_1'  # 对应的算法标注导入源表
 
     return AIMarkToTileModel
 
 
 class MarkGroupModel(BaseModel):
-
     __tablename__ = 'MarkGroup'
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
@@ -111,7 +104,6 @@ class MarkGroupModel(BaseModel):
 
 
 class Pdl1sCountModel(BaseModel):
-
     __tablename__ = "Pdl1sCount"
 
     tile_id = Column('tileId', Integer, primary_key=True)
@@ -122,7 +114,6 @@ class Pdl1sCountModel(BaseModel):
 
 
 class NPCountModel(BaseModel):
-
     __tablename__ = "NPCount"
 
     tile_id = Column('tileId', Integer, primary_key=True)
@@ -133,7 +124,6 @@ class NPCountModel(BaseModel):
 
 
 class ChangeRecordModel(BaseModel):
-
     __tablename__ = 'ChangeRecord'
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')

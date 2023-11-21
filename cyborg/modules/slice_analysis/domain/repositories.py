@@ -171,6 +171,10 @@ class SliceMarkRepository(metaclass=ABCMeta):
     def get_cell_count(self, ai_type: AIType, tile_ids: List[int]) -> List[Union[Pdl1sCountEntity, NPCountEntity]]:
         ...
 
+    @abstractmethod
+    def get_mark_groups(self) -> List[MarkGroupEntity]:
+        ...
+
 
 class AIConfigRepository(metaclass=ABCMeta):
 

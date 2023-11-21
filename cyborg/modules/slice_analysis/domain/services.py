@@ -1,7 +1,7 @@
-import json
 import logging
 import random
 import sys
+import json
 import time
 from collections import OrderedDict
 from itertools import groupby
@@ -130,6 +130,7 @@ class SliceAnalysisDomainService(object):
                 for k, v in ai_result.get('cells', {}).items():
                     for mark in v.get('data', []):
                         mark['mark_type'] = 1
+                        mark['cell_type'] = area_mark.get_cell_type(ai_result["diagnosis"], k)
                         mark_list.append(mark)
                 for nucleus in ai_result.get('nuclei', []):
                     nucleus['mark_type'] = 1
@@ -143,6 +144,8 @@ class SliceAnalysisDomainService(object):
                     for item in cell.get('data', []):
                         for sub_item in item.get('data', []):
                             sub_item['mark_type'] = 1
+                            cell_types = list(filter(None, [cell.get('label'), item.get('label'), sub_item.get('label')]))
+                            sub_item['cell_type'] = '>'.join(cell_types)
                             mark_list.append(sub_item)
         else:
             mark_list = list(filter(None, [mark.to_dict_for_show(
@@ -150,7 +153,6 @@ class SliceAnalysisDomainService(object):
                 mark_config=mark_config, show_groups=show_groups
             ) for mark in marks if mark]))
             mark_list.sort(key=lambda x: x.get('show_layer', 0))
-
         return mark_list
 
     @transaction
@@ -483,20 +485,19 @@ class SliceAnalysisDomainService(object):
 
     def get_marks(
             self, ai_type: AIType, view_path: dict, tiled_slice: TiledSlice,
-            mark_config: Optional[SliceMarkConfig] = None
+            mark_config: Optional[SliceMarkConfig] = None,
+            template_id: int = None
     ) -> List[dict]:
         x_coords = view_path.get('x')
         y_coords = view_path.get('y')
         z = view_path.get('z')
         if z is None:
             return []
-
         z = max(min(11, tiled_slice.max_level), z)
         is_max_level = (z == tiled_slice.max_level)
         radius_ratio = min(2.75 ** (tiled_slice.max_level - z), 32)  # 放大系数
 
         group_ids = self.repository.get_visible_mark_group_ids() if ai_type != 'human' else []
-
         # 所有手工标注不再分层，血细胞标注不分层
         if not tiled_slice.use_pyramid:
             _, marks = self.repository.get_marks()
@@ -508,14 +509,18 @@ class SliceAnalysisDomainService(object):
             tile_ids = [tiled_slice.tile_to_id(tile=tile) for tile in tiles]
 
             _, marks = self.repository.get_marks(tile_ids=tile_ids)
-
             _, area_marks = self.repository.get_marks(mark_type=3)
             marks += area_marks
-
         mark_list = self.show_marks(
             ai_type=ai_type, marks=marks, radius_ratio=radius_ratio, is_max_level=is_max_level,
             mark_config=mark_config, show_groups=group_ids)
-
+        mark_cell_types = {}
+        logger.info(mark_list)
+        for mark in mark_list:
+            if ai_type == AIType.label and 'group_id' in mark:
+                if mark['group_id'] not in mark_cell_types:
+                    mark_cell_types[mark['group_id']] = self.get_mark_group(mark['group_id'], template_id=template_id)
+                mark['cell_type'] = mark_cell_types[mark['group_id']]
         if ai_type not in [AIType.human, AIType.label]:
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练
@@ -525,8 +530,23 @@ class SliceAnalysisDomainService(object):
                 ai_type=ai_type, marks=manual_marks, radius_ratio=radius_ratio,
                 mark_config=mark_config, show_groups=group_ids, is_manual=True)
             mark_list += manual_mark_list
-
         return mark_list
+
+    def get_mark_group(self, group_id: int, template_id: int):
+        if not group_id:
+            return ''
+        mark_groups = self.repository.get_mark_groups_by_template_id(template_id=template_id)
+        group_map = dict()
+        for group in mark_groups:
+            group_map[group.id] = {"parent_id": group.parent_id, 'group_name': group.group_name}
+        group_name = [group_map[group_id].get('group_name')]
+        parent_id = group_map[group_id]['parent_id']
+        if parent_id:
+            group_name.insert(0, group_map[parent_id].get('group_name'))
+            first_parent_id = group_map[parent_id].get('parent_id')
+            if first_parent_id:
+                group_name.insert(0, group_map[first_parent_id].get('group_name'))
+        return '>'.join(group_name)
 
     def can_use_pyramid(self, ai_type: AIType, is_imported_from_ai: bool) -> bool:
         if ai_type in [AIType.human_tl, AIType.human]:
@@ -757,33 +777,33 @@ class SliceAnalysisDomainService(object):
             result = []
             label_cell_types = OrderedDict({
                 '无': ['无'],
-                '骨髓细胞分类-红系': ['晚幼红细胞', '原始红细胞', '中幼红细胞', '早幼红细胞'],
-                '骨髓细胞分类-粒系': [
+                '红系': ['晚幼红细胞', '原始红细胞', '中幼红细胞', '早幼红细胞'],
+                '粒系': [
                     '中性分叶核粒细胞', '嗜酸性粒细胞', '原始粒细胞', '早幼粒细胞', '中性中幼粒细胞',
                     '中性杆状核粒细胞',
                     '嗜碱性粒细胞', '异常早幼粒细胞', '异常中幼粒细胞t(8,21)', '异常嗜酸性粒细胞 inv(16)',
                     '中性晚幼粒细胞'],
-                '骨髓细胞分类-淋巴系': [
+                '淋巴系': [
                     '淋巴细胞', '原始淋巴细胞', '反应性淋巴细胞', '大颗粒淋巴细胞', '毛细胞', '套细胞', '滤泡细胞',
                     'Burkkit细胞',
                     '淋巴瘤细胞（其他）', '幼稚淋巴细胞', '反应性淋巴细胞'],
                 'MDS病态造血-红系': [
                     '核异常-核出芽', '核异常-核间桥', '核异常-核碎裂', '核异常-多个核', '胞浆异常-胞浆空泡',
                     '大小异常-巨幼样变-红'],
-                '骨髓细胞分类-单核系': ['原始单核细胞', '单核细胞', '异常单核细胞（PB）', '幼稚单核细胞'],
-                '骨髓细胞分类-其他细胞': [
+                '单核系': ['原始单核细胞', '单核细胞', '异常单核细胞（PB）', '幼稚单核细胞'],
+                '其他细胞': [
                     '成骨细胞', '破骨细胞', '戈谢细胞', '海蓝细胞', '尼曼匹克细胞', '分裂象', '转移瘤细胞', '吞噬细胞'],
-                '骨髓细胞分类-浆细胞': ['浆细胞', '骨髓瘤细胞'],
-                '骨髓细胞分类-Auer小体': ['柴捆细胞', '含Auer小体细胞'],
+                '浆细胞': ['浆细胞', '骨髓瘤细胞'],
+                'Auer小体': ['柴捆细胞', '含Auer小体细胞'],
                 'MDS病态造血-粒系': [
                     '核异常-分叶过多', '核异常-分叶减少', '胞浆异常-颗粒减少', '胞浆异常-杜勒小体', '胞浆异常-Auer小体',
                     '大小异常-巨幼样变'],
-                '骨髓细胞分类-巨核系': [
+                '巨核系': [
                     '原始巨核细胞', '幼稚巨核细胞', '颗粒型巨核细胞', '产版型巨核细胞', '裸核型巨核细胞'],
                 'MDS病态造血-巨核系': [
                     '大小异常-微小巨核', '大小异常-单圆巨核', '大小异常-多圆巨核', '核异常-核分叶减少'],
                 'MPN巨核细胞': ['CML-侏儒状巨核', 'ET-鹿角状巨核', 'PMF-气球状巨核'],
-                '骨髓细胞分类-Artefacts': ['Smudge cell', 'Artefact'],
+                'Artefacts': ['Smudge cell', 'Artefact'],
                 '原虫及真菌': ['疟原虫', '利杜体', '马尔尼菲青霉菌', '荚膜组织胞浆菌'],
                 '血小板': ['血小板']
             })
@@ -1040,8 +1060,8 @@ class SliceAnalysisDomainService(object):
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                    ai_result_before_modify['pos_tumor'] + ai_result_before_modify['neg_tumor'] + 1e-10
-                                ), 4)
+                                    ai_result_before_modify['pos_tumor'] +
+                                    ai_result_before_modify['neg_tumor'] + 1e-10), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
                             ai_result_before_modify['tps'] = 0

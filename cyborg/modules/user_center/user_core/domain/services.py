@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 import os
@@ -14,6 +15,7 @@ from cyborg.modules.user_center.user_core.domain.entities import UserEntity, Com
 from cyborg.modules.user_center.user_core.domain.event import CompanyAIThresholdUpdatedEvent
 from cyborg.modules.user_center.user_core.domain.repositories import UserRepository, CompanyRepository
 from cyborg.seedwork.domain.value_objects import AIType
+from cyborg.modules.user_center.utils.crypto import encrypt_password
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +49,8 @@ class UserCoreDomainService(object):
         user = self.repository.get_user_by_name(username=username, company=company_id)
         if not user:
             return 2, '%s has no such user as %s' % (company_id, username), None
-
-        if user.password != password:
+        _, encry_password = encrypt_password(password, salt=user.salt)
+        if user.encry_password != encry_password:
             return 3, 'wrong password', None
 
         user.last_login = time.time()
@@ -67,10 +69,11 @@ class UserCoreDomainService(object):
         return self.repository.save(user)
 
     def update_password(self, user: UserEntity, old_password: str, new_password: str) -> Tuple[int, str]:
-        if user.password != old_password:
+        _, encry_pwd = encrypt_password(old_password, salt=user.salt)
+        if user.encry_password != encry_pwd:
             return 3, 'wrong old password'
-
-        user.update_data(password=new_password)
+        salt, encry_password = encrypt_password(new_password)
+        user.update_data(password='', encry_password=encry_password, salt=salt)
         self.repository.save(user)
         return 0, ''
 
@@ -78,7 +81,8 @@ class UserCoreDomainService(object):
         company = self.company_repository.get_company_by_id(company_id)
         table_checked = company.table_checked if company else None
         return table_checked or [
-            '样本号', '姓名', '性别', '切片数量', '状态', '切片标签', '切片编号', '文件名', 'AI模块', 'AI建议', '复核结果',
+            '样本号', '姓名', '性别', '切片数量', '处理状态', '切片标签', '切片编号', '文件名', '自定义标签', 'AI模块', '清晰度',
+            'AI建议', '复核结果',
             '最后更新', '报告', '创建时间'
         ]
 
@@ -146,9 +150,16 @@ class UserCoreDomainService(object):
 
         return 0, '', company
 
-    def update_company_label(self, company: CompanyEntity, label: int) -> bool:
-        company.update_data(label=label)
-        return self.company_repository.save(company)
+    def update_company_label(self, company: CompanyEntity, label: int, clarity_standards_min: float,
+                             clarity_standards_max: float) -> Tuple[int, str]:
+        if clarity_standards_min > 1 or clarity_standards_min < 0 or clarity_standards_max < clarity_standards_min:
+            return 10, '参数错误，请检查后重新输入.'
+        if clarity_standards_max > 1 or clarity_standards_max < 0:
+            return 10, '参数错误，请检查后重新输入.'
+        company.update_data(label=label, clarity_standards_min=clarity_standards_min,
+                            clarity_standards_max=clarity_standards_max)
+        self.company_repository.save(company)
+        return 0, ''
 
     def update_company_ai_threshold(
             self, company: CompanyEntity, model_name: str, threshold_value: Optional[float] = None,
@@ -167,22 +178,24 @@ class UserCoreDomainService(object):
     ############################################
     # for admin use
     def create_user(self, username: str, password: str, company_id: str, role: str) -> Tuple[str, Optional[UserEntity]]:
+        if not username or not re.search(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d|\W).{8,32}$', password):
+            return '无效的用户名称或者用户密码.', None
         user = self.repository.get_user_by_name(username=username, company=company_id)
         if user:
             return 'username has been used', None
-
+        salt, encry_password = encrypt_password(password)
         company = self.company_repository.get_company_by_id(company=company_id)
-
         new_user = UserEntity(raw_data=dict(
             username=username,
             model_lis=company.model_lis,
             company=company.company,
-            password=password,
+            password='',
             role=role,
             is_test=company.is_test,
-            time_out=company.end_time
+            time_out=company.end_time,
+            encry_password=encry_password,
+            salt=salt
         ))
-
         os.makedirs(new_user.user_dir, exist_ok=True)
 
         if self.repository.save(new_user):
@@ -194,11 +207,13 @@ class UserCoreDomainService(object):
         user = self.repository.get(user_id)
         if not user:
             return 'user not exist'
-
+        salt, encry_password = encrypt_password(password)
         user.update_data(
             username=username,
-            password=password,
-            role=role
+            password='',
+            role=role,
+            encry_password=encry_password,
+            salt=salt
         )
 
         if not self.repository.save(user):
@@ -300,7 +315,7 @@ class UserCoreDomainService(object):
         if new_company_data_dir != old_company_data_dir:
             if fs.path_exists(old_company_data_dir):
                 os.rename(old_company_data_dir, new_company_data_dir)
-            os.remove('clean_handle_1.bat')   # TODO what's this?
+            os.remove('clean_handle_1.bat')  # TODO what's this?
 
         return ''
 

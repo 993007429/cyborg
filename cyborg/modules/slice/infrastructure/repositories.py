@@ -1,4 +1,3 @@
-import logging
 import math
 import sys
 from datetime import datetime, timedelta
@@ -12,12 +11,10 @@ from cyborg.modules.ai.infrastructure.models import TCTProbModel
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel, ReportConfigModel
+from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel, ReportConfigModel, SliceErrModel
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
 from cyborg.utils.strings import camel_to_snake
-
-logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModelRepository[CaseRecordEntity]):
@@ -153,6 +150,13 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         model = query.first()
         return SliceEntity.from_dict(model.raw_data) if model else None
 
+    def get_slice_err(self, case_id: str, file_id: str) -> Tuple[int, str]:
+        model = self.session.query(SliceErrModel.err_code, SliceErrModel.err_message).filter_by(caseid=case_id,
+                                                                                                fileid=file_id).first()
+        if model:
+            return model[0], model[1]
+        return 0, ''
+
     def get_slice_by_local_filename(self, user_file_path: str, file_name: str, company: str) -> Optional[SliceEntity]:
         model = self.session.query(SliceModel).filter_by(
             company=company, user_file_path=user_file_path, filename=file_name).first()
@@ -206,19 +210,23 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             seq_key: Optional[str] = None, seq: Optional[str] = None,
             update_min: Optional[str] = None, update_max: Optional[str] = None,
             create_time_min: Optional[str] = None, create_time_max: Optional[str] = None,
-            page: int = 0, limit: int = 20
+            page: int = 0, limit: int = 20,
+            case_ids: Optional[List[str]] = None,
+            is_marked: Optional[List[int]] = None,
+            labels: Optional[List[str]] = None,
+            clarity_level: Optional[List[str]] = None,
+            slice_quality: Optional[List[str]] = None,
+            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6
     ) -> Tuple[int, List[CaseRecordEntity]]:
 
         search_value = search_value.strip() if search_value else None
         is_record_search_key = search_key in ['sampleNum', 'name']
         is_slice_search_key = not is_record_search_key
-
         query = self.session.query(
             CaseRecordModel, func.group_concat(SliceModel.id.op("ORDER BY")(SliceModel.id.desc()))).outerjoin(
             SliceModel, CaseRecordModel.caseid == SliceModel.caseid).filter(
-                CaseRecordModel.company == company_id
+            CaseRecordModel.company == company_id
         )
-
         if search_key is not None and is_record_search_key and search_value:
             if search_key == 'sampleNum':
                 query = query.filter(CaseRecordModel.sample_num.contains(search_value))
@@ -236,7 +244,27 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
 
         if sample_part is not None:
             query = query.filter(CaseRecordModel.sample_part.in_(sample_part))
-
+        if slice_quality:
+            temp = (1 == 0)
+            if 0 in slice_quality:
+                temp = or_(temp, SliceModel.slide_quality.notin_(['0', '1']))
+            if 1 in slice_quality:
+                temp = or_(temp, SliceModel.slide_quality == '1')
+            if 2 in slice_quality:
+                temp = or_(temp, SliceModel.slide_quality == '0')
+            query = query.filter(temp)
+        if clarity_level:
+            temp = (1 == 0)
+            if 0 in clarity_level:
+                temp = or_(temp, SliceModel.clarity == '', SliceModel.clarity.is_(None))
+            if 1 in clarity_level:
+                temp = or_(temp, SliceModel.clarity > clarity_standards_max)
+            if 2 in clarity_level:
+                temp = or_(temp,
+                           SliceModel.clarity.between(clarity_standards_min, clarity_standards_max))
+            if 3 in clarity_level:
+                temp = or_(temp, SliceModel.clarity < clarity_standards_min)
+            query = query.filter(temp)
         if report == [1]:  # 有报告
             query = query.filter(CaseRecordModel.report != 2)
         elif report == [2]:  # 无报告
@@ -255,7 +283,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 query = query.filter(SliceModel.user_file_folder == search_value)
             else:
                 query = query.filter(getattr(SliceModel, camel_to_snake(search_key)) == search_value)
-
+        if is_marked:
+            query = query.filter(SliceModel.is_marked.in_(is_marked))
         if statuses is not None:
             query = query.filter(SliceModel.started.in_(statuses))
 
@@ -271,12 +300,20 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(SliceModel.is_has_label == 0)
         elif is_has_label == [1]:  # 有切片标签
             query = query.filter(SliceModel.is_has_label == 1)
-
+        if case_ids:
+            query = query.filter(CaseRecordModel.caseid.in_(case_ids))
+        if labels:
+            temp = (1 == 0)
+            for label in labels:
+                temp = or_(temp, SliceModel.labels.contains(label))
+            query = query.filter(temp)
         if ai_suggest is not None:
             temp = (1 == 0)
             for i in ai_suggest:
                 if i == '无':
                     temp = or_(temp, SliceModel.ai_suggest == '')
+                elif i == '结果异常':
+                    temp = or_(temp, SliceModel.ai_tips != '')
                 else:
                     temp = or_(temp, SliceModel.ai_suggest.contains(i))
             query = query.filter(temp)
@@ -289,7 +326,6 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 else:
                     temp = or_(temp, SliceModel.check_result.contains(i))
             query = query.filter(temp)
-
         if user_file_folder is not None:
             query = query.filter(SliceModel.user_file_folder.in_(user_file_folder))
 
@@ -309,13 +345,10 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 query = query.order_by(_order_by)
         else:
             query = query.order_by(desc(CaseRecordModel.id))
-
         total = query.count()
-
         page = min(page, math.ceil(total / limit))
         offset = page * limit
         query = query.offset(offset).limit(limit)
-
         records = []
         for model, slice_ids in query.all():
             entity = CaseRecordEntity.from_dict(model.raw_data)
@@ -323,6 +356,13 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 slice_id_list = slice_ids.split(',')
                 for s in self.get_slices_by_ids(slice_id_list):
                     if s.type == 'slice':
+                        s.clarity_level = s.get_clarity_level(clarity_standards_max=clarity_standards_max,
+                                                              clarity_standards_min=clarity_standards_min)
+                        if s.started == SliceStartedStatus.failed:
+                            slice_err = self.session.query(SliceErrModel).filter_by(caseid=s.caseid,
+                                                                                    fileid=s.fileid).first()
+                            s.err_code = slice_err.err_code if slice_err else ''
+                            s.err_message = slice_err.err_message if slice_err else ''
                         entity.slices.append(s)
                     elif s.type == 'attachment':
                         entity.attachments.append(s)
@@ -347,6 +387,39 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         ).all()
         return [(TCTProbEntity.from_dict(prob_model.raw_data), SliceEntity.from_dict(slice_model.raw_data))
                 for prob_model, slice_model in models]
+
+    @transaction
+    def add_label(self, ids: List[str], name: str) -> Tuple[int, str]:
+        slices = self.session.query(SliceModel).filter(SliceModel.fileid.in_(ids))
+        for slice in slices:
+            if not name or len(name) > 20:
+                return 10, '标签格式错误，请重新添加'
+            temp = slice.labels or []
+            if name in temp:
+                return 11, '添加自定义标签失败，该切片已有该标签'
+            if len(temp) > 4:
+                return 12, '添加自定义标签失败，单个切片支持添加的自定义标签数量上限为5'
+            temp.append(name)
+            self.session.query(SliceModel).filter_by(caseid=slice.caseid, fileid=slice.fileid).update({"labels": temp})
+        return 0, ''
+
+    @transaction
+    def del_label(self, id: str, name: List[str]) -> Tuple[int, str]:
+        slice = self.session.query(SliceModel).filter_by(fileid=id).first()
+        if not slice:
+            return 11, '该切片对象不存在'
+        slice.labels = [i for i in slice.labels if slice.labels and i not in name]
+        self.session.add(slice)
+        self.session.flush([slice])
+        return 0, ''
+
+    def get_labels(self, company: str) -> List[str]:
+        rows = self.session.query(distinct(SliceModel.labels)).filter_by(company=company).all()
+        labels = []
+        for row in rows:
+            if row[0]:
+                labels.extend(row[0])
+        return list(set(labels))
 
 
 class SQLAlchemyReportConfigRepository(ReportConfigRepository, SQLAlchemySingleModelRepository[ReportConfigEntity]):

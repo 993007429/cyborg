@@ -123,7 +123,6 @@ class SliceAnalysisService(object):
 
         case_id = request_context.case_id
         file_id = request_context.file_id
-
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
         err_msg, new_mark = self.domain_service.create_mark(
             ai_type=ai_type, group_id=group_id, position=path, area_id=area_id,
@@ -181,13 +180,13 @@ class SliceAnalysisService(object):
         file_id = request_context.file_id
         ai_type = request_context.ai_type
 
-        slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id).data
+        slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id, company_id=request_context.company).data
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
         radius = float(format(slice_info['radius'] / tiled_slice.mpp, '.5f'))
         mark_config = SliceMarkConfig(radius=radius, is_solid=slice_info['is_solid'] == 1)
 
         marks = self.domain_service.get_marks(
-            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config)
+            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config, template_id=slice_info['templateId'])
         return AppResponse(message='query succeed', data={'marks': marks})
 
     @connect_slice_db()
@@ -219,6 +218,7 @@ class SliceAnalysisService(object):
                 scope, target_group_id, tiled_slice, ai_type, op_name=request_context.current_user.username)
         else:
             err_code, message = self.domain_service.update_marks(marks_data, target_group_id, tiled_slice, ai_type)
+        self.slice_service.update_slice()
         return AppResponse(err_code=err_code, message=message)
 
     @connect_slice_db()
@@ -239,6 +239,12 @@ class SliceAnalysisService(object):
         if slice_info and ai_type == slice_info['alg']:
             if self.domain_service.repository.get_mark_count() == 0:
                 self.slice_service.reset_ai_status()
+        is_marked = 1
+        if ai_type == AIType.label:
+            if self.domain_service.repository.get_mark_count() == 0:
+                is_marked = 0
+        info = {"is_marked": is_marked} if is_marked == 0 else {}
+        self.slice_service.update_slice_info(request_context.case_id, request_context.file_id, False, info)
         return AppResponse(err_code=err_code, message=message)
 
     @connect_slice_db(need_template_db=True)
@@ -340,7 +346,13 @@ class SliceAnalysisService(object):
     def delete_mark_group(self, group_id: int) -> AppResponse:
         if not self.domain_service.delete_mark_group(group_id):
             return AppResponse(message='delete mark failed')
-        return AppResponse(message='delete mark succeed')
+        is_marked = 1
+        if AIType.get_by_value(request_context.ai_type) == "label":
+            if self.domain_service.repository.get_mark_count() == 0:
+                is_marked = 0
+        info = {"is_marked": is_marked} if is_marked == 0 else {}
+        self.slice_service.update_slice_info(request_context.case_id, request_context.file_id, False, info)
+        return AppResponse(message='delete mark group succeed')
 
     @connect_slice_db()
     def update_mark_groups(self, groups: List[dict]) -> AppResponse:

@@ -1,11 +1,15 @@
 import json
+import logging
 from typing import List, Optional
-
 from werkzeug.datastructures import FileStorage
 
 from cyborg.app.request_context import request_context
 from cyborg.modules.user_center.user_core.domain.services import UserCoreDomainService
 from cyborg.seedwork.application.responses import AppResponse
+from cyborg.infra.cache import cache
+from cyborg.modules.user_center.utils.utils import get_time_now, ms_to_hours
+
+logger = logging.getLogger(__name__)
 
 
 class UserCoreService(object):
@@ -25,15 +29,31 @@ class UserCoreService(object):
         user = self.domain_service.get_user_by_name(username, company)
         return AppResponse(data=bool(user))
 
-    def login(self, username: str, password: str, company: str, client_ip: str) -> AppResponse:
+    def login(self, username: str, password: str, client_ip: str) -> AppResponse:
+        company = "company1"
+        if username.find("@") > -1:
+            username, company = username.split("@")
+        key = username + company
+        login_failed_times, lock_time = cache.hget(key, 'login_failed_times'), cache.hget(key, 'lock_time')
+        login_failed_times = int(login_failed_times) if login_failed_times else 0
+        if login_failed_times and login_failed_times > 4:
+            _, minutes, seconds = ms_to_hours(int(lock_time) + 5 * 60 * 1000 - get_time_now())
+            remain_time = minutes + 1 if seconds else minutes
+            return AppResponse(err_code=11, message="密码连续输错5次，账户已锁定，%s分钟后再试" % remain_time)
         if username.endswith(' ') or company.endswith(' '):
             return AppResponse(err_code=3, message='wrong password')
-
         err_code, message, user = self.domain_service.login(
             username=username, password=password, company_id=company, client_ip=client_ip)
         if err_code:
+            if login_failed_times:
+                cache.hset(key, 'login_failed_times', login_failed_times + 1)
+                if login_failed_times == 4:
+                    cache.hset(key, 'lock_time', get_time_now())
+            else:
+                cache.hset(key, 'login_failed_times', 1)
+                cache.expire(key, 5 * 60)
             return AppResponse(err_code=err_code, message=message)
-
+        cache.delete(key)
         return AppResponse(data=user.to_dict())
 
     def is_signed(self) -> AppResponse:
@@ -106,13 +126,17 @@ class UserCoreService(object):
     def get_company_label(self) -> AppResponse:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
         label = company.label if company else ''
-        return AppResponse(data=label)
+        data = {'label': label, 'clarityStandardsUpper': company.clarity_standards_max,
+                'clarityStandardsLower': company.clarity_standards_min}
+        return AppResponse(data=data)
 
-    def update_company_label(self, label: int) -> AppResponse:
+    def update_company_label(self, label: int, clarity_standards_min: float, clarity_standards_max: float) -> AppResponse:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
         if company:
-            self.domain_service.update_company_label(company, label)
-        return AppResponse()
+            code, message = self.domain_service.update_company_label(company, label, clarity_standards_min, clarity_standards_max)
+        else:
+            code, message = 1, '对象不存在'
+        return AppResponse(code=code, message=message)
 
     def update_company_ai_threshold(
             self, model_name: Optional[str], threshold_value: Optional[float] = None,

@@ -313,13 +313,11 @@ class MarkEntity(BaseDomainEntity):
                 return None
 
             item['show_layer'] = 0 if Settings.LAST_SHOW_GROUPS and self.group_id in Settings.LAST_SHOW_GROUPS else 1
-
         else:
             try:
                 item['doctorDiagnosis'] = self.doctor_diagnosis
             except (TypeError, JSONDecodeError):
                 item['doctorDiagnosis'] = None
-
         return item
 
     @classmethod
@@ -379,6 +377,24 @@ class MarkEntity(BaseDomainEntity):
         }
         return {'aiResult': ai_result, 'method': 'rectangle', 'mark_type': 3, 'area_id': None,
                 'path': {"x": [0], "y": [0]}}
+
+    def get_cell_type(self, diagnosis: List[str], roi_type: str) -> str:
+        if not diagnosis:
+            return roi_type
+        if not isinstance(diagnosis, (list, tuple)):
+            return roi_type
+        if diagnosis[0] == "阴性":
+            if roi_type == "HSIL":
+                return "可疑1"
+            elif roi_type == "ASC-H":
+                return "可疑2"
+            elif roi_type == "LSIL":
+                return "可疑3"
+            elif roi_type == "ASCUS":
+                return "可疑4"
+            elif roi_type == "AGC":
+                return "可疑5"
+        return roi_type
 
 
 class MarkToTileEntity(BaseDomainEntity):
