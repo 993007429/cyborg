@@ -36,8 +36,8 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             supported_mpp_ranges=[[0.1, 1]],
             supported_image_formats=['BIF', 'TIF', 'TIFF'],
             supported_scanners=['VENTANA DP 200', 'VENTANA DP 600'],
-            required_slide_types=['HER-2'],
-            roi_analysis_support=False,
+            required_slide_types=[],
+            roi_analysis_support=True,
             primary_analysis_overlay_display=True,
             provides_primary_analysis_score=True,
             manual_score_mode='INCLUSIVE',  # "EXCLUSIVE"
