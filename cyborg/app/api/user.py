@@ -4,7 +4,6 @@ from cyborg.app.api import api_blueprint
 from cyborg.app.auth import login_required, LoginUser
 from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import AppServiceFactory
-from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
 from cyborg.utils.strings import dict_camel_to_snake
 
@@ -22,11 +21,10 @@ def login():
     password = request.form['password']
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
     res = AppServiceFactory.user_service.login(username=username, password=password, client_ip=client_ip)
-    res.data['cloud'] = Settings.CLOUD
-    del res.data['id']
-    login_user = LoginUser.from_dict(dict_camel_to_snake(res.data))
     resp = make_response(jsonify(res.dict()))
-    resp.set_cookie(key='jwt', value=login_user.jwt_token, expires=login_user.expire_time)
+    if not res.err_code:
+        login_user = LoginUser.from_dict(dict_camel_to_snake(res.data))
+        resp.set_cookie(key='jwt', value=login_user.jwt_token, expires=login_user.expire_time)
     return resp
 
 

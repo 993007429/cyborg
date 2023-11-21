@@ -4,6 +4,7 @@ from typing import List, Optional
 from werkzeug.datastructures import FileStorage
 
 from cyborg.app.request_context import request_context
+from cyborg.app.settings import Settings
 from cyborg.modules.user_center.user_core.domain.services import UserCoreDomainService
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.infra.cache import cache
@@ -54,7 +55,11 @@ class UserCoreService(object):
                 cache.expire(key, 5 * 60)
             return AppResponse(err_code=err_code, message=message)
         cache.delete(key)
-        return AppResponse(data=user.to_dict())
+
+        data = user.to_dict()
+        data['cloud'] = Settings.CLOUD
+        del data['id']
+        return AppResponse(data=data)
 
     def is_signed(self) -> AppResponse:
         user = self.domain_service.get_user_by_name(
