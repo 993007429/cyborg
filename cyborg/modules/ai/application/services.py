@@ -328,3 +328,8 @@ class AIService(object):
             self.slice_service.update_ai_status(status=SliceStartedStatus.failed)
             app.control.revoke(task['result_id'], terminate=True)
         return AppResponse(data=failed)
+
+    def purge_tasks(self) -> AppResponse:
+        purged = self.domain_service.reset_running_tasks()
+        app.control.purge()
+        return AppResponse(data={'purged': purged})

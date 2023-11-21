@@ -1,7 +1,6 @@
 import logging
 import os
 import json
-import argparse
 import sys
 
 import cv2
@@ -12,9 +11,10 @@ import mpi4py.MPI as MPI
 her2_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(her2_root)
 
-from cyborg.infra.oss import oss
-from models.pa_p2pnet import build_model
 import cell_utils
+from cyborg.infra.oss import oss
+from cyborg.modules.ai.utils.file import load_alg_model
+from models.pa_p2pnet import build_model
 from cell_infer import cell_infer_
 from seg_tissue_area import find_tissue_countours
 
@@ -45,7 +45,8 @@ def detect(slice_path='', opt=None):
     torch.cuda.empty_cache()
     c_net = build_model(opt).cuda(int_device)
 
-    model_file = oss.get_object_to_io(oss.path_join('AI', 'Her2New_', 'wsi_infer', f'C_net{model_name}/her2.pth'))
+    file_key = os.path.join('AI', 'Her2New_', 'wsi_infer', f'C_net{model_name}/her2.pth')
+    model_file = load_alg_model(file_key)
     checkpoint = torch.load(model_file, map_location={'cuda:0': f'cuda:{int_device}'})
 
     model_dict = c_net.state_dict()
