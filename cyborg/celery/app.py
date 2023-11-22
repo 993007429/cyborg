@@ -36,7 +36,7 @@ app.conf.update(
     BROKER_POOL_LIMIT=None,
     CELERY_QUEUES=(
         Queue(QUEUE_NAME_DEFAULT, default_exchange, routing_key='default'),
-        Queue(QUEUE_NAME_AI_TASK, host_exchange, routing_key=f'host.{QUEUE_NAME_AI_TASK}'),
+        Queue(QUEUE_NAME_AI_TASK, host_exchange, routing_key=ROUTING_KEY_AI_TASK),
     ),
     CELERY_DEFAULT_QUEUE='default',
     CELERY_DEFAULT_EXCHANGE='default',
