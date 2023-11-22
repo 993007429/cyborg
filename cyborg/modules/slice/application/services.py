@@ -316,8 +316,9 @@ class SliceService(object):
         )
 
     def get_slice_info(self, case_id: str, file_id: str, company_id: Optional[str] = None) -> AppResponse[dict]:
+        company_id = company_id or request_context.current_company
         err_code, message, entity = self.domain_service.get_slice(
-            case_id=case_id, file_id=file_id, company_id=company_id or request_context.current_company)
+            case_id=case_id, file_id=file_id, company_id=company_id)
         if not entity:
             return AppResponse(err_code=err_code, message=message)
         entity.slide = open_slide(entity.slice_file_path)
