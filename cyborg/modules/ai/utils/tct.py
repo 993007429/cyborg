@@ -230,9 +230,7 @@ def save_roi(slide_path, result, num_row=6, num_col=7, patch_size=2048, scale=1,
     imageio.imsave(
         os.path.join(os.path.split(slide_path)[0], 'ai', alg_type, 'rois.jpg'),
         combined_image)
-    # TODO decode error
-    # imageio.imsave(os.path.join(res_path.decode(), 'rois.jpg'), combined_image)
-    # algor_type = os.path.splitext(os.path.basename(__file__))[0]
+
     result_dict[alg_type] = {'diagnosis': result['diagnosis'], 'result': patch_cells}
     result_dict['mpp'] = slide_mpp
 
