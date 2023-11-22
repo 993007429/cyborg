@@ -155,7 +155,7 @@ def get_ai_threshold():
     """
     获取算法参数
     """
-    request_context.ai_type = AIType.get_by_value(request.form.get('algor_type'))
+    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type'))
     res = AppServiceFactory.user_service.get_ai_threshold()
     return jsonify(res.dict())
 
