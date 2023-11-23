@@ -48,6 +48,14 @@ class SliceService(object):
                                                                              company=request_context.current_company)
         return AppResponse(data=record.to_dict())
 
+    def get_records_by_sample_num(self, sample_num: str) -> AppResponse:
+        records = self.domain_service.repository.get_records(
+            sample_num=sample_num, company=request_context.current_company)
+        for record in records:
+            record.slices = self.domain_service.repository.get_slices_by_case_id(
+                case_id=record.caseid, company=request_context.current_company)
+        return AppResponse(data=[record.to_dict() for record in records])
+
     def get_all_values_in_fields(self) -> AppResponse[dict]:
         company_id = request_context.current_company
         return AppResponse(data={
@@ -183,18 +191,19 @@ class SliceService(object):
 
     def upload_slice(
             self, upload_id: str, case_id: str, file_id: str, company_id: str, file_name: str, slide_type: str,
-            upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str, cover_slice_number: bool,
-            high_through: bool, upload_batch_number: str, operator: str
+            upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str,
+            cover_slice_number: bool = False, upload_batch_number: str = '',
+            create_record: bool = False, high_through: bool = False, operator: str = ''
     ) -> AppResponse[dict]:
 
         err_code, message = self._check_space_usage()
         if err_code:
             return AppResponse(err_code=err_code, message=message)
 
-        if high_through:
+        if upload_id and not case_id:
             case_id = cache.get(f'uploadid:{upload_id}:caseid')
             if not case_id:
-                case_id = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '_' + str(random.randint(0, 1000000))
+                case_id = self.domain_service.gen_case_id()
                 cache.set(f'uploadid:{upload_id}:caseid', case_id, ex=3600 * 24 * 3)
 
             # 上传文件重复性校验
@@ -224,7 +233,8 @@ class SliceService(object):
                     tool_type=tool_type,
                     label_rec_mode=company['label'], user_file_path=user_file_path,
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
-                    sample_num=upload_id if high_through else case_id, high_through=high_through,
+                    sample_num=upload_id if upload_id else case_id, create_record=create_record,
+                    high_through=high_through,
                 )
                 if slice_info:
                     return AppResponse(data=slice_info)
@@ -316,7 +326,9 @@ class SliceService(object):
             data=slice_entity.to_dict() if slice_entity else None
         )
 
-    def get_slice_info(self, case_id: str, file_id: str, company_id: Optional[str] = None) -> AppResponse[dict]:
+    def get_slice_info(
+            self, case_id: Optional[str] = None, file_id: Optional[str] = None, company_id: Optional[str] = None
+    ) -> AppResponse[dict]:
         company_id = company_id or request_context.current_company
         err_code, message, entity = self.domain_service.get_slice(
             case_id=case_id, file_id=file_id, company_id=company_id)

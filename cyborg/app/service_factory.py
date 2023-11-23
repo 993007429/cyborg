@@ -2,6 +2,7 @@ from cyborg.app.container import AppContainer
 from cyborg.modules.ai.application.services import AIService
 from cyborg.modules.oauth.application.services import OAuthService
 from cyborg.modules.openapi.authentication.application.services import OpenAPIAuthService
+from cyborg.modules.partner.motic.application.services import MoticService
 from cyborg.modules.partner.roche.application.services import RocheService
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice_analysis.application.services import SliceAnalysisService
@@ -25,6 +26,8 @@ class AppServiceFactory(object):
         return AppContainer.slice_analysis.slice_analysis_service()
 
 
-class RocheAppServiceFactory(object):
+class PartnerAppServiceFactory(object):
 
     roche_service: RocheService = AppContainer.partner.roche_service()
+
+    motic_service: MoticService = AppContainer.partner.motic_service()

@@ -51,7 +51,9 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
-    def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
+    def get_records(
+            self, end_time: Optional[str] = None, sample_num: Optional[str] = None, company: Optional[str] = None
+    ) -> List[CaseRecordEntity]:
         ...
 
     @abstractmethod
@@ -71,7 +73,9 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
-    def get_slice(self, case_id: str, file_id: str, company: Optional[str] = None) -> Optional[SliceEntity]:
+    def get_slice(
+            self, case_id: Optional[str] = None, file_id: Optional[str] = None, company: Optional[str] = None
+    ) -> Optional[SliceEntity]:
         ...
 
     def get_slice_err(self, case_id: str, file_id: str) -> Tuple[int, str]:

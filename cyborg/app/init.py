@@ -48,6 +48,9 @@ def init_app():
     from cyborg.app.openapi.roche import roche_blueprint, oauth, vendor, algorithm, analysis  # noqa
     app.register_blueprint(roche_blueprint, url_prefix='/roche')
 
+    from cyborg.app.openapi.motic import motic_blueprint, oauth, analysis  # noqa
+    app.register_blueprint(motic_blueprint, url_prefix='/motic')
+
     subscribe_events()
 
     return app

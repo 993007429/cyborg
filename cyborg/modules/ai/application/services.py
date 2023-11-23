@@ -39,7 +39,7 @@ class AIService(object):
 
     def start_ai(
             self, ai_name: str, rois: Optional[list] = None, upload_batch_number: Optional[str] = None,
-            ip_address: Optional[str] = None, is_calibrate: bool = False, force: bool = False) -> AppResponse:
+            ip_address: Optional[str] = None, is_calibrate: bool = False, run_task_async: bool = True) -> AppResponse:
         ai_type = AIType.get_by_value(ai_name)
         request_context.ai_type = ai_type
 
@@ -97,9 +97,13 @@ class AIService(object):
         )
 
         if task:
-            result = tasks.run_ai_task(task.id)
-            if result:
-                self.domain_service.update_ai_task(task, result_id=result.id)
+            if run_task_async:
+                result = tasks.run_ai_task(task.id)
+                if result:
+                    self.domain_service.update_ai_task(task, result_id=result.id)
+            else:
+                return self.run_ai_task(task.id)
+
         return AppResponse(data=task.to_dict() if task else None)
 
     def run_ai_task(self, task_id):
@@ -223,7 +227,7 @@ class AIService(object):
         total_time = time.time() - start_time
         logger.info(f'任务{task.id} - caseid: {task.case_id} - fileid: {task.file_id} 全部完成,耗时{total_time}')
 
-        return AppResponse(message='succeed')
+        return AppResponse(data=task.to_dict() if task else None)
 
     def batch_start_ai(self, ai_name: str, case_ids: List[int]) -> AppResponse:
 
@@ -260,9 +264,11 @@ class AIService(object):
             data.append(res.data)
         return AppResponse(message='操作成功', data=data)
 
-    def get_ai_task_result(self) -> AppResponse:
+    def get_ai_task_result(self, task_id: Optional[int] = None) -> AppResponse:
         err_msg, result = self.domain_service.get_ai_task_result(
-            case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type)
+            case_id=request_context.case_id, file_id=request_context.file_id, ai_type=request_context.ai_type,
+            task_id=task_id
+        )
         return AppResponse(err_code=1 if err_msg else 0, message=err_msg, data=result)
 
     def cancel_task(self) -> AppResponse:
