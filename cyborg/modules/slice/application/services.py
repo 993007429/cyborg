@@ -172,8 +172,9 @@ class SliceService(object):
         return AppResponse(data='更新成功')
 
     def get_slices(
-            self, case_ids: List[int], page: int = 0, per_page: int = 20
+            self, case_ids: List[int] = None, page: int = 0, per_page: int = 20
     ) -> AppResponse:
+
         slices = self.domain_service.repository.get_slices(
             case_ids=case_ids, slice_type='slice', company=request_context.current_company,
             page=page, per_page=per_page

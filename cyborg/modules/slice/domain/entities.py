@@ -213,9 +213,6 @@ class SliceEntity(BaseDomainEntity):
     def get_cell_num_tips(self, algor_type: str, cell_num_threshold: int) -> List[str]:
         cell_num_tips = []
         if algor_type in ['bm', 'tct', 'lct', 'dna']:
-            if cell_num_threshold and self.nucleated_cell_num < cell_num_threshold:
-                cell_num_tips = ['有核细胞数量小于阈值，请谨慎参考诊断建议。']
-        else:
             if cell_num_threshold and self.cell_num and self.cell_num < cell_num_threshold:
                 cell_num_tips = ['有效检测细胞量不足，请谨慎参考诊断建议。']
         return cell_num_tips
@@ -255,11 +252,10 @@ class SliceEntity(BaseDomainEntity):
             'aiTips': self.ai_tips or [],
             'errCode': self.err_code or 0,
             'errMessage': self.err_message or '',
-            'nucleatedCellNum': self.nucleated_cell_num,
-            'cellNumTips': self.cell_num_tips
+            'cellNumTips': self.cell_num_tips or None,
+            "company": self.company
         }
         d.update(self.data_paths)
-
         if all_fields:
             tool_type = self.tool_type
             template_selected = self.template_id
@@ -277,7 +273,6 @@ class SliceEntity(BaseDomainEntity):
                 'mppy': self.mppy,
                 'toolType': tool_type,
                 'objective_rate': self.objective_rate,
-                "company": self.company,
                 "ajaxToken": json.loads(self.ajax_token),
                 "path": self.path,
                 "type": self.type,

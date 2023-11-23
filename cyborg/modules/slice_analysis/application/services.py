@@ -237,11 +237,11 @@ class SliceAnalysisService(object):
         slice_info = self.slice_service.get_slice_info(
             case_id=request_context.case_id, file_id=request_context.file_id).data
         if slice_info and ai_type == slice_info['alg']:
-            if self.domain_service.repository.get_mark_count() == 0:
+            if self.domain_service.repository.has_mark() is False:
                 self.slice_service.reset_ai_status()
         is_marked = 1
         if ai_type == AIType.label:
-            if self.domain_service.repository.get_mark_count() == 0:
+            if self.domain_service.repository.has_mark() is False:
                 is_marked = 0
         info = {"is_marked": is_marked} if is_marked == 0 else {}
         self.slice_service.update_slice_info(request_context.case_id, request_context.file_id, False, info)
@@ -348,7 +348,7 @@ class SliceAnalysisService(object):
             return AppResponse(message='delete mark failed')
         is_marked = 1
         if AIType.get_by_value(request_context.ai_type) == "label":
-            if self.domain_service.repository.get_mark_count() == 0:
+            if self.domain_service.repository.has_mark() is False:
                 is_marked = 0
         info = {"is_marked": is_marked} if is_marked == 0 else {}
         self.slice_service.update_slice_info(request_context.case_id, request_context.file_id, False, info)
@@ -599,3 +599,7 @@ class SliceAnalysisService(object):
         }
 
         return AppResponse(data=data)
+
+    @connect_slice_db()
+    def has_mark(self):
+        return self.domain_service.repository.has_mark()

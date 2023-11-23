@@ -114,6 +114,10 @@ class SliceMarkRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
+    def has_mark(self, group_id: Optional[int] = None) -> bool:
+        ...
+
+    @abstractmethod
     def save_mark_group(self, entity: MarkGroupEntity) -> bool:
         ...
 

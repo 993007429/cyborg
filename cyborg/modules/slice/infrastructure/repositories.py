@@ -60,7 +60,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(SliceModel.caseid.in_(case_ids))
         if slice_type is not None:
             query = query.filter(SliceModel.type == 'slice')
-        if company is not None:
+        if company:
             query = query.filter_by(company=company)
 
         offset = page * per_page

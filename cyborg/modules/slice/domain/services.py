@@ -876,6 +876,10 @@ class SliceDomainService(object):
             return check_result[-1], ''
         return '', ''
 
+    def update_slice_is_marked(self, is_marked: bool, slice: SliceEntity):
+        slice.update_data(is_marked=is_marked)
+        self.repository.save_slice(slice)
+
 
 if __name__ == '__main__':
     path = '/Users/zhaoyu/dipath_data/company1/data/2023_05_19_16_05_11_102179/slices/8271014/鼻息肉.jpg'
