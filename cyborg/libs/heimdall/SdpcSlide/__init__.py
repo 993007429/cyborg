@@ -83,7 +83,14 @@ class SdpcSlide(SlideBase):
         yp = c_uint(int(crop_start_y/level_ratio))
 
 
-        lib.SqGetRoiRgbOfSpecifyLayer(self.slide,byref(rgb),w,h,xp,yp,layer)
+
+        ret = lib.SqGetRoiRgbOfSpecifyLayer(self.slide, byref(rgb), w, h, xp, yp, layer)
+        if ret < 0:  # 图像缺块
+            if layer != c_int(0):
+                img = self.read(location=location, size=size, scale=1)
+                img = cv2.resize(img, dsize=None, fx=1 / scale, fy=1 / scale)
+                return img
+            raise ValueError(f'Image is damaged at ({xp},{yp}), ({w}, {h}), {layer}')
 
         if self.slide.contents.extra is not None and self.correct:
 

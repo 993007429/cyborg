@@ -18,6 +18,7 @@ from cyborg.modules.slice_analysis.domain.repositories import SliceMarkRepositor
 from cyborg.modules.slice_analysis.domain.value_objects import TiledSlice, AIType, AIResult, SliceMarkConfig, CellCount
 from cyborg.modules.slice_analysis.utils.polygon import is_intersected
 from cyborg.utils.id_worker import IdWorker
+from cyborg.modules.slice_analysis.domain.consts import AI_TYPE_MANUAL_MARK_TABLE_MAPPING
 
 logger = logging.getLogger(__name__)
 
@@ -515,7 +516,6 @@ class SliceAnalysisDomainService(object):
             ai_type=ai_type, marks=marks, radius_ratio=radius_ratio, is_max_level=is_max_level,
             mark_config=mark_config, show_groups=group_ids)
         mark_cell_types = {}
-        logger.info(mark_list)
         for mark in mark_list:
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
@@ -525,6 +525,8 @@ class SliceAnalysisDomainService(object):
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练
             """
+            value = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(AIType.bm, 'human')
+            ai_type = AIType.get_by_value(value)
             _, manual_marks = self.repository.manual.get_marks()
             manual_mark_list = self.show_marks(
                 ai_type=ai_type, marks=manual_marks, radius_ratio=radius_ratio,
