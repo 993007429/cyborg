@@ -525,7 +525,7 @@ class SliceAnalysisDomainService(object):
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练
             """
-            value = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(AIType.bm, 'human')
+            value = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(ai_type, 'human')
             ai_type = AIType.get_by_value(value)
             _, manual_marks = self.repository.manual.get_marks()
             manual_mark_list = self.show_marks(
