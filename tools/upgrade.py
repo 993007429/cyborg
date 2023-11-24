@@ -1,5 +1,9 @@
+import os
 import sys
 import traceback
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
 
 from cyborg.app.service_factory import AppServiceFactory
 from cyborg.app.request_context import request_context
@@ -46,6 +50,7 @@ def main():
 
 if __name__ == '__main__':
     try:
+        main()
         print('upgrade success.')
     except Exception as e:
         print('upgrade failed. errMsg=%s' % str(e))
