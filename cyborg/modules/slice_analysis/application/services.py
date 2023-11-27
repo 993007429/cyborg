@@ -11,7 +11,7 @@ from typing import Optional, List, Union
 from cyborg.app.request_context import request_context
 from cyborg.modules.slice.application.services import SliceService
 from cyborg.modules.slice_analysis.domain.consts import AI_TYPE_MANUAL_MARK_TABLE_MAPPING
-from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkGroupEntity
+from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkGroupEntity, TemplateEntity
 
 from cyborg.modules.slice_analysis.domain.services import SliceAnalysisDomainService
 from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlice, SliceMarkConfig
@@ -419,7 +419,16 @@ class SliceAnalysisService(object):
         data = self.domain_service.show_mark_groups(groups)
         return AppResponse(message='operation succeed', data=data)
 
+    def get_share_templates(self) -> AppResponse[dict]:
+        templates = self.domain_service.config_repository.get_all_templates()
+        return AppResponse(message='query succeed', data={'templates': templates})
+
+    @connect_slice_db()
     def get_all_templates(self) -> AppResponse[dict]:
+        share_mark_groups = self.domain_service.config_repository.get_share_mark_groups()
+        code, message = self.domain_service.sync_mark_groups(share_mark_groups)
+        if code:
+            return AppResponse(message=message, code=code)
         templates = self.domain_service.config_repository.get_all_templates()
         return AppResponse(message='query succeed', data={'templates': templates})
 
@@ -607,3 +616,39 @@ class SliceAnalysisService(object):
     @connect_slice_db()
     def has_mark(self):
         return self.domain_service.repository.has_mark()
+
+    def get_template(self, template_id: int) -> AppResponse[dict]:
+        template = self.domain_service.config_repository.get_templates(template_id)
+        return AppResponse(message='query template succeed', data=template)
+
+    def add_templates(self, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> AppResponse[dict]:
+        ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name)) if ai_name else None
+        template = TemplateEntity(raw_data=dict(
+            template_name=name,
+            create_time=time.time(),
+            is_selected=0,
+            ai_id=ai_id,
+            is_multi_mark=is_multi_mark
+        ))
+        is_success, template_id = self.domain_service.config_repository.add_templates(mark_groups, template)
+        return AppResponse(message='add template success' if is_success else "add template failed", data={"template_id": template_id})
+
+    def edit_templates(self, template_id: int, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> (
+            AppResponse)[dict]:
+        ai_id = None
+        if ai_name:
+            ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name))
+        template = TemplateEntity(raw_data=dict(
+            id=template_id,
+            template_name=name,
+            create_time=time.time(),
+            is_selected=0,
+            ai_id=ai_id,
+            is_multi_mark=is_multi_mark
+        ))
+        self.domain_service.config_repository.edit_templates(mark_groups, template, template_id)
+        return AppResponse(message='edit template succeed')
+
+    def del_templates(self, id: int) -> AppResponse[dict]:
+        self.domain_service.config_repository.del_templates(id)
+        return AppResponse(message='del template succeed')

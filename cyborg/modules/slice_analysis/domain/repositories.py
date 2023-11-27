@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, List, Tuple, Union
 
 from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkGroupEntity, MarkToTileEntity, \
-    ChangeRecordEntity, NPCountEntity, Pdl1sCountEntity
+    ChangeRecordEntity, NPCountEntity, Pdl1sCountEntity, TemplateEntity
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
 
 
@@ -179,6 +179,10 @@ class SliceMarkRepository(metaclass=ABCMeta):
     def get_mark_groups(self) -> List[MarkGroupEntity]:
         ...
 
+    @abstractmethod
+    def get_mark_group_by_kwargs(self, kwargs: Optional[dict]) -> List[MarkGroupEntity]:
+        ...
+
 
 class AIConfigRepository(metaclass=ABCMeta):
 
@@ -192,4 +196,27 @@ class AIConfigRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def get_all_templates(self) -> List[dict]:
+        ...
+
+    @abstractmethod
+    def get_templates(self, template_id: int) -> dict:
+        ...
+
+    @abstractmethod
+    def get_template_by_template_id(self, template_id: int) -> dict:
+        ...
+
+    @abstractmethod
+    def add_templates(self, mark_group: List[dict], template: TemplateEntity) -> Tuple[bool, int]:
+        ...
+
+    @abstractmethod
+    def edit_templates(self, mark_group: List[dict], template: TemplateEntity, template_id: int) -> bool:
+        ...
+
+    @abstractmethod
+    def del_templates(self, id: int) -> bool:
+        ...
+
+    def get_share_mark_groups(self) -> List[MarkGroupEntity]:
         ...

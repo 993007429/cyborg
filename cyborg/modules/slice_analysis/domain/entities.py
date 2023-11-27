@@ -27,6 +27,17 @@ class MarkGroupEntity(BaseDomainEntity):
         }
 
 
+class TemplateEntity(BaseDomainEntity):
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'template_name': self.template_name,
+            'is_selected': self.is_selected,
+            'ai_id': self.ai_id
+        }
+
+
 class MarkEntity(BaseDomainEntity):
     group: Optional[MarkGroupEntity] = None
     area: float = 0

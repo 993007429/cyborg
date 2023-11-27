@@ -46,6 +46,7 @@ class TemplateModel(BaseModel):
     is_selected = Column('isSelected', Integer)
     ai_id = Column('aiId', Integer)
     has_imported = Column('hasImported', Integer, default=0)
+    is_multi_mark = Column('isMultiMark', Integer, default=0, comment='是否允许选择多标注组')
 
 
 class TCTProbModel(BaseModel):

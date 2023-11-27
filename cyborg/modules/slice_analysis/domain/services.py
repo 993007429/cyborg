@@ -3,6 +3,7 @@ import random
 import sys
 import json
 import time
+import traceback
 from collections import OrderedDict
 from itertools import groupby
 from typing import List, Tuple, Optional, Union
@@ -880,6 +881,22 @@ class SliceAnalysisDomainService(object):
 
         for item in kwargs.get('children', []):
             self.update_mark_group(parent_id=group.id, **item)
+
+    @transaction
+    def sync_mark_groups(self, groups: List[MarkGroupEntity]) -> Tuple[int, str]:
+        for group in groups:
+            kwargs = {'group_name': group.group_name, 'template_id': group.template_id, 'id': group.id,
+                      'label': group.label, 'color': group.color, 'parent_id': group.parent_id}
+            group_ = self.repository.get_mark_group_by_kwargs(kwargs)
+            try:
+                if group_:
+                    self.repository.save_mark_group(group)
+                else:
+                    self.repository.save_mark_group(group)
+            except Exception:
+                logger.info(traceback.format_exc())
+                return 1, 'sync mark groups failed.'
+        return 0, ''
 
     def show_mark_groups(self, groups: List[MarkGroupEntity]) -> List[dict]:
         data_list = list()

@@ -263,7 +263,14 @@ def select_template():
 
 @api_blueprint.route('/slice/templateList', methods=['get', 'post'])
 def template_list():
+    request_context.ai_type = AIType.label
     res = AppServiceFactory.new_slice_analysis_service().get_all_templates()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/share_templates', methods=['get', 'post'])
+def share_templates():
+    res = AppServiceFactory.new_slice_analysis_service().get_share_templates()
     return jsonify(res.dict())
 
 
@@ -328,4 +335,46 @@ def del_label():
 @api_blueprint.route('/slice/getLabels', methods=['get', 'post'])
 def get_labels():
     res = AppServiceFactory.slice_service.get_labels()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/get_template', methods=['get', 'post'])
+def get_template():
+    body = request.get_json()
+    template_id = body.get('id')
+    if not template_id or not isinstance(template_id, int):
+        return jsonify(AppResponse(err_code=11, message='参数格式错误').dict())
+    res = AppServiceFactory.new_slice_analysis_service().get_template(template_id)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/add_template', methods=['get', 'post'])
+def add_template():
+    body = request.get_json()
+    name = body.get('name')
+    ai_name = body.get('aiName')
+    is_multi_mark = body.get('isMultiMark')
+    mark_groups = body.get('markGroups')
+    res = AppServiceFactory.new_slice_analysis_service().add_templates(name, ai_name, is_multi_mark, mark_groups)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/edit_template', methods=['get', 'post'])
+def edit_template():
+    body = request.get_json()
+    template_id = body.get('id')
+    name = body.get('name')
+    ai_name = body.get('aiName')
+    is_multi_mark = body.get('isMultiMark')
+    mark_groups = body.get('markGroups')
+    res = AppServiceFactory.new_slice_analysis_service().edit_templates(
+        template_id, name, ai_name, is_multi_mark, mark_groups
+    )
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/del_template', methods=['get', 'post'])
+def del_template():
+    body = request.get_json()
+    res = AppServiceFactory.new_slice_analysis_service().del_templates(body.get('id'))
     return jsonify(res.dict())
