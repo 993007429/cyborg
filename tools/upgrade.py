@@ -42,8 +42,23 @@ def update_slice_is_marked():
         print('update slice [%s] is_marked [%s] success.' % (slice.caseid, is_marked))
 
 
+def update_company_ai_threshold():
+    companies = AppServiceFactory.user_service.domain_service.company_repository.get_all_companies()
+    for company in companies:
+        if 'bm' in company.ai_threshold:
+            continue
+        ai_threshold = company.ai_threshold
+        ai_threshold['bm'] = {"qc_cell_num": 500}
+        company.update_data(
+            ai_threshold=ai_threshold
+        )
+        AppServiceFactory.user_service.domain_service.company_repository.save(company)
+    print('update company success')
+
+
 def main():
     with request_context:
+        update_company_ai_threshold()
         set_default_passwd()
         update_slice_is_marked()
 

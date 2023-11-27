@@ -77,6 +77,7 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         kwargs['clarity_standards_min'] = company.clarity_standards_min
         kwargs['clarity_standards_max'] = company.clarity_standards_max
+        kwargs['ai_threshold'] = company.ai_threshold
         total, records = self.domain_service.repository.search_records(request_context.current_company, **kwargs)
         data = [record.to_dict() for record in records]
         return AppResponse(data=Pagination(locals()).to_dict())
@@ -87,6 +88,7 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         kwargs['clarity_standards_min'] = company.clarity_standards_min
         kwargs['clarity_standards_max'] = company.clarity_standards_max
+        kwargs['ai_threshold'] = company.ai_threshold
         total, records = self.domain_service.repository.search_records(request_context.current_company, **kwargs)
         headers = self.user_service.get_customized_record_fields().data + ['最终结果']
 
@@ -328,9 +330,10 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         entity.clarity_level = entity.get_clarity_level(clarity_standards_max=company.clarity_standards_max,
                                                         clarity_standards_min=company.clarity_standards_min)
-        if company.ai_threshold:
+        if company.ai_threshold and entity.alg:
             params = company.ai_threshold.get(entity.alg, {})
-            entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), params.get('qc_cell_num', None))
+            if params:
+                entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), params.get('qc_cell_num', None))
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
@@ -526,7 +529,8 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         total, records = self.domain_service.repository.search_records(
             request_context.current_company, search_key='sample_num', search_value=text,
-            clarity_standards_min=company.clarity_standards_min, clarity_standards_max=company.clarity_standards_max
+            clarity_standards_min=company.clarity_standards_min, clarity_standards_max=company.clarity_standards_max,
+            ai_threshold=company.ai_threshold
         )
 
         data = [record.to_dict() for record in records]

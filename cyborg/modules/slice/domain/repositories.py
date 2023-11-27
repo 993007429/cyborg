@@ -123,7 +123,8 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             labels: Optional[str] = None,
             clarity_level: Optional[str] = None,
             slice_quality: Optional[str] = None,
-            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6
+            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
+            ai_threshold: Optional[dict] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
         ...
 

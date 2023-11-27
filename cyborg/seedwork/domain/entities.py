@@ -40,7 +40,7 @@ class BaseDomainEntity(BaseModel):
     def __getattr__(self, name):
         if name in self.raw_data:
             value = self.raw_data[name]
-            value = self._decode_value(name, value)
+            value = self._decode_value(name, value) or value
             return value
         try:
             return object.__getattribute__(self, name)
