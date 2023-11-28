@@ -3,7 +3,7 @@ import sys
 from datetime import datetime, timedelta
 from typing import Optional, Type, Tuple, List, Any
 
-from sqlalchemy import desc, or_, func, distinct, and_, not_
+from sqlalchemy import desc, or_, func, distinct, and_
 
 from cyborg.infra.session import transaction
 from cyborg.modules.ai.domain.entities import TCTProbEntity
