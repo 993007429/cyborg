@@ -222,6 +222,7 @@ class SliceDomainService(object):
             info.pop('radius', None)
             info.pop('is_solid', None)
             info.pop('clarity', None)
+            info.pop('aiTips', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
 
@@ -229,8 +230,6 @@ class SliceDomainService(object):
                 k = camel_to_snake(k)
                 if k == 'id':
                     slice.update_data(fileid=v)
-                elif k == 'aiTips' and not v:
-                    continue
                 elif k == 'ai_suggest':
                     if info.get('check_result') and slice.update_ai_result(v):
                         cover = True
