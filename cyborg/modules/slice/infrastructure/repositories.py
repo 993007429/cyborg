@@ -314,7 +314,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 if i == '无':
                     temp = or_(temp, SliceModel.ai_suggest == '')
                 elif i == '结果异常':
-                    temp = not_(or_(SliceModel.ai_tips.contains('[]'), SliceModel.ai_tips.is_(None)))
+                    temp = or_(temp, SliceModel.ai_tips.isnot(None))
                 else:
                     temp = or_(temp, SliceModel.ai_suggest.contains(i))
             query = query.filter(temp)
