@@ -229,7 +229,8 @@ class SliceDomainService(object):
                 k = camel_to_snake(k)
                 if k == 'id':
                     slice.update_data(fileid=v)
-
+                elif k == 'aiTips' and not v:
+                    continue
                 elif k == 'ai_suggest':
                     if info.get('check_result') and slice.update_ai_result(v):
                         cover = True
