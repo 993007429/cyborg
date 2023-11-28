@@ -216,7 +216,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             labels: Optional[List[str]] = None,
             clarity_level: Optional[List[str]] = None,
             slice_quality: Optional[List[str]] = None,
-            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6
+            clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
+            ai_threshold: Optional[dict] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
 
         search_value = search_value.strip() if search_value else None
@@ -313,7 +314,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 if i == '无':
                     temp = or_(temp, SliceModel.ai_suggest == '')
                 elif i == '结果异常':
-                    temp = or_(temp, SliceModel.ai_tips != '')
+                    temp = or_(temp, SliceModel.ai_tips.isnot(None))
                 else:
                     temp = or_(temp, SliceModel.ai_suggest.contains(i))
             query = query.filter(temp)
@@ -358,6 +359,11 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                     if s.type == 'slice':
                         s.clarity_level = s.get_clarity_level(clarity_standards_max=clarity_standards_max,
                                                               clarity_standards_min=clarity_standards_min)
+                        if ai_threshold and s.alg:
+                            params = ai_threshold.get(s.alg, {})
+                            if params:
+                                s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg),
+                                                                      params.get('qc_cell_num', None))
                         if s.started == SliceStartedStatus.failed:
                             slice_err = self.session.query(SliceErrModel).filter_by(caseid=s.caseid,
                                                                                     fileid=s.fileid).first()

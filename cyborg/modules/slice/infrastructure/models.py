@@ -98,7 +98,7 @@ class SliceModel(BaseModel):
     last_modified = Column(TIMESTAMP, nullable=False)
     is_marked = Column(Boolean, default=False, comment='是否已标注(0未标注，1已标注)')
     labels = Column(JSON, comment='自定义标签')
-    ai_tips = Column(JSON, default=[], comment="AI建议相关的说明文案")
+    ai_tips = Column(JSON, nullable=True, comment="AI建议相关的说明文案")
 
 
 class ReportConfigModel(BaseModel):

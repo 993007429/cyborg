@@ -210,9 +210,9 @@ class SliceEntity(BaseDomainEntity):
                 level = '中等'
         return level
 
-    def get_cell_num_tips(self, algor_type: str, cell_num_threshold: int) -> List[str]:
+    def get_cell_num_tips(self, algor_type: AIType, cell_num_threshold: int) -> List[str]:
         cell_num_tips = []
-        if algor_type in ['bm', 'tct', 'lct', 'dna']:
+        if algor_type in [AIType.bm, AIType.tct, AIType.lct, AIType.dna]:
             if cell_num_threshold and self.cell_num and self.cell_num < cell_num_threshold:
                 cell_num_tips = ['有效检测细胞量不足，请谨慎参考诊断建议。']
         return cell_num_tips
