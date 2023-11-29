@@ -223,6 +223,7 @@ class SliceDomainService(object):
             info.pop('is_solid', None)
             info.pop('clarity', None)
             info.pop('aiTips', None)
+            info.pop('ai_status', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
 
