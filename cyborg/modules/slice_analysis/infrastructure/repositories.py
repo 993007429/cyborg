@@ -409,15 +409,17 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
 
     def get_all_templates(self) -> List[dict]:
         rows = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name,
-                                  TemplateModel.is_multi_mark).join(
+                                  TemplateModel.is_multi_mark).outerjoin(
             AIModel, TemplateModel.ai_id == AIModel.id).all()
         return [{'id': row[0], 'name': row[1], 'type': row[2], 'isMultiMark': row[3]} for row in rows]
 
     def get_templates(self, template_id: int) -> dict:
         # todo 待优化算法
+        logger.info('template_id==%s' % template_id)
         row = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name,
-                                 TemplateModel.is_multi_mark).join(
+                                 TemplateModel.is_multi_mark).outerjoin(
             AIModel, TemplateModel.ai_id == AIModel.id).filter(TemplateModel.id == template_id).first()
+        logger.info('row==%s' % row)
         mark_groups = self.session.query(ShareMarkGroupModel.id, ShareMarkGroupModel.parent_id,
                                          ShareMarkGroupModel.group_name,
                                          ShareMarkGroupModel.color).join(
@@ -491,26 +493,28 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
             return False, -1
         self.session.add(template)
         self.session.flush([template])
-        mark = MarkGroupEntity(raw_data=dict(
-            group_name='',
-            shape='',
-            color='',
-            create_time=0,
-            is_template=0,
-            is_selected=0,
-            selectable=0,
-            editable=0,
-            is_ai=0,
-            parent_id=None,
-            template_id=template.id,
-            op_time=current_time,
-            default_color='',
-            is_empty=1,
-            is_show=1,
-            is_import=0
-        ))
+
         for item in mark_group:
             if not item['parentId']:
+                mark = MarkGroupEntity(raw_data=dict(
+                    group_name='',
+                    shape='',
+                    color='',
+                    create_time=0,
+                    is_template=0,
+                    is_selected=0,
+                    selectable=0,
+                    editable=0,
+                    is_ai=0,
+                    parent_id=None,
+                    template_id=template.id,
+                    op_time=current_time,
+                    default_color='',
+                    is_empty=1,
+                    is_show=1,
+                    is_import=0
+                ))
+                logger.info('item===%s' % item)
                 first_level_mark = mark
                 first_level_mark.raw_data['group_name'] = item['groupName']
                 first_level_mark.raw_data['color'] = item['color']
@@ -518,6 +522,7 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                 model = self.convert_to_model(first_level_mark, ShareMarkGroupModel)
                 if not model:
                     return False, -1
+                logger.info('add first level mark begin. %s' % first_level_mark)
                 self.session.add(model)
                 self.session.flush([model])
                 first_level_mark.update_data(**model.raw_data)
@@ -534,6 +539,7 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
                     if not model:
                         return False, -1
+                    logger.info('add second level mark begin. %s' % second_level_mark)
                     self.session.add(model)
                     self.session.flush([model])
                     second_level_mark.update_data(**model.raw_data)
@@ -554,35 +560,33 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                         self.session.flush([model])
                         third_level_mark.update_data(**model.raw_data)
                         logger.info('add third level mark success. %s' % third_level_mark)
+            logger.info('update first level end.%s' % item)
         return True, template.id
 
     @transaction
     def edit_templates(self, mark_group: List[dict], template: TemplateEntity, template_id: int) -> bool:
         current_time = time.time()
-        # 先删除已有的标注组
-        # self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == template_id).delete(
-        #     synchronize_session=False)
-        mark = MarkGroupEntity(raw_data=dict(
-            group_name='',
-            shape='',
-            color='',
-            create_time=0,
-            is_template=0,
-            is_selected=0,
-            selectable=0,
-            editable=0,
-            is_ai=0,
-            parent_id=None,
-            template_id=template_id,
-            op_time=current_time,
-            default_color='',
-            is_empty=1,
-            is_show=1,
-            is_import=0
-        ))
         for item in mark_group:
             logger.info(item)
             if not item['parentId']:
+                mark = MarkGroupEntity(raw_data=dict(
+                    group_name='',
+                    shape='',
+                    color='',
+                    create_time=0,
+                    is_template=0,
+                    is_selected=0,
+                    selectable=0,
+                    editable=0,
+                    is_ai=0,
+                    parent_id=None,
+                    template_id=template_id,
+                    op_time=current_time,
+                    default_color='',
+                    is_empty=1,
+                    is_show=1,
+                    is_import=0
+                ))
                 first_level_mark = mark
                 id = item.get('id', '')
                 first_parent_id = id
