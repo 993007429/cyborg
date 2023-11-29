@@ -408,7 +408,8 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         return row[0] if row else None
 
     def get_all_templates(self) -> List[dict]:
-        rows = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name, TemplateModel.is_multi_mark).join(
+        rows = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name,
+                                  TemplateModel.is_multi_mark).join(
             AIModel, TemplateModel.ai_id == AIModel.id).all()
         return [{'id': row[0], 'name': row[1], 'type': row[2], 'isMultiMark': row[3]} for row in rows]
 
@@ -417,9 +418,11 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         row = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name,
                                  TemplateModel.is_multi_mark).join(
             AIModel, TemplateModel.ai_id == AIModel.id).filter(TemplateModel.id == template_id).first()
-        mark_groups = self.session.query(ShareMarkGroupModel.id, ShareMarkGroupModel.parent_id, ShareMarkGroupModel.group_name,
+        mark_groups = self.session.query(ShareMarkGroupModel.id, ShareMarkGroupModel.parent_id,
+                                         ShareMarkGroupModel.group_name,
                                          ShareMarkGroupModel.color).join(
-            TemplateModel, TemplateModel.id == ShareMarkGroupModel.template_id).filter(TemplateModel.id == template_id).all()
+            TemplateModel, TemplateModel.id == ShareMarkGroupModel.template_id).filter(
+            TemplateModel.id == template_id).all()
         mark_group, group_dict = [], {}
         for group in mark_groups:
             mark_group.append(
@@ -437,24 +440,57 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     group_dict[k]['children'].append(
                         {"id": group['id'], "parentId": group['parentId'], "groupName": group['groupName'],
                          "color": group['color'], 'children': []})
+        logger.info('second_level==%s' % second_level)
+        # [684]
+        logger.info('mark_group==%s' % mark_group)
+        # [{'id': 683, 'parentId': None, 'groupName': '默认组名称1', 'color': '#FF0000', 'children': []},
+        # {'id': 684, 'parentId': 683, 'groupName': '默认组名称11', 'color': '#FF0000', 'children': []},
+        # {'id': 685, 'parentId': 684, 'groupName': '默认组名称111', 'color': '#FF0000', 'children': []}]
+        logger.info('group_dict==%s' % group_dict)
+        # group_dict=={683: {'id': 683, 'parentId': None, 'groupName': '默认组名称1', 'color': '#FF0000',
+        # 'children': [{'id': 684, 'parentId': 683, 'groupName': '默认组名称11', 'color': '#FF0000', 'children': []}]}}
         for group in mark_group:
+            if not group['parentId']:
+                continue
             for k in second_level:
                 # 三级标注组
+                first_level = None
                 if group['parentId'] == k:
-                    group_dict[k]['children'].append(
-                        {"id": group['id'], "parentId": group['parentId'], "groupName": group['groupName'],
-                         "color": group['color'], 'children': []})
+                    for group_ in mark_group:
+                        if group_['id'] == k:
+                            first_level = group_['parentId']
+                            break
+                    logger.info('first_level==%s' % first_level)
+                    if first_level:
+                        second = group_dict[first_level]['children']
+                        logger.info('second==%s' % second)
+                        for i in second:
+                            index = second.index(i)
+                            logger.info('index==%s' % index)
+                            logger.info('group==%s' % group)
+                            if i['id'] == k:
+                                item = {"id": group['id'], "parentId": group['parentId'],
+                                        "groupName": group['groupName'],
+                                        "color": group['color'], 'children': []}
+                                group_dict[first_level]['children'][index]['children'].append(item)
+        logger.info('group_dict==%s' % group_dict)
+        logger.info('row==%s' % row)
         return {'id': row[0], 'name': row[1], 'type': row[2], 'aiName': row[2], 'isMultiMark': row[3],
                 'markGroups': list(group_dict.values())}
 
     @transaction
     def add_templates(self, mark_group: List[dict], template: TemplateEntity) -> Tuple[bool, int]:
         current_time = time.time()
-        model = self.convert_to_model(template, TemplateModel)
-        if not model:
+        is_existed = self.session.query(TemplateModel).filter(
+            TemplateModel.template_name == template.template_name).first()
+        if is_existed:
+            logger.info('the template has existed.')
             return False, -1
-        self.session.add(model)
-        self.session.flush([model])
+        template = self.convert_to_model(template, TemplateModel)
+        if not template:
+            return False, -1
+        self.session.add(template)
+        self.session.flush([template])
         mark = MarkGroupEntity(raw_data=dict(
             group_name='',
             shape='',
@@ -484,33 +520,39 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     return False, -1
                 self.session.add(model)
                 self.session.flush([model])
+                first_level_mark.update_data(**model.raw_data)
+                first_parent_id = model.id
                 logger.info('add first level mark success. %s' % first_level_mark)
-
                 for second_mark in item['children'] if 'children' in item else []:
+                    logger.info('second_mark===%s' % second_mark)
                     second_level_mark = mark
-                    second_level_mark.raw_data.pop('id')
+                    second_level_mark.raw_data.pop('id', None)
                     second_level_mark.raw_data['group_name'] = second_mark['groupName']
                     second_level_mark.raw_data['color'] = second_mark['color']
                     second_level_mark.raw_data['default_color'] = second_mark['color']
-                    second_level_mark.raw_data['parent_id'] = first_level_mark.id
+                    second_level_mark.raw_data['parent_id'] = first_parent_id
                     model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
                     if not model:
                         return False, -1
                     self.session.add(model)
                     self.session.flush([model])
+                    second_level_mark.update_data(**model.raw_data)
+                    second_parent_id = model.id
                     logger.info('add second level mark success. %s' % second_level_mark)
-                    for third_mark in second_mark['children'] if 'second_mark' in item else []:
+                    for third_mark in second_mark['children'] if 'children' in item else []:
+                        logger.info('third_mark===%s' % third_mark)
                         third_level_mark = mark
-                        third_level_mark.raw_data.pop('id')
+                        third_level_mark.raw_data.pop('id', None)
                         third_level_mark.raw_data['group_name'] = third_mark['groupName']
                         third_level_mark.raw_data['color'] = third_mark['color']
                         third_level_mark.raw_data['default_color'] = third_mark['color']
-                        third_level_mark.raw_data['parent_id'] = second_level_mark.id
+                        third_level_mark.raw_data['parent_id'] = second_parent_id
                         model = self.convert_to_model(third_level_mark, ShareMarkGroupModel)
                         if not model:
                             return False, -1
                         self.session.add(model)
                         self.session.flush([model])
+                        third_level_mark.update_data(**model.raw_data)
                         logger.info('add third level mark success. %s' % third_level_mark)
         return True, template.id
 
@@ -518,7 +560,8 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
     def edit_templates(self, mark_group: List[dict], template: TemplateEntity, template_id: int) -> bool:
         current_time = time.time()
         # 先删除已有的标注组
-        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == template_id).delete(synchronize_session=False)
+        # self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == template_id).delete(
+        #     synchronize_session=False)
         mark = MarkGroupEntity(raw_data=dict(
             group_name='',
             shape='',
@@ -538,58 +581,98 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
             is_import=0
         ))
         for item in mark_group:
+            logger.info(item)
             if not item['parentId']:
                 first_level_mark = mark
-                first_level_mark.raw_data['group_name'] = item['groupName']
-                first_level_mark.raw_data['color'] = item['color']
-                first_level_mark.raw_data['default_color'] = item['color']
-                model = self.convert_to_model(first_level_mark, ShareMarkGroupModel)
-                if not model:
-                    return False
-                self.session.add(model)
-                self.session.flush([model])
-                logger.info('add first level mark success. %s' % first_level_mark)
-                for second_mark in item['children'] if 'children' in item else []:
-                    second_level_mark = mark
-                    second_level_mark.raw_data.pop('id')
-                    second_level_mark.raw_data['group_name'] = second_mark['groupName']
-                    second_level_mark.raw_data['color'] = second_mark['color']
-                    second_level_mark.raw_data['default_color'] = second_mark['color']
-                    second_level_mark.raw_data['parent_id'] = first_level_mark.id
-                    model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
+                id = item.get('id', '')
+                first_parent_id = id
+                is_add = True
+                logger.info('id===%s' % id)
+                if id:
+                    obj = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                    logger.info('obj====%s' % obj)
+                    if obj:
+                        is_add = False
+                        self.session.query(ShareMarkGroupModel).filter_by(id=id).update(
+                            {'group_name': item['groupName'],
+                             'color': item['color'],
+                             'default_color': item['color']})
+                logger.info('is_add===%s' % is_add)
+                if is_add:
+                    first_level_mark.raw_data['group_name'] = item['groupName']
+                    first_level_mark.raw_data['color'] = item['color']
+                    first_level_mark.raw_data['default_color'] = item['color']
+                    model = self.convert_to_model(first_level_mark, ShareMarkGroupModel)
                     if not model:
                         return False
                     self.session.add(model)
                     self.session.flush([model])
-                    second_level_mark.update_data(**model.raw_data)
-                    logger.info('add second level mark success. %s' % second_level_mark)
-                    for third_mark in second_mark['children'] if 'children' in second_mark else []:
-                        third_level_mark = mark
-                        third_level_mark.raw_data.pop('id')
-                        third_level_mark.raw_data['group_name'] = third_mark['groupName']
-                        third_level_mark.raw_data['color'] = third_mark['color']
-                        third_level_mark.raw_data['default_color'] = third_mark['color']
-                        third_level_mark.raw_data['parent_id'] = second_level_mark.id
-                        model = self.convert_to_model(third_level_mark, ShareMarkGroupModel)
+                    first_level_mark.update_data(**model.raw_data)
+                    first_parent_id = model.id
+                logger.info('add first level mark success.first_parent_id= %s' % first_parent_id)
+                for second_mark in item['children'] if 'children' in item else []:
+                    logger.info('second_mark==%s' % second_mark)
+                    second_level_mark = mark
+                    id = second_mark.get('id', '')
+                    second_parent_id = id
+                    is_add = True
+                    if id:
+                        obj = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                        if obj:
+                            is_add = False
+                            self.session.query(ShareMarkGroupModel).filter_by(id=id).update(
+                                {'group_name': second_mark['groupName'],
+                                 'color': second_mark['color'],
+                                 'default_color': second_mark['color']})
+                    logger.info('is_add===%s' % is_add)
+                    if is_add:
+                        second_level_mark.raw_data['group_name'] = second_mark['groupName']
+                        second_level_mark.raw_data['color'] = second_mark['color']
+                        second_level_mark.raw_data['default_color'] = second_mark['color']
+                        second_level_mark.raw_data['parent_id'] = first_parent_id
+                        logger.info('second_level_mark===%s' % second_level_mark)
+                        model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
                         if not model:
                             return False
                         self.session.add(model)
                         self.session.flush([model])
-                        third_level_mark.update_data(**model.raw_data)
+                        second_level_mark.update_data(**model.raw_data)
+                        second_parent_id = model.id
+                    logger.info('add second level mark success. first_parent_id=%s' % first_parent_id)
+                    for third_mark in second_mark['children'] if 'children' in second_mark else []:
+                        logger.info('third_mark==%s' % third_mark)
+                        third_level_mark = mark
+                        id = third_mark.get('id', '')
+                        is_add = True
+                        if id:
+                            obj = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                            if obj:
+                                is_add = False
+                                self.session.query(ShareMarkGroupModel).filter_by(id=id).update(
+                                    {'group_name': third_mark['groupName'],
+                                     'color': third_mark['color'],
+                                     'default_color': third_mark['color']})
+                        logger.info('is_add===%s' % is_add)
+                        if is_add:
+                            third_level_mark.raw_data['group_name'] = third_mark['groupName']
+                            third_level_mark.raw_data['color'] = third_mark['color']
+                            third_level_mark.raw_data['default_color'] = third_mark['color']
+                            third_level_mark.raw_data['parent_id'] = second_parent_id
+                            model = self.convert_to_model(third_level_mark, ShareMarkGroupModel)
+                            if not model:
+                                return False
+                            self.session.add(model)
+                            self.session.flush([model])
+                            third_level_mark.update_data(**model.raw_data)
                         logger.info('add third level mark success. %s' % third_level_mark)
-            logger.info('add mark groups end.')
-        model = self.convert_to_model(template, TemplateModel)
-        if not model:
-            return False
-        self.session.add(model)
-        self.session.flush([model])
         logger.info('add mark groups success.')
         return True
 
     @transaction
     def del_templates(self, id: int) -> bool:
         # 以往数据不变
-        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == id).delete(synchronize_session=False)
+        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == id).delete(
+            synchronize_session=False)
         self.session.query(TemplateModel).filter(TemplateModel.id == id).delete(synchronize_session=False)
         logger.info('del template end')
         return True

@@ -238,6 +238,8 @@ class SliceDomainService(object):
             for k, v in info.items():
                 if k == 'id':
                     slice.update_data(fileid=v)
+                elif k == 'ai_tips' and not v:
+                    continue
                 elif k == 'ai_suggest':
                     if info.get('check_result') and slice.update_ai_result(v):
                         cover = True
