@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import signal
-import uuid
 from collections import Counter
 from typing import Optional, List, Type, Tuple
 

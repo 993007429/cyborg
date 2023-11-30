@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 class SliceService(object):
 
+    upload_id_to_caseid_cache_key = 'uploadid:{}:caseid'
+
     def __init__(self, domain_service: SliceDomainService, user_service: UserCoreService):
         super(SliceService, self).__init__()
         self.domain_service = domain_service
@@ -47,6 +49,12 @@ class SliceService(object):
         record.slices = self.domain_service.repository.get_slices_by_case_id(case_id=case_id,
                                                                              company=request_context.current_company)
         return AppResponse(data=record.to_dict())
+
+    def get_record_by_upload_id(self, upload_id: str) -> AppResponse[dict]:
+        case_id = cache.get(self.upload_id_to_caseid_cache_key.format(upload_id))
+        record = self.domain_service.repository.get_record_by_case_id(
+            case_id, request_context.current_company) if case_id else None
+        return AppResponse(data=record.to_dict() if record else None)
 
     def get_records_by_sample_num(self, sample_num: str) -> AppResponse:
         records = self.domain_service.repository.get_records(
@@ -201,16 +209,17 @@ class SliceService(object):
             return AppResponse(err_code=err_code, message=message)
 
         if upload_id and not case_id:
-            case_id = cache.get(f'uploadid:{upload_id}:caseid')
+            case_id = cache.get(self.upload_id_to_caseid_cache_key.format(upload_id))
             if not case_id:
                 case_id = self.domain_service.gen_case_id()
                 cache.set(f'uploadid:{upload_id}:caseid', case_id, ex=3600 * 24 * 3)
 
             # 上传文件重复性校验
-            slice = self.domain_service.repository.get_slice_by_local_filename(
-                user_file_path=user_file_path, file_name=file_name, company=request_context.current_company)
-            if slice:
-                return AppResponse(err_code=2, message='2')
+            if user_file_path:
+                slice = self.domain_service.repository.get_slice_by_local_filename(
+                    user_file_path=user_file_path, file_name=file_name, company=request_context.current_company)
+                if slice:
+                    return AppResponse(err_code=2, message='2')
 
             # 上传切片文件完整性校验
             if Settings.INTEGRITY_CHECK:

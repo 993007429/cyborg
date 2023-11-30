@@ -39,6 +39,8 @@ class Settings(object):
 
     APP_LOG_FILE = os.path.join(LOG_DIR, f'cyborg-app-{PORT}')
 
+    WORKER_LOG_FILE = os.path.join(LOG_DIR, f'cyborg-worker-{PORT}')
+
     WHITE_LIST = [
         '/aipath/api/user/login',
         '/aipath/api/user/sign2',

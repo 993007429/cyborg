@@ -3,8 +3,8 @@ import logging
 from flask import jsonify, request
 
 from cyborg.app.openapi.motic import motic_blueprint
-from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import PartnerAppServiceFactory
+from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import AIType
 
 logger = logging.getLogger(__name__)
@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 @motic_blueprint.route('/openapi/v1/task/<string:motic_task_id>/analysis', methods=['post'])
 def analysis(motic_task_id: str):
-    request_context.ai_type = AIType.get_by_value(request.json.get('ai_type'))
-    res = PartnerAppServiceFactory.motic_service.start_analysis(motic_task_id=motic_task_id)
+    ai_type = AIType.get_by_value(request.json.get('ai_type'))
+    PartnerAppServiceFactory.motic_service.start_analysis_async(motic_task_id=motic_task_id, ai_type=ai_type)
+    res = AppResponse()
     return jsonify(res.dict())
 
 

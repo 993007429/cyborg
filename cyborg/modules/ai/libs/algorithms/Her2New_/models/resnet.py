@@ -9,6 +9,7 @@ __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'wide_resnet50_2', 'wide_resnet101_2']
 
 from cyborg.infra.oss import oss
+from cyborg.modules.ai.utils.file import load_alg_model
 
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-f37072fd.pth',
@@ -251,7 +252,7 @@ def _resnet(
 ) -> ResNet:
     model = ResNet(block, layers, **kwargs)
     if pretrained:
-        model_file = oss.get_object_to_io(oss.path_join('AI', 'Her2New_', 'resnet50.pth'))
+        model_file = load_alg_model(os.path.join('AI', 'Her2New_', 'resnet50.pth'))
         state_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in state_dict.items() if k in model_dict}

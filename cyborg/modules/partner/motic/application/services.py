@@ -4,10 +4,12 @@ import os
 from cyborg.app.auth import LoginUser
 from cyborg.app.request_context import request_context
 from cyborg.app.settings import Settings
+from cyborg.celery.app import app
+from cyborg.infra.cache import cache
 from cyborg.modules.ai.application.services import AIService
 from cyborg.modules.partner.motic.domain.services import MoticDomainService
+from cyborg.modules.partner.motic.application import tasks as motic_tasks
 from cyborg.modules.slice.application.services import SliceService
-from cyborg.modules.slice_analysis.application.services import SliceAnalysisService
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import AIType
@@ -18,21 +20,37 @@ logger = logging.getLogger(__name__)
 
 class MoticService(object):
 
+    celery_task_id_cache_key = 'motic_task_id:{}:celery_task_id'
+
+    case_id_file_id_cache_key = 'motic_task_id:{}:case_id_file_id'
+
     def __init__(
             self, domain_service: MoticDomainService, ai_service: AIService, slice_service: SliceService,
-            analysis_service: SliceAnalysisService, user_service: UserCoreService
+            user_service: UserCoreService
     ):
         super(MoticService, self).__init__()
         self.domain_service = domain_service
         self.user_service = user_service
         self.ai_service = ai_service
         self.slice_service = slice_service
-        self.analysis_service = analysis_service
 
-    def start_analysis(self, motic_task_id: str) -> AppResponse:
-        if not request_context.ai_type:
+    def start_analysis_async(self, motic_task_id: str, ai_type: AIType) -> AppResponse:
+        celery_task_id = motic_tasks.start_analysis(motic_task_id, ai_type)
+        if celery_task_id:
+            cache.set(self.celery_task_id_cache_key.format(motic_task_id), celery_task_id, ex=3600)
+        return AppResponse()
+
+    def start_analysis(self, motic_task_id: str, ai_type: AIType) -> AppResponse:
+        if not ai_type:
             return AppResponse(err_code=1, message='参数错误')
+
+        ai_name = {
+            AIType.tct: 'tct1',
+            AIType.lct: 'lct1',
+        }.get(ai_type)
+
         rois = self.domain_service.get_task_rois(motic_task_id=motic_task_id)
+        logger.info(motic_task_id)
         if not rois:
             return AppResponse(err_code=2, message='没有可分析的ROI')
 
@@ -41,9 +59,10 @@ class MoticService(object):
         tasks = []
         for roi in rois:
             file_id = roi.slideId
-            slice_info = self.slice_service.get_slice_info(
-                file_id=file_id, company_id=request_context.current_company).data
-            if not slice_info:
+            record_info = self.slice_service.get_record_by_upload_id(motic_task_id).data
+            if record_info:
+                case_id = record_info['caseid']
+            else:
                 slide_path = os.path.join(
                     request_context.current_user.data_dir, 'upload_data', upload_id, 'slices', file_id)
                 if not os.path.exists(slide_path):
@@ -51,25 +70,29 @@ class MoticService(object):
 
                 file_name, file_path, file_size = self.domain_service.download_slide(
                     motic_task_id=motic_task_id, roi=roi, slide_path=slide_path)
-                tool_type = {
-                    AIType.tct: 'tct1',
-                    AIType.lct: 'lct1',
-                }.get(request_context.ai_type)
+
+                logger.info(f'>>>>>>{file_name}>>>>>>>>{file_path}>>>>>>>>{file_size}')
 
                 res = self.slice_service.upload_slice(
                     upload_id=upload_id, case_id='', file_id=str(roi.slideId), company_id=request_context.current_company,
                     file_name=file_name, slide_type='slices', upload_path=slide_path,
-                    total_upload_size=file_size, tool_type=tool_type,
+                    total_upload_size=file_size, tool_type=ai_name,
                     user_file_path='', cover_slice_number=True, create_record=True
                 )
                 if res.err_code:
+                    logger.info(res.err_code)
                     return res
 
                 slice_info = res.data
+                case_id = slice_info['caseid']
 
-            request_context.case_id = slice_info['caseid']
+            request_context.case_id = case_id
             request_context.file_id = file_id
-            task = self.ai_service.start_ai(ai_name=request_context.ai_type.value, run_task_async=False).data
+            cache.set(self.case_id_file_id_cache_key.format(motic_task_id), (case_id, file_id, ai_name), ex=3600)
+
+            task = self.ai_service.start_ai(ai_name=ai_name, run_task_async=False).data
+
+            self.domain_service.callback_analysis_status(motic_task_id, task['status'])
 
             tasks.append(dict_snake_to_camel(task))
 
@@ -95,13 +118,18 @@ class MoticService(object):
     def get_analysis_result(self, motic_task_id: str) -> AppResponse:
         if not self._find_record(motic_task_id=motic_task_id):
             return AppResponse(err_code=1, message='找不到切片')
-        res = self.analysis_service.get_rois()
+        res = self.slice_service.get_slice_info(
+            case_id=request_context.case_id, file_id=request_context.file_id, company_id=request_context.current_company
+        )
         if res.err_code:
             return res
-        rois = res.data.get('ROIS')
 
+        slice_info = res.data
         data = {
-            'rois': [dict_snake_to_camel(roi) for roi in rois]
+            'aiSuggest': slice_info['ai_suggest'],
+            'checkResult': slice_info['check_result'],
+            'slideQuality': slice_info['slide_quality'],
+            'cellNum': slice_info['cell_num']
         }
 
         user_info = self.user_service.get_current_user(user_name=request_context.current_user.username).data
@@ -111,7 +139,15 @@ class MoticService(object):
             data['url'] = f'/#/detail?caseid={request_context.case_id}&jwt={login_user.jwt_token}'
         return AppResponse(data=data)
 
-    def cancel_analysis(self, motic_task_id: str):
-        if not self._find_record(motic_task_id=motic_task_id):
-            return AppResponse(err_code=1, message='找不到切片')
-        return self.ai_service.cancel_task()
+    def cancel_analysis(self, motic_task_id: str) -> AppResponse:
+        celery_task_id = cache.get(self.celery_task_id_cache_key.format(motic_task_id))
+        if celery_task_id:
+            app.control.revoke(celery_task_id, terminate=True)
+
+        res = cache.get(self.case_id_file_id_cache_key.format(motic_task_id))
+        if res:
+            request_context.case_id = res[0]
+            request_context.file_id = res[1]
+            request_context.ai_type = AIType.get_by_value(res[2])
+            return self.ai_service.cancel_task()
+        return AppResponse()

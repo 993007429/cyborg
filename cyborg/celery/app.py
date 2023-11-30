@@ -1,15 +1,19 @@
 import logging
 from functools import wraps
+from logging.config import dictConfig
 
 from celery import Celery
 from celery.signals import worker_process_shutdown
 from kombu import Exchange, Queue
 
+from cyborg.app.logging import gen_logging_config
 from cyborg.app.request_context import request_context
+from cyborg.app.settings import Settings
 from cyborg.infra.celery import make_default_config
 
-logger = logging.getLogger(__name__)
+dictConfig(gen_logging_config(logging_filename=Settings.WORKER_LOG_FILE))
 
+logger = logging.getLogger(__name__)
 
 QUEUE_NAME_DEFAULT = 'default'
 QUEUE_NAME_AI_TASK = 'ai_task'
@@ -29,6 +33,7 @@ app = Celery('cyborg.main', include=[
     'cyborg.modules.ai.application.tasks',
     'cyborg.modules.slice.application.tasks',
     'cyborg.modules.partner.roche.application.tasks',
+    'cyborg.modules.partner.motic.application.tasks',
 ])
 
 app.config_from_object(make_celery_config())
@@ -58,6 +63,10 @@ app.conf.update(
             'queue': QUEUE_NAME_AI_TASK,
             'routing_key': ROUTING_KEY_AI_TASK,
         }},
+        {'cyborg.modules.partner.motic.application.tasks.start_analysis': {
+            'queue': QUEUE_NAME_AI_TASK,
+            'routing_key': ROUTING_KEY_AI_TASK,
+        }}
     )
 )
 

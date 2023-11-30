@@ -22,7 +22,7 @@ def gen_logging_config(logging_filename):
                 },
                 'file': {
                     'class': 'logging.handlers.TimedRotatingFileHandler',
-                    'level': 'WARNING',
+                    'level': 'INFO',
                     'formatter': 'simple',
                     'filename': logging_filename,
                     'when': 'midnight',

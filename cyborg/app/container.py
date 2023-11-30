@@ -230,7 +230,6 @@ class PartnerAPIContainer(containers.DeclarativeContainer):
         user_service=user_center.user_service,
         ai_service=ai.ai_service,
         slice_service=slice.slice_service,
-        analysis_service=slice_analysis.slice_analysis_service
     )
 
 

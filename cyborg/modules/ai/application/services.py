@@ -67,7 +67,8 @@ class AIService(object):
                 'model_type': model_type if is_tld else None
             }})
         elif is_tld:
-            ai_threshold = company_info['aiThreshold']
+            logger.info(company_info)
+            ai_threshold = company_info['aiThreshold'] or company_info['defaultAiThreshold']
             threshold_value = (ai_threshold[ai_type.value] or {}).get('threshold_value')
             model_name = (ai_threshold[ai_type.value] or {}).get('model_name')
             task_params.update({'model_info': {
@@ -241,7 +242,7 @@ class AIService(object):
         for slice_info in slices:
             request_context.case_id = slice_info['caseid']
             request_context.file_id = slice_info['fileid']
-            res = self.start_ai(ai_name=ai_name, force=True)
+            res = self.start_ai(ai_name=ai_name)
             if res.err_code == 1:
                 return res
             elif res.err_code:
@@ -277,7 +278,8 @@ class AIService(object):
         if not task:
             return AppResponse(err_code=1, message='ai task not found')
 
-        app.control.revoke(task.result_id, terminate=True)
+        if task.result_id:
+            app.control.revoke(task.result_id, terminate=True)
 
         self.domain_service.unmark_ai_task_running(ai_task=task)
 
