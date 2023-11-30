@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import time
 from functools import wraps
 from inspect import getfullargspec
@@ -306,7 +307,10 @@ class SliceAnalysisService(object):
         return AppResponse()
 
     @connect_slice_db()
-    def get_rois(self, is_deleted: int, lesion_type: str, page: int, page_size: int) -> AppResponse:
+    def get_rois(
+            self, is_deleted: Optional[int] = None, lesion_type: Optional[str] = None,
+            page: int = 0, page_size: int = sys.maxsize
+    ) -> AppResponse:
         res = self.slice_service.get_slice_info(case_id=request_context.case_id, file_id=request_context.file_id)
         if res.err_code:
             return res

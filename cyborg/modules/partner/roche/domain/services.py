@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import uuid
 from datetime import datetime
 from io import BytesIO
@@ -114,11 +115,18 @@ class RocheDomainService(object):
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
         )]
         request.install_opener(opener)
-        request.urlretrieve(slide_url, task.slide_path)
+        try:
+            request.urlretrieve(slide_url, task.slide_path)
+        except Exception:
+            slide_url = slide_url.replace('025', '023')
+            request.urlretrieve(slide_url, task.slide_path)
+
         return task.slide_path
 
-    def start_analysis(self, task: RocheAITaskEntity) -> RocheALGResult:
-        if not fs.path_exists(task.slide_path):
+    def start_analysis(
+            self, task: RocheAITaskEntity, region: Optional[dict] = None, is_rescore: bool = False
+    ) -> RocheALGResult:
+        if not is_rescore and not fs.path_exists(task.slide_path):
             downloaded = self.download_slide(task)
             if not downloaded:
                 return RocheALGResult(err_msg='切片url无法下载')
@@ -146,24 +154,22 @@ class RocheDomainService(object):
         )
         # mpp = slide.mpp or 0.242042
 
-        coordinates = task.coordinates
-        if coordinates:
-            x_coords, y_coords = zip(coordinates)
-        else:
-            x_coords, y_coords = [], []
+        id_worker = IdWorker.new_mark_id_worker()
 
-        regions = input_info.get('regions', [])
-        rois = [roi for region in regions for roi in region.get('artifacts', [])]
-        roi_id = IdWorker.new_mark_id_worker().get_new_id()
-
-        if regions:
+        if region:
+            rois = [roi for roi in region.get('artifacts', [])]
             roi_list = [{
-                'id': roi_id,
+                'id': id_worker.get_new_id(),
                 'x': [coord['x'] for coord in roi.get('coordinates', [])],
                 'y': [coord['y'] for coord in roi.get('coordinates', [])]
             } for roi in rois]
         else:
-            roi_list = [{'id': roi_id, 'x': x_coords, 'y': y_coords}]
+            coordinates = task.coordinates
+            if coordinates:
+                x_coords, y_coords = zip(coordinates)
+            else:
+                x_coords, y_coords = [], []
+            roi_list = [{'id': id_worker.get_new_id(), 'x': x_coords, 'y': y_coords}]
 
         if task.ai_type == AIType.her2:
             return self.run_her2(task=task, roi_list=roi_list, wsi_input=wsi_input)
@@ -173,30 +179,106 @@ class RocheDomainService(object):
             logger.error(f'{task.ai_type} does not support')
             return RocheALGResult(err_msg=f'{task.ai_type} does not support')
 
-    def run_her2(self, task: RocheAITaskEntity, roi_list: List[dict], wsi_input: RocheWsiInput):
-        mock_result_file_key = oss.path_join('test', 'her2_mock_result.json')
-        try:
-            mock_result = oss.get_object(mock_result_file_key)
-            mock_result = tuple(json.loads(mock_result))
-        except Exception:
-            mock_result = None
+    def _parse_her2_ai_result(self, ai_result: dict):
+        new_ai_result = {}
+        mark_1 = ai_result.get('微弱的不完整膜阳性肿瘤细胞') if ai_result.get(
+            '微弱的不完整膜阳性肿瘤细胞') else 0
+        mark_2 = ai_result.get('弱中等的完整膜阳性肿瘤细胞') if ai_result.get(
+            '弱中等的完整膜阳性肿瘤细胞') else 0
+        mark_3 = ai_result.get('中强度的不完整膜阳性肿瘤细胞') if ai_result.get(
+            '中强度的不完整膜阳性肿瘤细胞') else 0
+        mark_4 = ai_result.get('强度的完整膜阳性肿瘤细胞') if ai_result.get('强度的完整膜阳性肿瘤细胞') else 0
+        mark_7 = ai_result.get('阴性肿瘤细胞') if ai_result.get('阴性肿瘤细胞') else 0
+        mark_9 = ai_result.get('组织细胞') if ai_result.get('组织细胞') else 0
+        mark_10 = ai_result.get('淋巴细胞') if ai_result.get('淋巴细胞') else 0
+        mark_11 = ai_result.get('纤维细胞') if ai_result.get('纤维细胞') else 0
+        mark_12 = ai_result.get('其他非肿瘤细胞') if ai_result.get('其他非肿瘤细胞') else 0
+        mark_6 = mark_1 + mark_2 + mark_3 + mark_4  # 阳性肿瘤细胞
+        mark_8 = mark_6 + mark_7  # 肿瘤细胞总数
+        mark_5 = mark_2 + mark_4
+        new_ai_result['微弱的不完整膜阳性肿瘤细胞'] = [mark_1, mark_1 / mark_8] if mark_8 else [mark_1, 0]
+        new_ai_result['弱中等的完整膜阳性肿瘤细胞'] = [mark_2, mark_2 / mark_8] if mark_8 else [mark_2, 0]
+        new_ai_result['中强度的不完整膜阳性肿瘤细胞'] = [mark_3, mark_3 / mark_8] if mark_8 else [mark_3, 0]
+        new_ai_result['强度的完整膜阳性肿瘤细胞'] = [mark_4, mark_4 / mark_8] if mark_8 else [mark_4, 0]
+        new_ai_result['完整膜阳性肿瘤细胞'] = [mark_5, mark_5 / mark_8] if mark_8 else [mark_5, 0]
+        new_ai_result['阳性肿瘤细胞'] = [mark_6, mark_6 / mark_8] if mark_8 else [mark_6, 0]
+        new_ai_result['阴性肿瘤细胞'] = mark_7
+        new_ai_result['肿瘤细胞总数'] = mark_8
+        new_ai_result['其他'] = mark_9 + mark_10 + mark_11 + mark_12
+        new_ai_result['阳性肿瘤细胞占比'] = format(round(mark_6 / mark_8 if mark_8 else 0, 2), '0.2f')
+        new_ai_result['分级结果'] = ''
 
+        for k, v in new_ai_result.items():
+            if isinstance(v, list):
+                new_ai_result[k] = f'{v[0]}({format(round(v[1] * 100, 2), "0.2f")}%)'
+
+        def get_rank():
+            if mark_8:
+                if (mark_4 / mark_8) > 0.1:
+                    new_ai_result['分级结果'] = 'HER-2 3+'
+                    return
+                if ((mark_4 / mark_8) >= 0.005) and (mark_4 / mark_8) <= 0.1:
+                    new_ai_result['分级结果'] = 'HER-2 2+'
+                    return
+                if ((mark_5 / mark_8) > 0.1) and (mark_4 / mark_8) < 0.1:
+                    new_ai_result['分级结果'] = 'HER-2 2+'
+                    return
+                if ((mark_2 / mark_8) >= 0.02) and (mark_2 / mark_8) <= 0.1:
+                    new_ai_result['分级结果'] = 'HER-2 1+'
+                    return
+                if (((mark_1 + mark_3) / mark_8) > 0.1) and (mark_5 / mark_8) <= 0.1:
+                    new_ai_result['分级结果'] = 'HER-2 1+'
+                    return
+                if (((mark_1 + mark_3) / mark_8) <= 0.1) or (mark_6 / mark_8) < 0.01:
+                    new_ai_result['分级结果'] = 'HER-2 0'
+                    return
+
+        get_rank()
+        new_ai_result['whole_slide'] = ai_result.get('whole_slide') if ai_result.get(
+            'whole_slide') is not None else 1
+        return new_ai_result
+
+    def get_raw_result(self, task: RocheAITaskEntity) -> Optional[tuple]:
+        raw_result_file_key = os.path.join('analysis', task.analysis_id, 'raw_result', 'result.json')
+        try:
+            raw_result = oss.get_object(raw_result_file_key)
+            raw_result = tuple(json.loads(raw_result))
+        except Exception:
+            raw_result = None
+        return raw_result
+
+    def save_raw_result(self, task: RocheAITaskEntity, raw_result: tuple) -> bool:
+        raw_result_file_key = os.path.join('analysis', task.analysis_id, 'raw_result', 'result.json')
+        result_data = json.dumps(raw_result)
+        buffer = BytesIO()
+        buffer.write(result_data.encode('utf-8'))
+        buffer.seek(0)
+
+        if oss:
+            oss.put_object_from_io(buffer, raw_result_file_key)
+        else:
+            logger.info(f'save wsa result to local file: {raw_result_file_key}')
+            with open(raw_result_file_key, "wb") as f:
+                f.write(buffer.getvalue())
+        return True
+
+    def run_her2(
+            self, task: RocheAITaskEntity, roi_list: List[dict], wsi_input: RocheWsiInput,
+            raw_result: Optional[tuple] = None
+    ):
+        # TODO 这里跟AI模块耦合，后续需要在AI模块提供原始算法输出的service以解耦
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
-        if mock_result and False:
-            center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = mock_result
+        if raw_result:
+            center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = raw_result
             # roi_id = list(center_coords_np_with_id.keys())[0]
         else:
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
                 slide_path=task.slide_path, roi_list=roi_list)
 
-            result_data = json.dumps([center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg])
-            buffer = BytesIO()
-            buffer.write(result_data.encode('utf-8'))
-            buffer.seek(0)
-            oss.put_object_from_io(buffer, mock_result_file_key)
+            # raw_result = (center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg)
+            # self.save_raw_result(task, raw_result)
 
-        ai_result = Her2Consts.rois_summary_dict.copy()
-        label_to_roi_name = Her2Consts.cell_label_dict
+        ai_result = {}
 
         cells_in_tile = {}
         cell_index_items = []
@@ -212,7 +294,10 @@ class RocheDomainService(object):
 
             for idx, coord in enumerate(center_coords):
                 label = str(cls_labels[idx])
-                roi_name = label_to_roi_name[label]
+                roi_name = Her2Consts.cell_label_dict.get(label)
+                if not roi_name:
+                    continue
+                ai_result.setdefault(roi_name, 0)
                 ai_result[roi_name] += 1
 
                 x = float(coord[0]) if slide_width > float(coord[0]) else float(slide_width - 1)
@@ -237,6 +322,8 @@ class RocheDomainService(object):
             'her2_level': Her2Consts.level[int(lvl)]
         })
 
+        ai_result = self._parse_her2_ai_result(ai_result=ai_result)
+
         marker_groups = []
         marker_shapes = {}
         for label in Her2Consts.sorted_labels:
@@ -244,8 +331,8 @@ class RocheDomainService(object):
             marker_type = label
             marker_group = RocheMarkerGroup(
                 label=int(label),
-                name=LABEL_TO_EN.get(label, roi_name),
-                description=LABEL_TO_EN.get(label, roi_name),
+                name=Her2Consts.cell_label_dict.get(label, roi_name),
+                description=Her2Consts.cell_label_dict.get(label, roi_name),
                 textgui='red',
                 locked=False,
                 visible=True,
@@ -440,7 +527,8 @@ class RocheDomainService(object):
 
             algorithm_entity = self.repository.get_algorithm(task.algorithm_id)
             if algorithm_entity:
-                wsi_analysis_info['algorithm'] = json.dumps(algorithm_entity.to_dict(), cls=CyborgJsonEncoder)
+                wsi_analysis_info['algorithm'] = json.dumps(
+                    algorithm_entity.to_dict(), cls=CyborgJsonEncoder, ensure_ascii=False)
 
             wsi_analysis_info['input'] = json.dumps(result.wsi_input.to_dict())
 
@@ -486,8 +574,6 @@ class RocheDomainService(object):
         }
         res = requests.put(url, json=data, timeout=10)
 
-        logger.info(url)
-        logger.info(data)
         logger.info(res.status_code)
         if res.status_code == 200:
             return True

@@ -1110,8 +1110,13 @@ class AIDomainService(object):
             cell_marks=cell_marks
         )
 
-    def get_ai_task_result(self, case_id: int, file_id: int, ai_type: AIType) -> Tuple[str, Optional[dict]]:
-        task = self.repository.get_latest_ai_task(case_id=case_id, file_id=file_id, ai_type=ai_type)
+    def get_ai_task_result(
+            self, case_id: int, file_id: int, ai_type: AIType, task_id: Optional[int] = None
+    ) -> Tuple[str, Optional[dict]]:
+        if task_id is not None:
+            task = self.repository.get_ai_task_by_id(task_id=task_id)
+        else:
+            task = self.repository.get_latest_ai_task(case_id=case_id, file_id=file_id, ai_type=ai_type)
         if not task:
             return '', {'done': True, 'rank': -2}
 

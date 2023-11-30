@@ -4,10 +4,10 @@ import time
 from typing import List
 
 from cyborg.app.request_context import request_context
+from cyborg.celery.app import app
 from cyborg.infra.oss import oss
 from cyborg.modules.ai.application.services import AIService
 from cyborg.modules.partner.roche.application import tasks
-from cyborg.modules.partner.roche.application.celery import app
 from cyborg.modules.partner.roche.application.response import RocheAppResponse
 from cyborg.modules.partner.roche.domain.services import RocheDomainService
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult
@@ -71,6 +71,24 @@ class RocheService(object):
             self.domain_service.update_ai_task(secondary_task, result_id=result.id)
 
         return RocheAppResponse(data={'analysis_id': secondary_task.analysis_id} if task else None)
+
+    def rescore(self, analysis_id: str, regions: List[dict]):
+        task = self.domain_service.repository.get_ai_task_by_analysis_id(analysis_id) if analysis_id else None
+        if not task:
+            return RocheAppResponse(err_code=1, message='参数错误')
+
+        result = {}
+        aggregate_result = self.domain_service.start_analysis(task, is_rescore=True)
+        result['aggregate_score'] = aggregate_result.ai_results
+        roi_scores = result.setdefault('roi_scores', [])
+        for region in regions:
+            region_result = self.domain_service.start_analysis(task, region=region, is_rescore=True)
+            if region_result.ai_results:
+                ai_results = region_result.ai_results
+                ai_results['roi_id'] = region['roi_id']
+                roi_scores.append(ai_results)
+
+        return result
 
     def run_ai_task(self, analysis_id: str) -> RocheAppResponse:
         logger.info('run ai task')

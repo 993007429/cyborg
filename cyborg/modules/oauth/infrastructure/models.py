@@ -7,7 +7,7 @@ from sqlalchemy import (
 from cyborg.seedwork.infrastructure.models import BaseModel
 
 
-class OAuthApplication(BaseModel):
+class OAuthApplicationModel(BaseModel):
     __tablename__ = 'oauth_application'
 
     id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
@@ -16,6 +16,7 @@ class OAuthApplication(BaseModel):
     name = Column(String(50), nullable=False, comment='应用名')
     client_id = Column(String(20), nullable=False, unique=True)
     client_secret = Column(String(40), nullable=False)
+    user_id = Column(Integer, nullable=False, server_default='0')
 
     def to_dict(self):
         return {

@@ -1,5 +1,6 @@
 import json
 import math
+import sys
 from json import JSONDecodeError
 from typing import Tuple, List, Optional, Union
 from urllib.parse import quote
@@ -152,8 +153,10 @@ class MarkEntity(BaseDomainEntity):
         y_coords = mark_position.y_coords
         return any(polygon.contains(Point(x, y_coords[i])) for i, x in enumerate(x_coords))
 
-    def parse_ai_result(self, ai_type: AIType, is_deleted: int, lesion_type: str, page: int, page_size: int,
-                        ai_suggest: Optional[dict] = None) -> dict:
+    def parse_ai_result(
+            self, ai_type: AIType,
+            is_deleted: Optional[int] = None, lesion_type: Optional[str] = None,
+            page: int = 0, page_size: int = sys.maxsize, ai_suggest: Optional[dict] = None) -> dict:
         ai_result = self.ai_result
         if not ai_result:
             return {}

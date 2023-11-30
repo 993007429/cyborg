@@ -10,6 +10,8 @@ from cyborg.modules.oauth.infrastructure.repositories import SqlAlchemyOAuthAppl
 from cyborg.modules.openapi.authentication.application.services import OpenAPIAuthService
 from cyborg.modules.openapi.authentication.domain.services import OpenAPIAuthDomainService
 from cyborg.modules.openapi.authentication.infrastructure.repositories import ConfigurableOpenAPIClientRepository
+from cyborg.modules.partner.motic.application.services import MoticService
+from cyborg.modules.partner.motic.domain.services import MoticDomainService
 from cyborg.modules.partner.roche.application.services import RocheService
 from cyborg.modules.partner.roche.domain.services import RocheDomainService
 from cyborg.modules.partner.roche.infrastructure.repositories import SQLAlchemyRocheRepository
@@ -194,9 +196,13 @@ class PartnerAPIContainer(containers.DeclarativeContainer):
 
     core = providers.Container(Core)
 
+    user_center = providers.DependenciesContainer()
+
     ai = providers.DependenciesContainer()
 
     slice_analysis = providers.DependenciesContainer()
+
+    slice = providers.DependenciesContainer()
 
     roche_repository = providers.Factory(
         SQLAlchemyRocheRepository, session=core.request_context.provided.db_session
@@ -212,6 +218,18 @@ class PartnerAPIContainer(containers.DeclarativeContainer):
         domain_service=roche_domain_service,
         ai_service=ai.ai_service,
         analysis_service=slice_analysis.slice_analysis_service
+    )
+
+    motic_domain_service = providers.Factory(
+        MoticDomainService,
+    )
+
+    motic_service = providers.Factory(
+        MoticService,
+        domain_service=motic_domain_service,
+        user_service=user_center.user_service,
+        ai_service=ai.ai_service,
+        slice_service=slice.slice_service,
     )
 
 
@@ -253,6 +271,8 @@ class AppContainer(containers.DeclarativeContainer):
     partner = providers.Container(
         PartnerAPIContainer,
         core=core,
+        user_center=user_center,
         ai=ai,
+        slice=slice,
         slice_analysis=slice_analysis
     )

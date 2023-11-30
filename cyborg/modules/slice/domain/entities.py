@@ -550,6 +550,7 @@ class CaseRecordEntity(BaseDomainEntity):
         update_time.append(self.update_time)
         d = {
             'id': self.caseid,
+            'caseid': self.caseid,
             'basic': self.basic_info,
             'attachments': [entity.to_dict() for entity in self.attachments],
             'slices': [entity.to_dict(all_fields=True) for entity in self.slices],

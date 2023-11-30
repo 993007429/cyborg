@@ -1,5 +1,6 @@
 from typing import Optional, List
 
+from cyborg.consts.her2 import Her2Consts
 from cyborg.infra.session import transaction
 from cyborg.modules.partner.roche.domain.consts import HER2_ALGORITHM_ID, HER2_ALGORITHM_DISPLAY_ID, \
     HER2_ALGORITHM_NAME, PDL1_ALGORITHM_ID, PDL1_ALGORITHM_DISPLAY_ID, PDL1_ALGORITHM_NAME
@@ -55,7 +56,12 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
                 'key': 'her2_level',
                 'data_type': 'string',
                 'primary_display': True
-            }]
+            }, *[{
+                'name': cell_type,
+                'key': cell_type,
+                'data_type': 'string',
+                'primary_display': True
+            } for cell_type in Her2Consts.display_cell_types]]
         ),
         PDL1_ALGORITHM_ID: RocheAlgorithm(
             algorithm_id=PDL1_ALGORITHM_ID,
@@ -80,8 +86,8 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             supported_mpp_ranges=[[0.1, 1]],
             supported_image_formats=['BIF', 'TIF', 'TIFF'],
             supported_scanners=['VENTANA DP 200', 'VENTANA DP 600'],
-            required_slide_types=['PD-L1'],
-            roi_analysis_support=False,
+            required_slide_types=[],
+            roi_analysis_support=True,
             primary_analysis_overlay_display=True,
             provides_primary_analysis_score=True,
             manual_score_mode='INCLUSIVE',  # "EXCLUSIVE"

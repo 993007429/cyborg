@@ -20,3 +20,7 @@ def snake_to_camel(snake_str: str, is_big_camel: bool = False):
 
 def dict_camel_to_snake(d: dict):
     return {camel_to_snake(k): v for k, v in d.items()}
+
+
+def dict_snake_to_camel(d: dict):
+    return {snake_to_camel(k): v for k, v in d.items()}

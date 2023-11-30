@@ -254,7 +254,7 @@ def region_process(slice_path, opt, name, roi_x, roi_y):
 
     # Load model
     weights = opt.weights
-    weights = oss.path_join('AI', 'Her2New_', weights)
+    weights = os.path.join('AI', 'Her2New_', weights)
     model = attempt_load(weights, map_location=device)  # load FP32 model
     if half:
         model.half()  # to FP16

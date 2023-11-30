@@ -79,9 +79,18 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         model = self.session.query(CaseRecordModel).filter_by(caseid=case_id, company=company).first()
         return CaseRecordEntity.from_dict(model.raw_data) if model else None
 
-    def get_records(self, end_time: Optional[str], company: str) -> List[CaseRecordEntity]:
-        models = self.session.query(CaseRecordModel).filter(
-            CaseRecordModel.create_time < end_time, CaseRecordModel.company == company).all()
+    def get_records(
+            self, end_time: Optional[str] = None, sample_num: Optional[str] = None, company: Optional[str] = None
+    ) -> List[CaseRecordEntity]:
+        query = self.session.query(CaseRecordModel)
+        if end_time is not None:
+            query = query.filter(CaseRecordModel.create_time < end_time)
+        if sample_num is not None:
+            query = query.filter(CaseRecordModel.sample_num == sample_num)
+        if company is not None:
+            query = query.filter(CaseRecordModel.company == company)
+
+        models = query.order_by(CaseRecordModel.id.desc()).all()
         return [CaseRecordEntity.from_dict(model.raw_data) for model in models]
 
     def get_new_slices(
@@ -143,8 +152,14 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             SliceModel.upload_batch_number == upload_batch_number
         ).count()
 
-    def get_slice(self, case_id: str, file_id: str, company: Optional[str] = None) -> Optional[SliceEntity]:
-        query = self.session.query(SliceModel).filter_by(caseid=case_id, fileid=file_id)
+    def get_slice(
+            self, case_id: Optional[str] = None, file_id: Optional[str] = None, company: Optional[str] = None
+    ) -> Optional[SliceEntity]:
+        query = self.session.query(SliceModel)
+        if case_id is not None:
+            query = query.filter_by(caseid=case_id)
+        if file_id is not None:
+            query = query.filter_by(fileid=file_id)
         if company is not None:
             query = query.filter_by(company=company)
         model = query.first()

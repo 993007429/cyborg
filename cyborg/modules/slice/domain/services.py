@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import random
 import shutil
 from typing import List, Optional, Tuple
 
@@ -40,6 +41,12 @@ class SliceDomainService(object):
         self.repository = repository
         self.report_config_repository = report_config_repository
 
+    def gen_case_id(self):
+        return datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '_' + str(random.randint(0, 1000000))
+
+    def gen_file_id(self):
+        return ''.join([str(random.randint(0, 9)) for _ in range(7)])
+
     def recognize_label_text(self, label_path: str, slice_label_path: Optional[str], label_rec_mode: int):
         if os.path.exists(label_path) and label_rec_mode is not None and label_rec_mode > 1:
             try:
@@ -73,7 +80,8 @@ class SliceDomainService(object):
     def create_slice(
             self, case_id: str, file_id: str, company_id: str, upload_path: str, file_name: str, local_file_name: str,
             slide_type: str, tool_type: str, label_rec_mode: int, user_file_path: str, cover_slice_number: bool,
-            operator: str, upload_batch_number: str, sample_num: str, high_through: bool = False
+            operator: str, upload_batch_number: str, sample_num: str, create_record: bool = False,
+            high_through: bool = False
     ) -> Optional[dict]:
 
         _ext = os.path.splitext(local_file_name)[-1].lower()  # 上传切片文件后缀
@@ -154,18 +162,17 @@ class SliceDomainService(object):
 
         self.repository.save_slice(slice_entity)
 
-        if high_through:
-            slide_save_path = slice_entity.slice_dir if slide_type == 'slices' else slice_entity.attachment_dir
-            if os.path.exists(upload_path):
-                shutil.move(upload_path, slide_save_path)
-                slide_save_name = os.path.join(slide_save_path, local_file_name)
+        slide_save_path = slice_entity.slice_dir if slide_type == 'slices' else slice_entity.attachment_dir
+        if os.path.exists(upload_path) and upload_path != slide_save_path:
+            shutil.move(upload_path, slide_save_path)
+            slide_save_name = os.path.join(slide_save_path, local_file_name)
 
-                # move切片文件夹之后（从临时上传路径移动到正式切片路径），切片文件软链接也需要重新创建
-                self.create_slice_link_file(slide_save_path, file_name)
+            # move切片文件夹之后（从临时上传路径移动到正式切片路径），切片文件软链接也需要重新创建
+            self.create_slice_link_file(slide_save_path, file_name)
 
         update_clarity(slice_entity.id, slide_save_name)
 
-        if high_through:
+        if high_through or create_record:
             record = self.repository.get_record_by_case_id(case_id=case_id, company=company_id)
             if not record:  # 高通量模式, 若未创建病例则要创建病例文件夹并且在数据库中插入病例信息
                 record = CaseRecordEntity(raw_data=dict(
@@ -356,7 +363,8 @@ class SliceDomainService(object):
         return '更新执行状态失败', None
 
     def get_slice(
-            self, case_id: str, file_id: str, company_id: str) -> Tuple[int, str, Optional[SliceEntity]]:
+            self, case_id: Optional[str] = None, file_id: Optional[str] = None, company_id: Optional[str] = None
+    ) -> Tuple[int, str, Optional[SliceEntity]]:
         slice = self.repository.get_slice(case_id=case_id, file_id=file_id, company=company_id)
         if not slice:
             return 2, 'no such file or directory', None
