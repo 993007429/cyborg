@@ -622,6 +622,8 @@ class SliceAnalysisService(object):
         return AppResponse(message='query template succeed', data=template)
 
     def add_templates(self, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> AppResponse[dict]:
+        if not ai_name:
+            return AppResponse(code=11, message='add template failed, please check the input.')
         ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name)) if ai_name else None
         template = TemplateEntity(raw_data=dict(
             template_name=name,
