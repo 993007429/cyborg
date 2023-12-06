@@ -72,7 +72,7 @@ class RocheService(object):
 
         return RocheAppResponse(data={'analysis_id': secondary_task.analysis_id} if task else None)
 
-    def rescore(self, analysis_id: str, regions: List[dict]):
+    def rescore(self, analysis_id: str, regions: List[dict]) -> RocheAppResponse:
         task = self.domain_service.repository.get_ai_task_by_analysis_id(analysis_id) if analysis_id else None
         if not task:
             return RocheAppResponse(err_code=1, message='参数错误')
@@ -84,11 +84,12 @@ class RocheService(object):
         for region in regions:
             region_result = self.domain_service.start_analysis(task, region=region, is_rescore=True)
             if region_result.ai_results:
+                logger.info(region_result.ai_results)
                 ai_results = region_result.ai_results
                 ai_results['roi_id'] = region['roi_id']
                 roi_scores.append(ai_results)
 
-        return result
+        return RocheAppResponse(data=result)
 
     def run_ai_task(self, analysis_id: str) -> RocheAppResponse:
         logger.info('run ai task')
@@ -118,8 +119,6 @@ class RocheService(object):
         ai_type = task.ai_type
         request_context.ai_type = ai_type
 
-        # has_manual_roi = task.rois and task.rois[0]['x']
-
         try:
             result = self.domain_service.start_analysis(task)
         except Exception as e:
@@ -127,7 +126,7 @@ class RocheService(object):
             result = RocheALGResult(err_msg='run alg error')
 
         if result.err_msg:
-            self.domain_service.update_ai_task(task, status=RocheAITaskStatus.failed)
+            self.domain_service.update_ai_task(task, status=RocheAITaskStatus.failed, err_msg=result.err_msg)
             return RocheAppResponse(message=result.err_msg)
 
         saved = self.domain_service.save_ai_result(task=task, result=result)

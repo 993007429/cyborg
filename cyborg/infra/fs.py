@@ -1,8 +1,17 @@
 import abc
 import ctypes
+import json
+import logging
 import os
 import shutil
 import sys
+from io import BytesIO
+from typing import Union
+
+from cyborg.app.settings import Settings
+from cyborg.infra.oss import oss
+
+logger = logging.getLogger(__name__)
 
 
 class FileSystem(object, metaclass=abc.ABCMeta):
@@ -56,5 +65,42 @@ class LocalFileSystem(FileSystem):
     def remove_dir(self, path: str):
         shutil.rmtree(path, ignore_errors=True)
 
+    def save_object(self, file_key: str, obj: Union[list, dict]) -> str:
+        raise NotImplementedError
 
-fs = LocalFileSystem()
+    def get_object(self, file_key: str) -> Union[list, dict, None]:
+        raise NotImplementedError
+
+
+class HybridFileSystem(LocalFileSystem):
+
+    def save_object(self, file_key: str, obj: Union[list, dict]) -> str:
+        buffer = BytesIO()
+        buffer.write(json.dumps(obj, ensure_ascii=False).encode('utf-8'))
+        buffer.seek(0)
+
+        if oss:
+            oss.put_object_from_io(buffer, file_key)
+            return oss.generate_sign_url(method='GET', key=file_key, expire_in=3600 * 24)
+        else:
+            file_path = f'{Settings.DATA_DIR}/{file_key}'
+            with open(file_path, 'wb') as f:
+                f.write(buffer.getvalue())
+            return file_path
+
+    def get_object(self, file_key: str) -> Union[list, dict, None]:
+        try:
+            if oss:
+                bytes_io = oss.get_object_to_io(file_key=file_key)
+                return json.loads(bytes_io.getvalue().decode('utf-8'))
+            else:
+                file_path = f'{Settings.DATA_DIR}/{file_key}'
+                with open(file_path, 'rb') as f:
+                    return json.loads(f.read().decode('utf-8'))
+        except Exception as e:
+            logger.exception(e)
+
+        return None
+
+
+fs = HybridFileSystem()

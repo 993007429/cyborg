@@ -8,7 +8,33 @@ PDL1_ALGORITHM_ID = 'ff001960-84c9-41f0-2453-91127f38ffd8'
 PDL1_ALGORITHM_DISPLAY_ID = '9009'
 PDL1_ALGORITHM_NAME = 'pdl1'
 
-HEAT_COLORLUTS = {
+HER2_HEAT_COLORLUTS = {
+    "heat": {
+        "colorspace": "rgba",
+        "description": "",
+        "gui": "",
+        "interpolation": "linear",
+        "level": -1,
+        "locked": True,
+        "multiplier": 1,
+        "name": "heat",
+        "offset": 0,
+        "entries": {
+            '1': 'rgba(255, 193, 193, 255)',
+            '2': 'rgba(252, 121, 21, 255)',
+            '3': 'rgba(153, 116, 254, 255)',
+            '4': 'rgba(255, 0, 0, 255)',
+            '7': 'rgba(61, 144, 31, 255)',
+            '9': 'rgba(168, 252, 142, 255)',
+            '10': 'rgba(168, 252, 142, 255)',
+            '11': 'rgba(168, 252, 142, 255)',
+            '12': 'rgba(168, 252, 142, 255)',
+            '13': 'rgba(168, 252, 142, 255)'
+        }
+    }
+}
+
+DEFAULT_HEAT_COLORLUTS = {
     "heat": {
         "colorspace": "rgba",
         "description": "",

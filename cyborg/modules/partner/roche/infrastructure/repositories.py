@@ -52,7 +52,7 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
             # 'requires_analysis_rejection_feedback=False,
             # 'provides_prognostic_score=False,
             results_parameters=[{
-                'name': 'HER-2 Level',
+                'name': 'HER-2分级',
                 'key': 'her2_level',
                 'data_type': 'string',
                 'primary_display': True
@@ -60,7 +60,7 @@ class SQLAlchemyRocheRepository(RocheRepository, SQLAlchemyRepository):
                 'name': cell_type,
                 'key': cell_type,
                 'data_type': 'string',
-                'primary_display': True
+                'primary_display': False
             } for cell_type in Her2Consts.display_cell_types]]
         ),
         PDL1_ALGORITHM_ID: RocheAlgorithm(

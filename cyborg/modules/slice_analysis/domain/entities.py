@@ -335,8 +335,10 @@ class MarkEntity(BaseDomainEntity):
     def make_image_url(cls, caseid: str, fileid: str, filename: str, company: str, **_):
         return f'{Settings.IMAGE_SERVER}/files/image?caseid={caseid}&fileid={fileid}&filename={quote(filename)}&companyid={quote(company)}'
 
-    def to_roi(self, ai_type: AIType, is_deleted: int, lesion_type: str, page: int, page_size: int,
-               ai_suggest: Optional[dict] = None):
+    def to_roi(
+            self, ai_type: AIType, is_deleted: Optional[int] = None, lesion_type: Optional[str] = None,
+            page: int = 0, page_size: int = sys.maxsize, ai_suggest: Optional[dict] = None
+    ) -> dict:
         d = self.to_dict()
         ai_result = self.parse_ai_result(
             ai_type=ai_type,
