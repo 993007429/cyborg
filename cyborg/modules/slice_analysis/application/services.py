@@ -637,7 +637,7 @@ class SliceAnalysisService(object):
 
     def edit_templates(self, template_id: int, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> (
             AppResponse)[dict]:
-        if not ai_name:
+        if not name:
             return AppResponse(code=11, message='add template failed, please check the input.')
         ai_id = None
         if ai_name:

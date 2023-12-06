@@ -15,13 +15,12 @@ api_blueprint = Blueprint('api', __name__)
 
 def api_before_request():
     request_context.begin_request()
-
     request_context.case_id = request.args.get('caseid')
     request_context.file_id = request.args.get('fileid')
-    if not (request.content_type and request.content_type.startswith('multipart/form-data')):
-        request_context.case_id = request_context.case_id or request.form.get('caseid')
-        request_context.file_id = request_context.file_id or request.form.get('fileid')
-
+    # if not request.content_type:
+    # if not (request.content_type and request.content_type.startswith('multipart/form-data')):
+    request_context.case_id = request_context.case_id or request.form.get('caseid')
+    request_context.file_id = request_context.file_id or request.form.get('fileid')
     if request.path == '/' or request.path.startswith('/static'):  # 首页和静态文件不验证
         pass
 
