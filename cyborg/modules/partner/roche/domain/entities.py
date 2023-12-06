@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Type
 from urllib.parse import urlparse
 
+from cyborg.app.settings import Settings
 from cyborg.consts.common import Consts
 from cyborg.modules.partner.roche.domain.consts import ROCHE_TIME_FORMAT
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheAlgorithmType
@@ -31,9 +32,9 @@ class RocheAITaskEntity(BaseDomainEntity):
         parsed = urlparse(self.slide_url)
         suffix = parsed.path.split('.')[-1] if parsed.path and '.' in parsed.path else ''
         if suffix:
-            return f'/data/download/{self.analysis_id}.{suffix}'
+            return f'{Settings.DATA_DIR}/roche/download/{self.analysis_id}.{suffix}'
         else:
-            return f'/data/download/{self.analysis_id}'
+            return f'{Settings.DATA_DIR}/roche/download/{self.analysis_id}.bif'
 
     def setup_expired_time(self):
         expired_at = datetime.now() + timedelta(seconds=Consts.ALGOR_OVERTIME.get(self.ai_type.value, 1800))

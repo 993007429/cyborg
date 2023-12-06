@@ -378,7 +378,6 @@ def cal_cell(o_slide_path, roi_list, opt):
         pid = os.getpid()
 
         delete_prev_json(result_root, coord_json_name, label_json_name)
-        delete_prev_json(result_root, coord_json_name, label_json_name)
         gpu_num = torch.cuda.device_count()
 
         num_process_per_gpu = 1

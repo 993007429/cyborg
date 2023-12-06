@@ -20,8 +20,9 @@ from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.infra.fs import fs
 from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
-from cyborg.modules.partner.roche.domain.consts import HEAT_COLORLUTS, ROCHE_TIME_FORMAT, HER2_ALGORITHM_DISPLAY_ID, \
-    PDL1_ALGORITHM_DISPLAY_ID
+from cyborg.modules.partner.roche.domain.consts import HER2_HEAT_COLORLUTS, ROCHE_TIME_FORMAT, \
+    HER2_ALGORITHM_DISPLAY_ID, \
+    PDL1_ALGORITHM_DISPLAY_ID, DEFAULT_HEAT_COLORLUTS
 from cyborg.modules.partner.roche.domain.entities import RocheAITaskEntity
 from cyborg.modules.partner.roche.domain.repositories import RocheRepository
 from cyborg.modules.partner.roche.domain.value_objects import RocheAITaskStatus, RocheALGResult, \
@@ -79,7 +80,8 @@ class RocheDomainService(object):
         return None
 
     def update_ai_task(
-            self, task: RocheAITaskEntity, status: Optional[RocheAITaskStatus] = None, result_id: Optional[str] = None
+            self, task: RocheAITaskEntity, status: Optional[RocheAITaskStatus] = None, result_id: Optional[str] = None,
+            err_msg: str = ''
     ) -> bool:
 
         if task.status == RocheAITaskStatus.closed:
@@ -96,11 +98,11 @@ class RocheDomainService(object):
             task.update_data(result_id=result_id)
 
         if self.repository.save_ai_task(task):
-            return self.callback_analysis_status(task)
+            return self.callback_analysis_status(task, err_msg=err_msg)
         else:
             return False
 
-    def download_slide(self, task: RocheAITaskEntity) -> str:
+    def download_slide(self, task: RocheAITaskEntity) -> bool:
         if 'amazonaws' not in task.slide_url and 'dipath.cn' not in task.slide_url and Settings.ROCHE_IMAGE_SERVER:
             parsed_url = urlparse(task.slide_url)
             slide_url = task.slide_url.replace(
@@ -116,12 +118,13 @@ class RocheDomainService(object):
         )]
         request.install_opener(opener)
         try:
+            os.makedirs(os.path.dirname(task.slide_path), exist_ok=True)
             request.urlretrieve(slide_url, task.slide_path)
-        except Exception:
-            slide_url = slide_url.replace('025', '023')
-            request.urlretrieve(slide_url, task.slide_path)
+        except Exception as e:
+            logger.exception(e)
+            return False
 
-        return task.slide_path
+        return True
 
     def start_analysis(
             self, task: RocheAITaskEntity, region: Optional[dict] = None, is_rescore: bool = False
@@ -129,7 +132,7 @@ class RocheDomainService(object):
         if not is_rescore and not fs.path_exists(task.slide_path):
             downloaded = self.download_slide(task)
             if not downloaded:
-                return RocheALGResult(err_msg='切片url无法下载')
+                return RocheALGResult(err_msg='切片下载失败')
 
         input_info = task.input_info
         slide_width = input_info.get('slide_width')
@@ -156,6 +159,7 @@ class RocheDomainService(object):
 
         id_worker = IdWorker.new_mark_id_worker()
 
+        roi_list = None
         if region:
             rois = [roi for roi in region.get('artifacts', [])]
             roi_list = [{
@@ -163,16 +167,9 @@ class RocheDomainService(object):
                 'x': [coord['x'] for coord in roi.get('coordinates', [])],
                 'y': [coord['y'] for coord in roi.get('coordinates', [])]
             } for roi in rois]
-        else:
-            coordinates = task.coordinates
-            if coordinates:
-                x_coords, y_coords = zip(coordinates)
-            else:
-                x_coords, y_coords = [], []
-            roi_list = [{'id': id_worker.get_new_id(), 'x': x_coords, 'y': y_coords}]
 
         if task.ai_type == AIType.her2:
-            return self.run_her2(task=task, roi_list=roi_list, wsi_input=wsi_input)
+            return self.run_her2(task=task, roi_list=roi_list, wsi_input=wsi_input, is_rescore=is_rescore)
         elif task.ai_type == AIType.pdl1:
             return self.run_pdl1(task=task, roi_list=roi_list, wsi_input=wsi_input)
         else:
@@ -205,78 +202,74 @@ class RocheDomainService(object):
         new_ai_result['阴性肿瘤细胞'] = mark_7
         new_ai_result['肿瘤细胞总数'] = mark_8
         new_ai_result['其他'] = mark_9 + mark_10 + mark_11 + mark_12
-        new_ai_result['阳性肿瘤细胞占比'] = format(round(mark_6 / mark_8 if mark_8 else 0, 2), '0.2f')
-        new_ai_result['分级结果'] = ''
+        # new_ai_result['阳性肿瘤细胞占比'] = format(round(mark_6 / mark_8 if mark_8 else 0, 2), '0.2f')
+        new_ai_result['her2_level'] = ''
 
         for k, v in new_ai_result.items():
             if isinstance(v, list):
                 new_ai_result[k] = f'{v[0]}({format(round(v[1] * 100, 2), "0.2f")}%)'
 
-        def get_rank():
-            if mark_8:
-                if (mark_4 / mark_8) > 0.1:
-                    new_ai_result['分级结果'] = 'HER-2 3+'
-                    return
-                if ((mark_4 / mark_8) >= 0.005) and (mark_4 / mark_8) <= 0.1:
-                    new_ai_result['分级结果'] = 'HER-2 2+'
-                    return
-                if ((mark_5 / mark_8) > 0.1) and (mark_4 / mark_8) < 0.1:
-                    new_ai_result['分级结果'] = 'HER-2 2+'
-                    return
-                if ((mark_2 / mark_8) >= 0.02) and (mark_2 / mark_8) <= 0.1:
-                    new_ai_result['分级结果'] = 'HER-2 1+'
-                    return
-                if (((mark_1 + mark_3) / mark_8) > 0.1) and (mark_5 / mark_8) <= 0.1:
-                    new_ai_result['分级结果'] = 'HER-2 1+'
-                    return
-                if (((mark_1 + mark_3) / mark_8) <= 0.1) or (mark_6 / mark_8) < 0.01:
-                    new_ai_result['分级结果'] = 'HER-2 0'
-                    return
+        if mark_8:
+            if (mark_4 / mark_8) > 0.1:
+                new_ai_result['her2_level'] = 'HER-2 3+'
+            elif ((mark_4 / mark_8) >= 0.005) and (mark_4 / mark_8) <= 0.1:
+                new_ai_result['her2_level'] = 'HER-2 2+'
+            elif ((mark_5 / mark_8) > 0.1) and (mark_4 / mark_8) < 0.1:
+                new_ai_result['her2_level'] = 'HER-2 2+'
+            elif ((mark_2 / mark_8) >= 0.02) and (mark_2 / mark_8) <= 0.1:
+                new_ai_result['her2_level'] = 'HER-2 1+'
+            elif (((mark_1 + mark_3) / mark_8) > 0.1) and (mark_5 / mark_8) <= 0.1:
+                new_ai_result['her2_level'] = 'HER-2 1+'
+            elif (((mark_1 + mark_3) / mark_8) <= 0.1) or (mark_6 / mark_8) < 0.01:
+                new_ai_result['her2_level'] = 'HER-2 0'
 
-        get_rank()
-        new_ai_result['whole_slide'] = ai_result.get('whole_slide') if ai_result.get(
-            'whole_slide') is not None else 1
         return new_ai_result
 
     def get_raw_result(self, task: RocheAITaskEntity) -> Optional[tuple]:
-        raw_result_file_key = os.path.join('analysis', task.analysis_id, 'raw_result', 'result.json')
-        try:
-            raw_result = oss.get_object(raw_result_file_key)
-            raw_result = tuple(json.loads(raw_result))
-        except Exception:
-            raw_result = None
-        return raw_result
+        raw_result_file_key = os.path.join('roche', 'analysis', task.analysis_id, 'raw_result', 'result.json')
+        raw_result = fs.get_object(raw_result_file_key)
+        return tuple(raw_result) if raw_result else None
 
-    def save_raw_result(self, task: RocheAITaskEntity, raw_result: tuple) -> bool:
-        raw_result_file_key = os.path.join('analysis', task.analysis_id, 'raw_result', 'result.json')
-        result_data = json.dumps(raw_result)
-        buffer = BytesIO()
-        buffer.write(result_data.encode('utf-8'))
-        buffer.seek(0)
-
-        if oss:
-            oss.put_object_from_io(buffer, raw_result_file_key)
-        else:
-            logger.info(f'save wsa result to local file: {raw_result_file_key}')
-            with open(raw_result_file_key, "wb") as f:
-                f.write(buffer.getvalue())
-        return True
+    def save_raw_result(self, task: RocheAITaskEntity, raw_result: tuple) -> str:
+        raw_result_file_key = os.path.join('roche', 'analysis', task.analysis_id, 'raw_result', 'result.json')
+        return fs.save_object(raw_result_file_key, list(raw_result))
 
     def run_her2(
-            self, task: RocheAITaskEntity, roi_list: List[dict], wsi_input: RocheWsiInput,
-            raw_result: Optional[tuple] = None
-    ):
+            self, task: RocheAITaskEntity, roi_list: Optional[List[dict]], wsi_input: RocheWsiInput,
+            is_rescore: bool = False
+    ) -> RocheALGResult:
+        if is_rescore:
+            raw_result = self.get_raw_result(task)
+            if not raw_result:
+                return RocheALGResult(err_msg='找不到全场分析结果, 无法rescore')
+        else:
+            raw_result = None
+
+        is_wsa = roi_list is None
+
+        if is_wsa:
+            coordinates = task.coordinates
+            if coordinates:
+                x_coords, y_coords = zip(coordinates)
+            else:
+                x_coords, y_coords = [], []
+
+            id_worker = IdWorker.new_mark_id_worker()
+            roi_list = [{'id': id_worker.get_new_id(), 'x': x_coords, 'y': y_coords}]
+
         # TODO 这里跟AI模块耦合，后续需要在AI模块提供原始算法输出的service以解耦
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
+        wsa_roi_id = None
         if raw_result:
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = raw_result
-            # roi_id = list(center_coords_np_with_id.keys())[0]
+            wsa_roi_id = list(center_coords_np_with_id.keys())[0]
         else:
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
                 slide_path=task.slide_path, roi_list=roi_list)
 
-            # raw_result = (center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg)
-            # self.save_raw_result(task, raw_result)
+            if is_wsa:
+                raw_result = (center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg)
+                self.save_raw_result(task, raw_result)
 
         ai_result = {}
 
@@ -284,10 +277,12 @@ class RocheDomainService(object):
         cell_index_items = []
         slide_width = wsi_input.slide_width
         slide_height = wsi_input.slide_height
+
         for roi in roi_list:
+            roi_id = wsa_roi_id or roi['id']
             center_coords, cls_labels = roi_filter(
-                center_coords_np_with_id[roi['id']],
-                cls_labels_np_with_id[roi['id']],
+                center_coords_np_with_id[roi_id],
+                cls_labels_np_with_id[roi_id],
                 roi['x'],
                 roi['y']
             )
@@ -311,7 +306,8 @@ class RocheDomainService(object):
                 index_item = RocheIndexItem.new_item(tile_x, tile_y)
                 for label, cell_group in groupby(cells, lambda c: c[0]):
                     feature = Feature(properties={'label': int(label)}, geometry=MultiPoint(coordinates=[]))
-                    hot_value = round(Her2Consts.sorted_labels.index(label) * 255 / len(Her2Consts.sorted_labels))
+                    hot_value = Her2Consts.label_to_diagnosis_type[int(label)]
+                    # round(Her2Consts.sorted_labels.index(label) * 255 / len(Her2Consts.sorted_labels))
                     for cell in cell_group:
                         feature['geometry']['coordinates'].append([int(val) for val in cell[1]])
                         index_item.heatmap_points.append([int(val) for val in cell[1]] + [hot_value])
@@ -543,7 +539,10 @@ class RocheDomainService(object):
             wsi_presentation['markers'] = json.dumps([preset.to_dict() for preset in result.marker_presets if preset])
             wsi_presentation['panels'] = json.dumps([panel.to_dict() for panel in result.panels if panel])
             wsi_presentation['heatmaps'] = json.dumps([heatmap.to_dict() for heatmap in result.heatmaps])
-            wsi_presentation['colorluts'] = json.dumps(HEAT_COLORLUTS)
+            heat_colorluts = {
+                'her2': HER2_HEAT_COLORLUTS,
+            }.get(task.ai_type, DEFAULT_HEAT_COLORLUTS)
+            wsi_presentation['colorluts'] = json.dumps(heat_colorluts)
 
             wsi_sparse_heatmaps = file.create_group('wsi_sparse_heatmaps')
             wsi_sparse_heatmaps['index'] = json.dumps([item.to_dict() for item in result.cells_index_items])
@@ -561,12 +560,12 @@ class RocheDomainService(object):
         buffer.seek(0)
         return oss.put_object_from_io(buffer, task.result_file_key)
 
-    def callback_analysis_status(self, ai_task: RocheAITaskEntity) -> bool:
+    def callback_analysis_status(self, ai_task: RocheAITaskEntity, err_msg: str = '') -> bool:
         url = f'{Settings.ROCHE_API_SERVER}/analysis'
         data = {
             'analysis_id': ai_task.analysis_id,
             'status': ai_task.status_name,
-            'status_detail_message': '',
+            'status_detail_message': err_msg,
             'percentage_completed': ai_task.percentage_completed,
             'started_timestamp': ai_task.started_at.strftime(ROCHE_TIME_FORMAT) if ai_task.started_at else None,
             'last_updated_timestamp': ai_task.last_modified.strftime(
