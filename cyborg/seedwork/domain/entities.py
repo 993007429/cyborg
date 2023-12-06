@@ -65,10 +65,13 @@ class BaseDomainEntity(BaseModel):
 
     def to_dict(self):
         d = self.raw_data
+        logger.info('d====%s' % d)
         for field_name in self.json_fields:
+            logger.info('field_name===%s' % field_name)
             d[field_name] = self.__getattr__(field_name)
         for field_name in self.enum_fields.keys():
             d[field_name] = self.__getattr__(field_name)
+        logger.info('d====%s' % d)
         return d
 
     def to_dict_v2(self):

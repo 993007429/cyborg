@@ -318,6 +318,10 @@ class MarkEntity(BaseDomainEntity):
                 return None
 
             item['show_layer'] = 0 if Settings.LAST_SHOW_GROUPS and self.group_id in Settings.LAST_SHOW_GROUPS else 1
+            try:
+                item['doctorDiagnosis'] = self.doctor_diagnosis
+            except (TypeError, JSONDecodeError):
+                item['doctorDiagnosis'] = None
         else:
             try:
                 item['doctorDiagnosis'] = self.doctor_diagnosis
