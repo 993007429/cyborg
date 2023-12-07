@@ -1,6 +1,4 @@
-# index蓝图的视图
 import os
-import sys
 import json
 from flask import request, jsonify
 
@@ -120,17 +118,14 @@ async def delete_company():
 
 @api_blueprint.route('/manage/shutdown', methods=['get', 'post'])
 def shutdown():
-    os.system('shutdown /s /t 0')
-    os.system('shutdown 0')
+    os.system('sudo shutdown /s /t 0')
+    os.system('sudo shutdown 0')
     return jsonify(AppResponse(message='即将关机').dict())
 
 
 @api_blueprint.route('/manage/reboot', methods=['get', 'post'])  # 重启
 def reboot():
-    if sys.platform == 'linux':
-        os.system('reboot')
-    else:
-        os.system('shutdown -r')
+    os.system('sudo reboot')
     return jsonify(AppResponse(message='重启服务器').dict())
 
 
