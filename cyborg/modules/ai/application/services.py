@@ -3,7 +3,9 @@ import logging
 import os
 import sys
 import time
+import yaml
 from typing import List, Optional
+from cyborg.app.settings import Settings
 
 from cyborg.app.request_context import request_context
 from cyborg.celery.app import app
@@ -16,7 +18,7 @@ from cyborg.modules.slice_analysis.application.services import SliceAnalysisServ
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import AIType
-
+from cyborg.modules.ai.domain.entities import AIPatternEntity
 
 logger = logging.getLogger(__name__)
 
@@ -371,3 +373,60 @@ class AIService(object):
         purged = self.domain_service.reset_running_tasks()
         app.control.purge()
         return AppResponse(data={'purged': purged})
+
+    def get_ai_pattern(self) -> AppResponse:
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs({'ai_type': request_context.ai_type})
+        return AppResponse(data=[{'id': item.id, 'patternName': item.name or '通用', 'aiType': item.ai_name,
+                                  'modelName': item.model_name} for item in data])
+
+    def edit_ai_pattern(self, body: dict) -> AppResponse:
+        id, ai_type, pattern_name = body.get('id' ''), body.get('aiType'), body.get('patternName')
+        kwargs = {'company': request_context.company, 'ai_type': ai_type, 'pattern_name': pattern_name}
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+        if data:
+            return AppResponse(code=1, message="the name has existed.")
+        if not id:
+            self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
+                'ai_name': ai_type,
+                'name': pattern_name,
+                'model_name': 'TCT_0603',
+                'company': request_context.company
+            }))
+            return AppResponse()
+        self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name})
+        return AppResponse()
+
+    def del_ai_pattern(self, id: int) -> AppResponse:
+        self.domain_service.repository.del_ai_pattern(id)
+        return AppResponse()
+
+    def get_ai_threshold(self, id: int) -> AppResponse:
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
+        if not data:
+            return AppResponse(code=11, message='该对象不存在')
+        ai_type = data[0].ai_name
+        ai_threshold = data[0].ai_threshold
+        logger.info('data=%s' % data)
+        if ai_type in ['tct', 'lct', 'dna']:
+            path = os.path.join(Settings.PROJECT_DIR, 'consts')
+            with open(f'{path}/{ai_type}_default_parameters.yaml', 'r') as f:
+                params_default = yaml.safe_load(f)
+                ai_threshold.update(params_default)
+        elif ai_type == "dna_ploidy":
+            ai_threshold = {"threshold_range": 0,
+                            "threshold_value": {"iod_ratio": 0.25,
+                                                "conf_thres": 0.42}} if ai_threshold is None else ai_threshold
+        logger.info('data=%s' % ai_threshold)
+        all_use = None if ai_threshold.get('all_use') == 'none' else ai_threshold.get('all_use') == 'true'
+        ai_threshold.update({'all_use': all_use})
+        return AppResponse(message='query succeed', data=ai_threshold)
+
+    def update_ai_threshold(self, body: dict) -> AppResponse:
+        logger.info('update_ai_threshold==%s' % body)
+        # id, ai_threshold = body.pop('id'), body.pop('aiThreshold')
+        # self.domain_service.repository.update_ai_pattern(id, {'ai_threshold': ai_threshold})
+        return AppResponse()
+
+    def get_model(self) -> AppResponse:
+        data = Settings.ALG_MODEL_NAMES.get(request_context.ai_type, [])
+        return AppResponse(data=data)

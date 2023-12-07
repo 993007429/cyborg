@@ -16,6 +16,8 @@ from cyborg.modules.slice_analysis.domain.entities import MarkEntity, MarkGroupE
 from cyborg.modules.slice_analysis.domain.services import SliceAnalysisDomainService
 from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlice, SliceMarkConfig
 from cyborg.seedwork.application.responses import AppResponse
+from cyborg.infra.cache import cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +181,7 @@ class SliceAnalysisService(object):
         case_id = request_context.case_id
         file_id = request_context.file_id
         ai_type = request_context.ai_type
+        company = request_context.company
 
         slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id, company_id=request_context.company).data
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
@@ -186,7 +189,9 @@ class SliceAnalysisService(object):
         mark_config = SliceMarkConfig(radius=radius, is_solid=slice_info['is_solid'] == 1)
 
         marks = self.domain_service.get_marks(
-            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config, template_id=slice_info['templateId'])
+            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config, template_id=slice_info['templateId'],
+            company=company, case_id=case_id, file_id=file_id
+        )
         return AppResponse(message='query succeed', data={'marks': marks})
 
     @connect_slice_db()
@@ -416,6 +421,8 @@ class SliceAnalysisService(object):
         groups = self.domain_service.repository.get_mark_groups_by_template_id(
             template_id=template_id, primary_only=True, is_import=0, is_ai=0)
         data = self.domain_service.show_mark_groups(groups)
+
+        cache.set(f'{request_context.company}:last_selected_template_id', template_id)
         return AppResponse(message='operation succeed', data=data)
 
     def get_share_templates(self) -> AppResponse[dict]:
@@ -615,6 +622,19 @@ class SliceAnalysisService(object):
     @connect_slice_db()
     def has_mark(self):
         return self.domain_service.repository.has_mark()
+
+    @connect_slice_db()
+    def get_ai_pattern(self, body: dict) -> AppResponse:
+        res = self.slice_service.update_template_id(template_id=template_id)
+        if res.err_code:
+            return res
+
+        groups = self.domain_service.repository.get_mark_groups_by_template_id(
+            template_id=template_id, primary_only=True, is_import=0, is_ai=0)
+        data = self.domain_service.show_mark_groups(groups)
+
+        cache.set(f'{request_context.company}:last_selected_template_id', template_id)
+        return AppResponse(message='operation succeed', data=data)
 
     def get_template(self, template_id: int) -> AppResponse[dict]:
         template = self.domain_service.config_repository.get_templates(template_id)

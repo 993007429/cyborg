@@ -103,7 +103,6 @@ def get_slice_info():
         case_id=request_context.case_id, file_id=request_context.file_id, company_id=company_id)
     if res.err_code:
         return jsonify(res.dict())
-
     res.data['group'] = AppServiceFactory.new_slice_analysis_service().get_selected_mark_group().data
 
     return jsonify(res.dict())
@@ -484,3 +483,23 @@ def cancel_download():
         res = AppResponse(err_code=1, message='取消下载发生异常')
 
     return jsonify(res.dict())
+
+
+@api_blueprint.route('/files/getAudio', methods=['get', 'post'])
+def get_audio():
+    logger.info(request.args)
+    caseid = request.args.get('caseid')
+    fileid = request.args.get('fileid')
+    markid = request.args.get('markid')
+    company = request_context.current_company
+    audio_path = fs.path_join(Settings.DATA_DIR, company, 'data', caseid, 'slices', str(fileid), str(markid) + '.wav')
+    logger.info('audio_path===%s' % audio_path)
+    if os.path.exists(audio_path) and os.path.getsize(audio_path):
+        resp = make_response(send_from_directory(
+            directory=fs.path_dirname(audio_path),
+            path=fs.path_basename(audio_path),
+            mimetype="audio/wav",
+            as_attachment=False
+        ))
+        return resp
+    return

@@ -1,4 +1,5 @@
 import logging
+import os.path
 import random
 import sys
 import json
@@ -488,7 +489,9 @@ class SliceAnalysisDomainService(object):
     def get_marks(
             self, ai_type: AIType, view_path: dict, tiled_slice: TiledSlice,
             mark_config: Optional[SliceMarkConfig] = None,
-            template_id: int = None
+            template_id: int = None,
+            company: str = None,
+            case_id: str = None, file_id: str = None,
     ) -> List[dict]:
         x_coords = view_path.get('x')
         y_coords = view_path.get('y')
@@ -519,6 +522,12 @@ class SliceAnalysisDomainService(object):
         mark_cell_types = {}
         remove_mark = []
         for mark in mark_list:
+            # mark_id = mark['id']
+            # audio_path = os.path.join(Settings.DATA_DIR, company, 'data', case_id, 'slices', file_id, mark_id + '.wav')
+            # audio_url = ''
+            # if os.path.exists(audio_path) and os.path.getsize(audio_path):
+            #     audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={case_id}&fileid={file_id}&markid={mark_id}&company={company}'
+            # mark['audioUrl'] = audio_url
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
                     cell_type = self.get_mark_group(mark['group_id'], template_id=template_id)
@@ -542,6 +551,8 @@ class SliceAnalysisDomainService(object):
         return mark_list
 
     def get_mark_group(self, group_id: int, template_id: int):
+        logger.info('group_id==%s' % group_id)
+        logger.info('template_id==%s' % template_id)
         if not group_id:
             return ''
         mark_groups = self.repository.get_mark_groups_by_template_id(template_id=template_id)

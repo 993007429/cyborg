@@ -129,7 +129,8 @@ def reboot():
     return jsonify(AppResponse(message='重启服务器').dict())
 
 
-@api_blueprint.route('/manage/saveAiThreshold', methods=['get', 'post'])
+@api_blueprint.route('/manage/'
+                     '', methods=['get', 'post'])
 def save_ai_threshold():
     """
     保存算法参数
@@ -185,4 +186,56 @@ def get_config():
 @api_blueprint.route('/manage/purgeTasks', methods=['get', 'post'])
 def purge_tasks():
     res = AppServiceFactory.ai_service.purge_tasks()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/getAiPattern', methods=['get', 'post'])
+def get_ai_pattern():
+    import traceback
+    try:
+        body = request.get_json()
+    except Exception:
+        print(traceback.format_exc())
+        body = {}
+    request_context.ai_type = AIType.get_by_value(body.get('aiType'))
+    res = AppServiceFactory.ai_service.get_ai_pattern()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/editAiPattern', methods=['get', 'post'])
+def edit_ai_pattern():
+    body = request.get_json()
+    res = AppServiceFactory.ai_service.edit_ai_pattern(body)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/delAiPattern', methods=['get', 'post'])
+def del_ai_pattern():
+    body = request.get_json()
+    res = AppServiceFactory.ai_service.del_ai_pattern(body.get('id'))
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/getAiParams', methods=['get', 'post'])
+def get_ai_params():
+    import logging
+    logger = logging.getLogger(__name__)
+    body = request.get_json()
+    logger.info('body===%s' % body)
+    res = AppServiceFactory.ai_service.get_ai_threshold(body.get('id'))
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/editAiThreshold', methods=['get', 'post'])
+def edit_ai_threshold():
+    body = request.get_json()
+    res = AppServiceFactory.ai_service.update_ai_threshold(body)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/manage/getModel', methods=['get', 'post'])
+def get_model():
+    body = request.get_json()
+    request_context.ai_type = AIType.get_by_value(body.get('aiType'))
+    res = AppServiceFactory.ai_service.get_model()
     return jsonify(res.dict())

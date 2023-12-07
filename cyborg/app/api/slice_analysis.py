@@ -363,6 +363,17 @@ def get_labels():
     return jsonify(res.dict())
 
 
+@api_blueprint.route('/slice/getAiPatternResult', methods=['get', 'post'])
+def get_ai_pattern():
+    body = request.get_json()
+    ai_type = body.get('aiType')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+    res = AppServiceFactory.new_slice_analysis_service().get_ai_pattern(body)
+    return jsonify(res.dict())
+
+
+
+
 @api_blueprint.route('/slice/get_template', methods=['get', 'post'])
 def get_template():
     body = request.get_json()

@@ -6,7 +6,7 @@ from cyborg.modules.ai.domain.value_objects import AITaskStatus
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.seedwork.domain.value_objects import AIType, BaseEnum
 from cyborg.utils.id_worker import IdWorker
-from cyborg.utils.strings import snake_to_camel
+from cyborg.utils.strings import snake_to_camel, camel_to_snake
 
 
 class AITaskEntity(BaseDomainEntity):
@@ -77,3 +77,14 @@ class TCTProbEntity(BaseDomainEntity):
 
     def to_list(self):
         return [self.prob_nilm, self.prob_ascus, self.prob_lsil, self.prob_asch, self.prob_hsil, self.prob_agc]
+
+
+class AIPatternEntity(BaseDomainEntity):
+
+    def to_dict(self):
+        d = {snake_to_camel(k): v for k, v in super().to_dict().items()}
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict, **kwargs):
+        return cls(raw_data={camel_to_snake(k): v for k, v in data.items() if isinstance(k, str)}, **kwargs)

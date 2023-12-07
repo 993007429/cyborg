@@ -123,12 +123,13 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             create_time_min: Optional[str] = None, create_time_max: Optional[str] = None,
             page: int = 0, limit: int = 20,
             case_ids: Optional[List[str]] = None,
-            is_marked: Optional[int] = None,
-            labels: Optional[str] = None,
-            clarity_level: Optional[str] = None,
-            slice_quality: Optional[str] = None,
+            is_marked: Optional[List[int]] = None,
+            labels: Optional[List[str]] = None,
+            clarity_level: Optional[List[str]] = None,
+            slice_quality: Optional[List[str]] = None,
             clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
-            ai_threshold: Optional[dict] = None
+            ai_threshold: Optional[dict] = None,
+            pattern_name: Optional[List[str]] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
         ...
 

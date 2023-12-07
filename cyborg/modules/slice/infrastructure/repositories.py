@@ -1,3 +1,4 @@
+import logging
 import math
 import sys
 from datetime import datetime, timedelta
@@ -15,6 +16,8 @@ from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordMod
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
 from cyborg.utils.strings import camel_to_snake
+
+logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModelRepository[CaseRecordEntity]):
@@ -232,9 +235,11 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             clarity_level: Optional[List[str]] = None,
             slice_quality: Optional[List[str]] = None,
             clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
-            ai_threshold: Optional[dict] = None
+            ai_threshold: Optional[dict] = None,
+            pattern_name: Optional[List[str]] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
-
+        logger.info('pattern_name===%s' % pattern_name)
+        logger.info('type===%s' % type(pattern_name))
         search_value = search_value.strip() if search_value else None
         is_record_search_key = search_key in ['sampleNum', 'name']
         is_slice_search_key = not is_record_search_key
@@ -341,6 +346,15 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                     temp = or_(temp, SliceModel.check_result == '')
                 else:
                     temp = or_(temp, SliceModel.check_result.contains(i))
+            query = query.filter(temp)
+
+        if pattern_name:
+            temp = (1 == 0)
+            for i in pattern_name:
+                if i == '无':
+                    temp = or_(temp, SliceModel.pattern_name == '')
+                else:
+                    temp = or_(temp, SliceModel.pattern_name.contains(i))
             query = query.filter(temp)
         if user_file_folder is not None:
             query = query.filter(SliceModel.user_file_folder.in_(user_file_folder))

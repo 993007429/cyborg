@@ -1,14 +1,18 @@
+import logging
 from typing import Optional, List
 
 from sqlalchemy import desc
 
 from cyborg.infra.session import transaction
-from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
+from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity, AIPatternEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
 from cyborg.modules.ai.domain.value_objects import AITaskStatus
-from cyborg.modules.ai.infrastructure.models import AIModel, TemplateModel, AITaskModel, AIStatisticsModel, TCTProbModel
+from cyborg.modules.ai.infrastructure.models import AIModel, TemplateModel, AITaskModel, AIStatisticsModel, \
+    TCTProbModel, AIPatternModel
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemyRepository
+
+logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
@@ -47,7 +51,8 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         return None
 
     def get_ai_tasks(
-            self, status: Optional[AITaskStatus], until_id: Optional[int] = None, limit: int = 100) -> List[AITaskEntity]:
+            self, status: Optional[AITaskStatus], until_id: Optional[int] = None, limit: int = 100) -> List[
+        AITaskEntity]:
         query = self.session.query(AITaskModel)
         if status is not None:
             query = query.filter(AITaskModel.status == status.value)
@@ -123,3 +128,39 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         models = self.session.query(TCTProbModel).filter(TCTProbModel.slice_id.in_(mapping.keys())).all()
         return [TCTProbEntity.from_dict(
             model.raw_data, check_result=mapping.get(model.slice_id, '')) for model in models]
+
+    def get_ai_pattern_by_kwargs(self, kwargs: dict) -> List[AIPatternEntity]:
+        query = self.session.query(AIPatternModel)
+        if kwargs.get('ai_type'):
+            query = query.filter(AIPatternModel.ai_name == kwargs.get('ai_type'))
+        if kwargs.get('id'):
+            query = query.filter(AIPatternModel.id == kwargs.get('id'))
+        if kwargs.get('pattern_name'):
+            query = query.filter(AIPatternModel.name == kwargs.get('pattern_name'))
+        if kwargs.get('company'):
+            query = query.filter(AIPatternModel.name == kwargs.get('company'))
+        models = query.filter().all()
+        return [AIPatternEntity.from_dict(model.raw_data) for model in models]
+
+    def update_ai_pattern(self, id: int, kwargs: dict) -> bool:
+        condition = {}
+        if 'name' in kwargs:
+            condition = {'name': kwargs.get('name')}
+        if 'ai_threshold' in kwargs:
+            condition = {'ai_threshold': kwargs.get('ai_threshold')}
+        if 'company' in kwargs:
+            condition = {'company': kwargs.get('company')}
+        self.session.query(AIPatternModel).filter(AIPatternModel.id == id).update(condition)
+        return True
+
+    def del_ai_pattern(self, id: int) -> bool:
+        self.session.query(AIPatternModel).filter(AIPatternModel.id == id).delete()
+        return True
+
+    def save_ai_pattern(self, ai_pattern: AIPatternEntity) -> bool:
+        model = self.convert_to_model(ai_pattern, AIPatternModel)
+        if not model:
+            return False
+        self.session.add(model)
+        self.session.flush([model])
+        return True

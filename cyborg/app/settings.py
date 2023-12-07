@@ -9,7 +9,6 @@ def get_local_settings(file_path: str):
 
 
 class Settings(object):
-
     """默认配置"""
 
     PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -148,3 +147,11 @@ class Settings(object):
 
     # 版本号（用于算法用量统计）
     VERSION = '4.0.0'
+
+    # 算法模型名称
+    ALG_MODEL_NAMES = {
+        'tct': ['LCT_mobile_micro0324', 'LCT40k_convnext_nofz', 'LCT40k_convnext_HDX', 'LCT_mix80k0417_8',
+                'yolov6l6_15cls_0923_10x'],
+        'lct': [],
+        'dna': []
+    }

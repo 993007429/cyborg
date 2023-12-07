@@ -1,6 +1,9 @@
-from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean, func
+import json
+
+from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean, func, Text
 
 from cyborg.seedwork.infrastructure.models import BaseModel
+from cyborg.modules.user_center.user_core.domain.entities import COMPANY_AI_THRESHOLD
 
 
 class AIModel(BaseModel):
@@ -11,6 +14,20 @@ class AIModel(BaseModel):
 
     id = Column(Integer, primary_key=True, comment="主键ID")
     ai_name = Column(String(255), comment="AI模块名")
+
+
+class AIPatternModel(BaseModel):
+
+    __tablename__ = 'ai_pattern'
+
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, comment="主键ID")
+    ai_name = Column(String(255), comment="AI模块名")
+    name = Column(String(255), comment="模块模式名称")
+    model_name = Column(String(255), comment="模型名称")
+    ai_threshold = Column(JSON, nullable=True, comment='算法阈值')
+    company = Column(String(255), comment="组织名称")
 
 
 class AIStatisticsModel(BaseModel):

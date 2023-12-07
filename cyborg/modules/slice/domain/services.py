@@ -234,7 +234,7 @@ class SliceDomainService(object):
             info.pop('ai_status', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
-
+            logger.info('info======%s' % info)
             for k, v in info.items():
                 if k == 'id':
                     slice.update_data(fileid=v)
@@ -536,6 +536,8 @@ class SliceDomainService(object):
                     write_label = slice.clarity_level if slice else ''
                 elif title == '细胞量':
                     write_label = slice.cell_num if slice else ''
+                elif title == '模式':
+                    write_label = slice.pattern_name if slice else ''
                 elif title == 'AI建议':
                     write_label = slice.ai_suggest if slice else ''
                     cell_format = auto_cell_format(write_label)

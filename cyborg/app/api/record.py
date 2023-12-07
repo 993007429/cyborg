@@ -81,6 +81,7 @@ def _get_query_records_params() -> dict:
     labels = json.loads(request.form.get("labels")) if request.form.get('labels') else None
     clarity_level = json.loads(request.form.get("clarityLevel")) if request.form.get('clarityLevel') else None
     slice_quality = json.loads(request.form.get("sliceQuality")) if request.form.get('sliceQuality') else None
+    pattern_name = json.loads(request.form.get("patternName")) if request.form.get('patternName') else None
     return locals()
 
 

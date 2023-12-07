@@ -84,3 +84,10 @@ def modify_label():
                                                               clarity_standards_min=clarity_standards_min,
                                                               clarity_standards_max=clarity_standards_max)
     return jsonify(res.dict())
+
+
+@api_blueprint.route("/manage/xfyun-websocket-service-url", methods=['POST'], endpoint="get_ws_url")
+def get_ws_url():
+    url = AppServiceFactory.user_service.get_ws_url()
+    return jsonify({"code": 0, "data": {"url": url}, "message": "生成websocket url成功"})
+

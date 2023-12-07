@@ -26,7 +26,7 @@ from cyborg.infra.fs import fs
 from cyborg.infra.redlock import with_redlock
 from cyborg.infra.session import transaction
 from cyborg.libs.heimdall.dispatch import open_slide
-from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
+from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity, AIPatternEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
 from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus, TCTDiagnosisType, MicrobeType
 from cyborg.seedwork.domain.value_objects import AIType

@@ -263,6 +263,8 @@ class SliceEntity(BaseDomainEntity):
             'errMessage': self.err_message or '',
             'cellNumTips': self.cell_num_tips or None,
             'company': self.company
+            'patternName': self.pattern_name,
+            'patternId': self.pattern_id
         }
         d.update(self.data_paths)
         if all_fields:
@@ -307,7 +309,7 @@ class CaseRecordEntity(BaseDomainEntity):
 
         all_columns = [
             '样本号', '姓名', '性别', '年龄', '取样部位', '样本类型', '切片数量', '标注状态', '处理状态', '切片文件夹', '切片标签',
-            '切片编号', '文件名', '自定义标签', 'AI模块', '切片质量', '扫描倍数', '清晰度', '细胞量', 'AI建议', '复核结果', '创建时间', '最后更新', '操作人', '报告'
+            '切片编号', '文件名', '自定义标签', 'AI模块', '模式', '切片质量', '扫描倍数', '清晰度', '细胞量', 'AI建议', '复核结果', '创建时间', '最后更新', '操作人', '报告'
         ]
         plugins = Settings.PLUGINS
         if 'logene' in plugins:
