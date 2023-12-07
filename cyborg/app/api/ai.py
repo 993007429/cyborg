@@ -79,12 +79,15 @@ def revoke_task():
 
 @api_blueprint.route('/ai/analyseThreshold', methods=['get', 'post'])
 def analyse_threshold():
-    threshold = float(request.form.get('threshold_value') or request.form.get('threshold'))
-    analyse_mode = request.form.get('mode')
-    ai_type = request.form.get('alg_type') or request.form.get('algor_type')
-    request_context.ai_type = AIType.get_by_value(ai_type)
-
-    res = AppServiceFactory.ai_service.get_analyze_threshold(threshold=threshold, analyse_mode=analyse_mode)
+    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type'))
+    search_key = json.loads(request.form.get('search_key')) if request.form.get('search_key') is not None else {} #筛选条件
+    params = {
+        'threshold_range': int(request.form.get('threshold_range', 0)),  #0:只改asc-h asc-us  1: 改全部
+        'slice_range': int(request.form.get('slice_range', 1)), # 0 只改篩選  1: 改全部,
+        'threshold_value': float(request.form.get('threshold_value')),
+        'min_pos_cell': int(request.form.get('min_pos_cell', -1))
+    }
+    res = AppServiceFactory.ai_service.get_analyze_threshold(params=params, search_key=search_key)
     return jsonify(res.dict())
 
 

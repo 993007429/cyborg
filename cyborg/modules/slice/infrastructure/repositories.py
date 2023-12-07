@@ -415,11 +415,15 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         self.session.query(SliceModel).filter_by(fileid=file_id, company=company_id).delete()
         return True
 
-    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
-        models = self.session.query(TCTProbModel, SliceModel).join(
+    def get_prob_list(self, company: str, ai_type: AIType, caseid_list: Optional[List[str]] = None) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+        query = self.session.query(TCTProbModel, SliceModel).join(
             SliceModel, TCTProbModel.slice_id == SliceModel.id).filter(
             and_(SliceModel.company == company, SliceModel.alg.contains(ai_type.value), SliceModel.started == 2)
-        ).all()
+        )
+        if caseid_list is not None:
+            query.filter(SliceModel.caseid.in_(caseid_list))
+        models = query.all()
+
         return [(TCTProbEntity.from_dict(prob_model.raw_data), SliceEntity.from_dict(slice_model.raw_data))
                 for prob_model, slice_model in models]
 

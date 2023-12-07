@@ -230,10 +230,12 @@ class UserCoreService(object):
             return AppResponse(err_code=1, message=err_msg, data={'status': -1})
         return AppResponse(data={'status': 1})
 
-    def save_ai_threshold(self, threshold_range: int, threshold_value: float, all_use: bool):
+    def save_ai_threshold(self, threshold_range: int, slice_range: int, threshold_value: float,
+                          all_use: bool, extra_params: dict, search_key: dict):
         saved = self.domain_service.save_ai_threshold(
             company_id=request_context.current_company, ai_type=request_context.ai_type,
-            threshold_range=threshold_range, threshold_value=threshold_value, all_use=all_use
+            threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
+            all_use=all_use, extra_params=extra_params, search_key=search_key
         )
         if not saved:
             return AppResponse(err_code=1, message='modify ai threshold failed')
@@ -242,12 +244,21 @@ class UserCoreService(object):
     def get_ai_threshold(self):
         company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         ai_threshold = company.ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=ai_threshold.get(request_context.ai_type.value))
+        params = ai_threshold.get(request_context.ai_type, {})
+        smart_value_dict = {'true':True, 'false': False, 'none': None}
+        # additional parameters
+        params = self.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
+        if params.get('all_use') and params.get('all_use') in smart_value_dict:
+            params.update({'all_use': smart_value_dict[params.get('all_use')]})
+        return AppResponse(message='query succeed', data=params)
 
     def get_default_ai_threshold(self):
         company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         default_ai_threshold = company.default_ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=default_ai_threshold.get(request_context.ai_type.value, 0.5))
+        default_threshold_value = default_ai_threshold.get(request_context.ai_type, 0.5)
+        # additional parameters
+        params = self.domain_service.merge_default_params(params={'threshold_value':default_threshold_value}, ai_type=request_context.ai_type)
+        return AppResponse(message='query succeed', data=params)
 
     def get_ws_url(self) -> str:
         base_url = "ws://rtasr.xfyun.cn/v1/ws"

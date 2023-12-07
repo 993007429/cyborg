@@ -135,14 +135,31 @@ def save_ai_threshold():
     """
     保存算法参数
     """
-    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type') or request.form.get('algor_type'))
-    threshold_range = int(request.form.get('threshold_range')) if request.form.get(
-        'threshold_range') else None  # 0 只改asc-h asc-us  1: 改全部
-    threshold_value = float(request.form.get('threshold_value') or request.form.get('threshold'))
-    all_use = request.form.get('all_use') == 'true'
+    request_context.ai_type = AIType.get_by_value(request.form.get('algor_type'))
+    threshold_range = int(request.form.get('threshold_range', 0))  #0:只改asc-h asc-us  1: 改全部
+    slice_range = int(request.form.get('slice_range', 1)) # 0 只改篩選  1: 改全部
+    threshold_value = request.form.get('threshold_value')
+    all_use = request.form.get('all_use') == 'true'  # 应用于已处理切片
+    search_key = json.loads(request.form.get('search_key')) if request.form.get('search_key') is not None else {} #筛选条件
+
+    if request_context.ai_type.is_tct_type:
+        threshold_value = float(threshold_value)
+        extra_params = {
+            'qc_cell_num': int(request.form.get('qc_cell_num')),
+            'min_pos_cell': int(request.form.get('min_pos_cell')),
+            'cell_conf': json.loads(request.form.get('cell_conf')),
+            'cell_num': json.loads(request.form.get('cell_num'))
+        }
+    elif request_context.ai_type == AIType.dna_ploidy:
+        threshold_value = json.loads(threshold_value)
+        extra_params = {}
+    else:
+        extra_params={}
 
     res = AppServiceFactory.user_service.save_ai_threshold(
-        threshold_range=threshold_range, threshold_value=threshold_value, all_use=all_use)
+        threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value, all_use=all_use,
+        extra_params=extra_params, search_key=search_key)
+
     return jsonify(res.dict())
 
 

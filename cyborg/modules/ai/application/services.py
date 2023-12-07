@@ -311,13 +311,12 @@ class AIService(object):
 
         return AppResponse()
 
-    def get_analyze_threshold(self, threshold: float, analyse_mode: str) -> AppResponse:
-
-        slices = self.slice_service.get_analyzed_slices().data
-
-        data = self.domain_service.get_analyze_threshold(
-            threshold=threshold, analyse_mode=analyse_mode, slices=slices)
-
+    def get_analyze_threshold(self, params:dict, search_key: dict) -> AppResponse:
+        if params.get('slice_range')==0 and len(search_key)>0:
+            slices = self.slice_service.get_analyzed_slices_by_conditions(search_key=search_key).data
+        else:
+            slices = self.slice_service.get_analyzed_slices().data
+        data = self.domain_service.get_analyze_threshold(params=params,  slices=slices)
         return AppResponse(data=data)
 
     def get_ai_statistics(self, start_date: Optional[str], end_date: Optional[str]) -> AppResponse:

@@ -78,6 +78,19 @@ class TCTProbEntity(BaseDomainEntity):
     def to_list(self):
         return [self.prob_nilm, self.prob_ascus, self.prob_lsil, self.prob_asch, self.prob_hsil, self.prob_agc]
 
+    def to_dict(self):
+        return {'NILM': self.prob_nilm, 'ASC-US': self.prob_ascus, 'LSIL': self.prob_lsil, 'ASC-H': self.prob_asch,
+                'HSIL': self.prob_hsil, 'AGC': self.prob_agc}
+
+    def get_microbe_background_dict(self):
+        return {'CC': self.num_cc, 'TRI': self.num_tri, 'CAN': self.num_can, 'ACT': self.num_act, 'HSV': self.num_hsv,
+                'INF': self.num_inf, 'ATR': self.num_atr, 'RAP': self.num_rap, 'META': self.num_meta, 'GC': self.num_gc}
+
+    def update(self, values):
+        for k, v in values.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
+
 
 class AIPatternEntity(BaseDomainEntity):
 

@@ -2,7 +2,8 @@ import logging
 import base64
 import datetime
 import json
-import os
+import logging
+import os, sys
 import random
 import string
 from io import BytesIO
@@ -98,6 +99,44 @@ class SliceService(object):
         data = [record.to_dict() for record in records]
         return AppResponse(data=Pagination(locals()).to_dict())
 
+    @staticmethod
+    def get_query_records_params(search_conditions: dict) -> dict:
+        page = search_conditions.get('page', 1) - 1  # 服务端下标统一从0开始
+        limit = search_conditions.get('limit', sys.maxsize)
+        search_key = search_conditions.get("search_key")
+        search_value = search_conditions.get("search_value")
+
+        ai_suggest = search_conditions.get("ai_suggest") if search_conditions.get("ai_suggest") !=[] else None
+        check_result = search_conditions.get("check_result") if search_conditions.get("check_result") != [] else None
+        user_file_folder = search_conditions.get("userFileFolder") if search_conditions.get("userFileFolder") != [] else None
+        operator = search_conditions.get("operator") if search_conditions.get("operator") != [] else None
+
+        report = search_conditions.get("reports") if search_conditions.get("reports") != [] else None  # 报告的有无   1有  2无   [1, 2]
+        update_min = search_conditions.get("update_min").strip('"') if search_conditions.get("update_min") else None
+        update_max = search_conditions.get("update_max").strip('"') if search_conditions.get("update_max") else None
+        create_time_min = search_conditions.get("create_min").strip('"') if search_conditions.get("create_min") else None
+        create_time_max = search_conditions.get("create_max").strip('"') if search_conditions.get("create_max") else None
+        gender = search_conditions.get("gender") if search_conditions.get("gender") != [] else None
+        age_min = search_conditions.get('age_min')
+        age_max = search_conditions.get('age_max')
+        sample_part = search_conditions.get("samplePart") if search_conditions.get("samplePart") != [] else None  # 多选
+        sample_type = search_conditions.get("sampleType") if search_conditions.get("sampleType") != [] else None
+        statuses = search_conditions.get("status") if search_conditions.get("status") != [] else None  # 0未处理 1处理中 2已处理 3处理异常
+        alg = search_conditions.get("alg_list") if search_conditions.get("alg_list") != [] else None  # ['tct','ki67']
+        seq_key = search_conditions.get("seq_key") if search_conditions.get(
+            "seq_key") else "create_time"  # 年龄 切片数量  更新时间 创建时间 ['age','slice_num','update_time','sampleNum','create_time']
+        seq = search_conditions.get("seq") if search_conditions.get("seq") else '1'  # 默认顺序  1倒序  2正序
+
+        slice_no = search_conditions.get("slice_no") if search_conditions.get("label") != [] else None
+        is_has_label = search_conditions.get("label") if search_conditions.get("label") != [] else None
+        case_ids = search_conditions.get('case_id')  # 切片主键ID  ['12', '13']
+        is_marked = search_conditions.get('is_mark')
+        labels = search_conditions.get('labels')
+        clarity_level = search_conditions.get('clarityLevel')
+        slice_quality = search_conditions.get('sliceQuality')
+        del search_conditions
+        return locals()
+
     def export_records(self, **kwargs) -> AppResponse[str]:
         company = self.user_service.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         if not company:
@@ -192,7 +231,6 @@ class SliceService(object):
     def get_slices(
             self, case_ids: List[int] = None, page: int = 0, per_page: int = 20
     ) -> AppResponse:
-
         slices = self.domain_service.repository.get_slices(
             case_ids=case_ids, slice_type='slice', company=request_context.current_company,
             page=page, per_page=per_page
@@ -587,6 +625,16 @@ class SliceService(object):
             company=request_context.current_company)
         return AppResponse(data=[s.to_dict() for s in slices])
 
+    def get_analyzed_slices_by_conditions(self, search_key: dict) -> AppResponse:
+        cases = self.search_records(**self.get_query_records_params(search_conditions=search_key)).data
+        case_ids = [case['caseid'] for case in cases['data']]
+        slices = self.domain_service.repository.get_slices(
+            case_ids=case_ids, ai_type=request_context.ai_type, started=SliceStartedStatus.success,
+            company=request_context.current_company)
+        return AppResponse(data=[s.to_dict() for s in slices])
+
+
+
     def get_report_opinion(self) -> AppResponse:
         record = self.domain_service.repository.get_record_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
@@ -775,11 +823,16 @@ class SliceService(object):
         else:
             return AppResponse(err_code=2, message='找不到报告数据')
 
-    def apply_ai_threshold(self, threshold_range: int, threshold_value: float) -> bool:
+    def apply_ai_threshold(self, params: dict, search_key: dict) -> bool:
+
+        if params.get('slice_range')==0 and len(search_key)>0:
+            cases = self.search_records(**self.get_query_records_params(search_conditions=search_key)).data
+            caseid_list=[case['caseid'] for case in cases['data']]
+        else:
+            caseid_list =None
+
         return self.domain_service.apply_ai_threshold(
-            company=request_context.current_company, ai_type=request_context.ai_type,
-            threshold_range=threshold_range, threshold_value=threshold_value
-        )
+            company=request_context.current_company, ai_type=request_context.ai_type, params=params, caseid_list=caseid_list)
 
     def get_record_count(self, end_time: str) -> AppResponse:
         records = self.domain_service.repository.get_records(end_time=end_time, company=request_context.current_company)

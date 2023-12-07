@@ -80,6 +80,23 @@ class TCTProbModel(BaseModel):
     prob_asch = Column(Float, comment='ASCH 概率')
     prob_agc = Column(Float, comment='AGC 概率')
     prob_hsil = Column(Float, comment='HSIL 概率')
+    
+    num_cc = Column(Integer, nullable=True, comment='线索')
+    num_tri = Column(Integer, nullable=True, comment='滴虫')
+    num_can = Column(Integer, nullable=True, comment='霉菌')
+    num_act = Column(Integer, nullable=True, comment='放线菌')
+    num_hsv = Column(Integer, nullable=True, comment='疱疹')
+
+    num_inf = Column(Integer, nullable=True, comment='炎性')
+    num_atr = Column(Integer, nullable=True, comment='萎缩')
+    num_rap = Column(Integer, nullable=True, comment='修复')
+    num_meta = Column(Integer, nullable=True, comment='化生')
+    num_gc = Column(Integer, nullable=True, comment='腺细胞')
+
+    cell_num = Column(Integer, nullable=True, comment='细胞数')
+    num_pos_cell = Column(Integer, nullable=True, comment='阳性细胞数')
+    qc_score = Column(Float, nullable=True, comment='质控得分')
+
 
 
 class AITaskModel(BaseModel):

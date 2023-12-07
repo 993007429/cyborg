@@ -5,8 +5,7 @@ from cyborg.modules.user_center.user_core.domain.event import CompanyAIThreshold
 
 
 def handle_company_ai_threshold_updated_event(event: CompanyAIThresholdUpdatedEvent):
-    AppServiceFactory.slice_service.apply_ai_threshold(
-        threshold_range=event.threshold_range, threshold_value=event.threshold_value)
+    AppServiceFactory.slice_service.apply_ai_threshold(params=event.params, search_key=event.search_key)
 
 
 def subscribe_events():

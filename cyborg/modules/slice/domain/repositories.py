@@ -142,7 +142,7 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
-    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+    def get_prob_list(self, company: str, ai_type: AIType, caseid_list: Optional[List[str]] = None) -> List[Tuple[TCTProbEntity, SliceEntity]]:
         ...
 
     @abstractmethod
