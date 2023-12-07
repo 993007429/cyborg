@@ -517,11 +517,17 @@ class SliceAnalysisDomainService(object):
             ai_type=ai_type, marks=marks, radius_ratio=radius_ratio, is_max_level=is_max_level,
             mark_config=mark_config, show_groups=group_ids)
         mark_cell_types = {}
+        remove_mark = []
         for mark in mark_list:
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
-                    mark_cell_types[mark['group_id']] = self.get_mark_group(mark['group_id'], template_id=template_id)
+                    cell_type = self.get_mark_group(mark['group_id'], template_id=template_id)
+                    if cell_type is None:
+                        remove_mark.append(mark)
+                        continue
+                    mark_cell_types[mark['group_id']] = cell_type
                 mark['cell_type'] = mark_cell_types[mark['group_id']]
+        mark_list = [i for i in mark_list if i not in remove_mark]
         if ai_type not in [AIType.human, AIType.label]:
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练

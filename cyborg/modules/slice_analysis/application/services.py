@@ -59,7 +59,6 @@ def connect_slice_db(need_template_db: bool = False):
                 mark_table_suffix = _self.domain_service.get_mark_table_suffix(ai_type=ai_type, template_id=template_id)
                 _self.domain_service.repository.mark_table_suffix = mark_table_suffix
                 _self.domain_service.repository.create_mark_tables(ai_type=ai_type)
-
             manual_table_suffix = AI_TYPE_MANUAL_MARK_TABLE_MAPPING.get(ai_type, 'human')
             _self.domain_service.repository.manual.mark_table_suffix = manual_table_suffix
             _self.domain_service.repository.manual.create_mark_tables(ai_type=ai_type)
@@ -639,9 +638,9 @@ class SliceAnalysisService(object):
             AppResponse)[dict]:
         if not name:
             return AppResponse(code=11, message='edit template failed, please check the input.')
-        template_name = self.domain_service.config_repository.get_ai_name_by_template_id(template_id)
-        if name != template_name:
-            return AppResponse(code=11, message="edit template failed, the name can't edit.")
+        # template_name = self.domain_service.config_repository.get_ai_name_by_template_id(template_id)
+        # if name != template_name:
+        #     return AppResponse(code=11, message="edit template failed, the name can't edit.")
         ai_id = None
         if ai_name:
             ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name))

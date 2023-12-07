@@ -89,6 +89,8 @@ class AIType(BaseEnum):
     model_calibrate_tct = 'model_calibrate_tct'
     model_calibrate_lct = 'model_calibrate_lct'
     model_calibrate_dna = 'model_calibrate_dna'
+    HER2QCS = 'HER2QCS'
+    lungCancer = 'lungCancer'
 
     @property
     def ai_name(self) -> str:
