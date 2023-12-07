@@ -232,7 +232,7 @@ class UserCoreService(object):
 
     def save_ai_threshold(self, threshold_range: int, slice_range: int, threshold_value: float,
                           all_use: bool, extra_params: dict, search_key: dict):
-        saved = self.domain_service.save_ai_threshold(
+        _, saved = self.domain_service.save_ai_threshold(
             company_id=request_context.current_company, ai_type=request_context.ai_type,
             threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
             all_use=all_use, extra_params=extra_params, search_key=search_key

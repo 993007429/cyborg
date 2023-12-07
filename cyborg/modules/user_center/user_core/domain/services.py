@@ -344,7 +344,7 @@ class UserCoreDomainService(object):
 
     def save_ai_threshold(
             self, company_id: str, ai_type: AIType, threshold_range: int, slice_range: int, threshold_value: float,
-            all_use: bool, extra_params: dict, search_key: dict):
+            all_use: bool, extra_params: dict, search_key: dict) -> Tuple[dict, bool]:
 
         company = self.company_repository.get_company_by_id(company=company_id)
         ai_threshold = company.ai_threshold
@@ -365,8 +365,8 @@ class UserCoreDomainService(object):
                 # 其他算法类型暂时没有对已处理结果生效
                 pass
 
-            return True
-        return False
+            return ai_threshold, True
+        return ai_threshold, False
 
     def merge_default_params(self, params: dict, ai_type: AIType):
         if os.path.exists(f'cyborg/consts/default_params/{ai_type.value}.yaml') and isinstance(params, dict):

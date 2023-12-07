@@ -368,7 +368,7 @@ def get_labels():
 
 
 @api_blueprint.route('/slice/getAiPatternResult', methods=['get', 'post'])
-def get_ai_pattern():
+def get_ai_pattern_result():
     body = request.get_json()
     ai_type = body.get('aiType')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human

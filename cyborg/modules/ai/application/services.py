@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import time
-import yaml
+import json
 from typing import List, Optional
 from cyborg.app.settings import Settings
 
@@ -403,27 +403,47 @@ class AIService(object):
         data = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
         if not data:
             return AppResponse(code=11, message='该对象不存在')
-        ai_type = data[0].ai_name
-        ai_threshold = data[0].ai_threshold
-        logger.info('data=%s' % data)
-        if ai_type in ['tct', 'lct', 'dna']:
-            path = os.path.join(Settings.PROJECT_DIR, 'consts')
-            with open(f'{path}/{ai_type}_default_parameters.yaml', 'r') as f:
-                params_default = yaml.safe_load(f)
-                ai_threshold.update(params_default)
-        elif ai_type == "dna_ploidy":
-            ai_threshold = {"threshold_range": 0,
-                            "threshold_value": {"iod_ratio": 0.25,
-                                                "conf_thres": 0.42}} if ai_threshold is None else ai_threshold
-        logger.info('data=%s' % ai_threshold)
-        all_use = None if ai_threshold.get('all_use') == 'none' else ai_threshold.get('all_use') == 'true'
-        ai_threshold.update({'all_use': all_use})
-        return AppResponse(message='query succeed', data=ai_threshold)
+        request_context.ai_type = AIType.get_by_value(data[0].ai_name) or AIType.unknown
+        params = data[0].ai_threshold
+        smart_value_dict = {'true': True, 'false': False, 'none': None}
+        # additional parameters
+        params = self.user_service.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
+        if params.get('all_use') and params.get('all_use') in smart_value_dict:
+            params.update({'all_use': smart_value_dict[params.get('all_use')]})
+        return AppResponse(message='query succeed', data=params)
 
     def update_ai_threshold(self, body: dict) -> AppResponse:
         logger.info('update_ai_threshold==%s' % body)
-        # id, ai_threshold = body.pop('id'), body.pop('aiThreshold')
-        # self.domain_service.repository.update_ai_pattern(id, {'ai_threshold': ai_threshold})
+        request_context.ai_type = AIType.get_by_value(body.get('aiType'))
+        ai_threshold = body.get('aiThreshold')
+        threshold_range = int(ai_threshold.get('threshold_range', 0))  # 0:只改asc-h asc-us  1: 改全部
+        slice_range = int(ai_threshold.get('slice_range', 1))  # 0 只改篩選  1: 改全部
+        threshold_value = ai_threshold.get('threshold_value')
+        all_use = ai_threshold.get('all_use') == 'true'  # 应用于已处理切片
+        search_key = ai_threshold.get('search_key') if ai_threshold.get('search_key') is not None else {}  # 筛选条件
+
+        if request_context.ai_type.is_tct_type:
+            threshold_value = float(threshold_value)
+            extra_params = {
+                'qc_cell_num': int(ai_threshold.get('qc_cell_num')),
+                'min_pos_cell': int(ai_threshold.get('min_pos_cell')),
+                'cell_conf': ai_threshold.get('cell_conf'),
+                'cell_num': ai_threshold.get('cell_num')
+            }
+        elif request_context.ai_type == AIType.dna_ploidy:
+            threshold_value = threshold_value
+            extra_params = {}
+        else:
+            extra_params = {}
+
+        ai_threshold, saved = self.user_service.domain_service.save_ai_threshold(
+            company_id=request_context.current_company, ai_type=request_context.ai_type,
+            threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
+            all_use=all_use, extra_params=extra_params, search_key=search_key
+        )
+        if not saved:
+            return AppResponse(err_code=1, message='modify ai threshold failed')
+        self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold})
         return AppResponse()
 
     def get_model(self) -> AppResponse:

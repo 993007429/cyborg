@@ -129,8 +129,7 @@ def reboot():
     return jsonify(AppResponse(message='重启服务器').dict())
 
 
-@api_blueprint.route('/manage/'
-                     '', methods=['get', 'post'])
+@api_blueprint.route('/manage/saveAiThreshold', methods=['get', 'post'])
 def save_ai_threshold():
     """
     保存算法参数
@@ -235,10 +234,7 @@ def del_ai_pattern():
 
 @api_blueprint.route('/manage/getAiParams', methods=['get', 'post'])
 def get_ai_params():
-    import logging
-    logger = logging.getLogger(__name__)
     body = request.get_json()
-    logger.info('body===%s' % body)
     res = AppServiceFactory.ai_service.get_ai_threshold(body.get('id'))
     return jsonify(res.dict())
 
