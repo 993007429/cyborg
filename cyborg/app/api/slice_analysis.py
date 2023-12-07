@@ -282,7 +282,11 @@ def query_group():
 @api_blueprint.route('/slice/selectTemplate', methods=['get', 'post'])
 def select_template():
     request_context.ai_type = AIType.label
-    res = AppServiceFactory.new_slice_analysis_service().select_template(template_id=int(request.form.get('id')))
+    template_id = int(request.form.get('id'))
+    res = AppServiceFactory.slice_service.update_template_id(template_id=template_id)
+    if res.err_code:
+        return res
+    res = AppServiceFactory.new_slice_analysis_service().select_template(template_id=template_id)
     return jsonify(res.dict())
 
 
@@ -370,8 +374,6 @@ def get_ai_pattern():
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
     res = AppServiceFactory.new_slice_analysis_service().get_ai_pattern(body)
     return jsonify(res.dict())
-
-
 
 
 @api_blueprint.route('/slice/get_template', methods=['get', 'post'])

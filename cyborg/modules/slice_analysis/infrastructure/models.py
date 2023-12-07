@@ -70,7 +70,6 @@ def get_ai_mark_model(table_name_suffix: str) -> Type[MarkModel]:
     class AIMarkModel(MarkModel):
         __tablename__ = f'Mark_{table_name_suffix}'
         __import_table_name__ = __tablename__.replace('_label', '') + '_1'  # 对应的算法标注导入源表
-
     return AIMarkModel
 
 

@@ -413,15 +413,9 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def select_template(self, template_id: int) -> AppResponse:
-
-        res = self.slice_service.update_template_id(template_id=template_id)
-        if res.err_code:
-            return res
-
         groups = self.domain_service.repository.get_mark_groups_by_template_id(
             template_id=template_id, primary_only=True, is_import=0, is_ai=0)
         data = self.domain_service.show_mark_groups(groups)
-
         cache.set(f'{request_context.company}:last_selected_template_id', template_id)
         return AppResponse(message='operation succeed', data=data)
 
