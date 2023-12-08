@@ -605,7 +605,7 @@ class SliceService(object):
             case_id=request_context.case_id, company=request_context.current_company)
         report_config = self.domain_service.get_report_config(company=request_context.current_company)
         report_templates = record.get_report_templates(
-            template_config=report_config.template_config, file_id=request_context.file_id)
+            template_config=report_config.formatted_template_config, file_id=request_context.file_id)
         alg_type = self.domain_service.get_alg_type(case_id=request_context.case_id, file_id=request_context.file_id,
                                                     company_id=request_context.current_company)
         report_data = record.to_dict_for_report()
