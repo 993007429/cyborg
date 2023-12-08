@@ -67,7 +67,6 @@ class AIService(object):
                 'model_type': model_type if is_tld else None
             }})
         elif is_tld:
-            logger.info(company_info)
             ai_threshold = company_info['aiThreshold'] or company_info['defaultAiThreshold']
             threshold_value = (ai_threshold[ai_type.value] or {}).get('threshold_value')
             model_name = (ai_threshold[ai_type.value] or {}).get('model_name')
