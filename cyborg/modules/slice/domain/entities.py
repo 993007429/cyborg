@@ -222,14 +222,14 @@ class SliceEntity(BaseDomainEntity):
             'id': self.fileid,
             'uid': self.id,
             "ai_suggest": self.ai_suggest or '',
-            "alg": self.alg,
-            "check_result": self.check_result or '',
+            'alg': self.alg,
+            'check_result': self.check_result or '',
             'filename': self.filename,
             'fileid': self.fileid,
-            "caseid": self.caseid,
-            "operator": self.operator,
-            "slice_number": self.slice_number,
-            "started": self.started,
+            'caseid': self.caseid,
+            'operator': self.operator,
+            'slice_number': self.slice_number,
+            'started': self.started,
             'state': self.state,
             'name': self.name,
             'loaded': self.loaded,
@@ -242,7 +242,7 @@ class SliceEntity(BaseDomainEntity):
             'is_solid': self.is_solid,  # 默认标注模块中显示实心
             'ai_status': self.ai_status,
             'as_id': self.ai_id,
-            "update_time": self.update_time,
+            'update_time': self.update_time,
             'aiDiagnosisState': self.ai_diagnosis_state,
             'checkedDiagnosisState': self.checked_diagnosis_state,
             'isImportedFromAi': self.is_imported_from_ai,
@@ -253,7 +253,7 @@ class SliceEntity(BaseDomainEntity):
             'errCode': self.err_code or 0,
             'errMessage': self.err_message or '',
             'cellNumTips': self.cell_num_tips or None,
-            "company": self.company
+            'company': self.company
         }
         d.update(self.data_paths)
         if all_fields:

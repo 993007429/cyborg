@@ -194,18 +194,19 @@ class SliceDomainService(object):
             self.repository.save(record)
         return {
             'caseid': case_id,
-            "width": slide.width,
-            "height": slide.height,
-            "mppx": slide.mpp,
-            "mppy": slide.mpp,
-            "ai_dict": {},
-            "state": 1,
-            "total": slide_size,
-            "loaded": slide_size,
-            "objective_rate": objective_rate,
-            "slice_number": label_text,
-            "clarity": clarity_score,
-            "userFilePath": user_file_path
+            'width': slide.width,
+            'height': slide.height,
+            'mppx': slide.mpp,
+            'mppy': slide.mpp,
+            'ai_dict': {},
+            'state': 1,
+            'total': slide_size,
+            'loaded': slide_size,
+            'objective_rate': objective_rate,
+            'slice_number': label_text,
+            'clarity': clarity_score,
+            'userFilePath': user_file_path,
+            'toolType': tool_type
         }
 
     @transaction

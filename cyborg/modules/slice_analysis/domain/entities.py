@@ -8,7 +8,7 @@ from urllib.parse import quote
 from shapely.geometry import Polygon, Point
 
 from cyborg.app.settings import Settings
-from cyborg.modules.slice_analysis.domain.consts import HUMAN_TL_CELL_TYPES
+from cyborg.consts.tct import TCTConsts
 from cyborg.modules.slice_analysis.domain.value_objects import SliceTile, MarkPosition, TiledSlice, AIType, \
     SliceMarkConfig
 from cyborg.modules.slice_analysis.utils.polygon import cal_center
@@ -361,7 +361,7 @@ class MarkEntity(BaseDomainEntity):
 
     @classmethod
     def mock_roi(cls) -> dict:
-        cells = {cell_type: {'num': 0, 'data': []} for cell_type in HUMAN_TL_CELL_TYPES}
+        cells = {cell_type: {'num': 0, 'data': []} for cell_type in TCTConsts.cells_types}
         ai_result = {
             'cell_num': 0,
             'clarity': 0.0,
