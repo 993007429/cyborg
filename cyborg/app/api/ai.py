@@ -100,6 +100,17 @@ def ai_statistics():
     return jsonify(res.dict())
 
 
+@api_blueprint.route('/slice/getAiPatternResult', methods=['get', 'post'])
+def get_ai_pattern_result():
+    body = request.get_json()
+    ai_type = body.get('aiType')
+    request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
+    request_context.case_id = body.get('caseid')
+    request_context.file_id = body.get('fileid')
+    res = AppServiceFactory.ai_service.get_ai_pattern_result()
+    return jsonify(res.dict())
+
+
 @api_blueprint.route('/files/save_info', methods=['get', 'post'])
 def hack_ai_suggest():
     mode = request.form.get('mode')

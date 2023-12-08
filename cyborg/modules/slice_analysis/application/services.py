@@ -624,17 +624,12 @@ class SliceAnalysisService(object):
         return self.domain_service.repository.has_mark()
 
     @connect_slice_db()
-    def get_ai_pattern(self, body: dict) -> AppResponse:
-        res = self.slice_service.update_template_id(template_id=template_id)
-        if res.err_code:
-            return res
-
-        groups = self.domain_service.repository.get_mark_groups_by_template_id(
-            template_id=template_id, primary_only=True, is_import=0, is_ai=0)
-        data = self.domain_service.show_mark_groups(groups)
-
-        cache.set(f'{request_context.company}:last_selected_template_id', template_id)
-        return AppResponse(message='operation succeed', data=data)
+    def get_pattern_id(self) -> int:
+        _, marks = self.domain_service.repository.get_marks(per_page=1)
+        pattern_id = None
+        if marks:
+            pattern_id = marks[0].ai_result.get('patternId', None)
+        return pattern_id
 
     def get_template(self, template_id: int) -> AppResponse[dict]:
         template = self.domain_service.config_repository.get_templates(template_id)

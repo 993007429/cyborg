@@ -311,12 +311,12 @@ class AIService(object):
 
         return AppResponse()
 
-    def get_analyze_threshold(self, params:dict, search_key: dict) -> AppResponse:
-        if params.get('slice_range')==0 and len(search_key)>0:
+    def get_analyze_threshold(self, params: dict, search_key: dict) -> AppResponse:
+        if params.get('slice_range') == 0 and len(search_key) > 0:
             slices = self.slice_service.get_analyzed_slices_by_conditions(search_key=search_key).data
         else:
             slices = self.slice_service.get_analyzed_slices().data
-        data = self.domain_service.get_analyze_threshold(params=params,  slices=slices)
+        data = self.domain_service.get_analyze_threshold(params=params, slices=slices)
         return AppResponse(data=data)
 
     def get_ai_statistics(self, start_date: Optional[str], end_date: Optional[str]) -> AppResponse:
@@ -449,3 +449,10 @@ class AIService(object):
     def get_model(self) -> AppResponse:
         data = Settings.ALG_MODEL_NAMES.get(request_context.ai_type, [])
         return AppResponse(data=data)
+
+    def get_ai_pattern_result(self):
+        pattern_id = self.analysis_service.get_pattern_id()
+        all_patterns = self.get_ai_pattern()
+        patterns = [{'patternId': i.get('id'), 'patternName': i.get('patternName'),
+                     'hasAiResult': True if i.get('id') == int(pattern_id) else False} for i in all_patterns.data]
+        return AppResponse(message='get ai pattern result succeed', data=patterns)
