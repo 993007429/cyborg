@@ -471,6 +471,8 @@ class SliceDomainService(object):
                 worksheet.set_column(headers.index('切片标签'), headers.index('切片标签'), 20)
         row_items = [(record, slice) for record in records for slice in record.slices or [None]]
         for idx, (record, slice) in enumerate(row_items):
+            if not (record and slice):
+                continue
             row = idx + 1
             for col, title in enumerate(headers):
                 cell_format = common_format

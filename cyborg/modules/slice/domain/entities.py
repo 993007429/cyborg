@@ -373,7 +373,7 @@ class CaseRecordEntity(BaseDomainEntity):
 
             for slic in self.slices:
                 ai_type = AIType.get_by_value(slic.alg)
-                if template_id == ai_type:
+                if template_id == ai_type and item.get('templateCode'):
                     if slic.fileid == file_id:
                         item['active'] = True
                     template_codes.append(item)
@@ -587,6 +587,13 @@ class ReportConfigEntity(BaseDomainEntity):
     def format_template_config_item(cls, template_config_item: dict):
         ai_type = AIType.get_by_value(template_config_item['templateId'])
         template_config_item['templateName'] = ai_type.display_name if ai_type else '通用模板'
+
+    @property
+    def formatted_template_config(self):
+        template_config = self.template_config
+        for item in template_config:
+            self.format_template_config_item(item)
+        return template_config
 
     def to_dict(self):
         for item in self.template_config:
