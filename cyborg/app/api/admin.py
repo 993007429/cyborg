@@ -228,7 +228,7 @@ def edit_ai_pattern():
 @api_blueprint.route('/manage/delAiPattern', methods=['get', 'post'])
 def del_ai_pattern():
     body = request.get_json()
-    res = AppServiceFactory.ai_service.del_ai_pattern(body.get('id'))
+    res = AppServiceFactory.ai_service.del_ai_pattern(body.get('id'), body.get('aiType'))
     return jsonify(res.dict())
 
 

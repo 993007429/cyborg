@@ -138,7 +138,7 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         if kwargs.get('pattern_name'):
             query = query.filter(AIPatternModel.name == kwargs.get('pattern_name'))
         if kwargs.get('company'):
-            query = query.filter(AIPatternModel.name == kwargs.get('company'))
+            query = query.filter(AIPatternModel.company == kwargs.get('company'))
         models = query.filter().all()
         return [AIPatternEntity.from_dict(model.raw_data) for model in models]
 

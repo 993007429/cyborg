@@ -374,37 +374,46 @@ class AIService(object):
         return AppResponse(data={'purged': purged})
 
     def get_ai_pattern(self) -> AppResponse:
-        data = self.domain_service.repository.get_ai_pattern_by_kwargs({'ai_type': request_context.ai_type})
+        kwargs = {'company': request_context.company}
+        if request_context.ai_type:
+            kwargs['ai_type'] = request_context.ai_type.value
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
         return AppResponse(data=[{'id': item.id, 'patternName': item.name or '通用', 'aiType': item.ai_name,
                                   'modelName': item.model_name} for item in data])
 
     def edit_ai_pattern(self, body: dict) -> AppResponse:
-        id, ai_type, pattern_name = body.get('id' ''), body.get('aiType'), body.get('patternName')
+        id, ai_type, pattern_name, model_name = body.get('id'), body.get('aiType'), body.get('patternName'), body.get('modelName')
         kwargs = {'company': request_context.company, 'ai_type': ai_type, 'pattern_name': pattern_name}
         data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
         if data:
-            return AppResponse(code=1, message="the name has existed.")
+            return AppResponse(err_code=11, message="the name has existed.")
         if not id:
             self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
                 'ai_name': ai_type,
                 'name': pattern_name,
-                'model_name': 'TCT_0603',
+                'model_name': model_name or 'LCT_mobile_micro0324',
                 'company': request_context.company
             }))
             return AppResponse()
         self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name})
         return AppResponse()
 
-    def del_ai_pattern(self, id: int) -> AppResponse:
+    def del_ai_pattern(self, id: int, ai_type: str) -> AppResponse:
+        # todo 前端增加传参aiType
+        pattern = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
+        kwargs = {'company': request_context.company, 'ai_type': pattern[0].ai_name}
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+        if len(data) == 1:
+            return AppResponse(err_code=11, message='the last one cannot del.')
         self.domain_service.repository.del_ai_pattern(id)
         return AppResponse()
 
     def get_ai_threshold(self, id: int) -> AppResponse:
         data = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
         if not data:
-            return AppResponse(code=11, message='该对象不存在')
+            return AppResponse(err_code=11, message='该对象不存在')
         request_context.ai_type = AIType.get_by_value(data[0].ai_name) or AIType.unknown
-        params = data[0].ai_threshold
+        params = data[0].ai_threshold or {}
         smart_value_dict = {'true': True, 'false': False, 'none': None}
         # additional parameters
         params = self.user_service.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
@@ -442,8 +451,8 @@ class AIService(object):
             all_use=all_use, extra_params=extra_params, search_key=search_key
         )
         if not saved:
-            return AppResponse(err_code=1, message='modify ai threshold failed')
-        self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold})
+            return AppResponse(err_code=11, message='modify ai threshold failed')
+        self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold.get(request_context.ai_type.value)})
         return AppResponse()
 
     def get_model(self) -> AppResponse:
@@ -454,5 +463,6 @@ class AIService(object):
         pattern_id = self.analysis_service.get_pattern_id()
         all_patterns = self.get_ai_pattern()
         patterns = [{'patternId': i.get('id'), 'patternName': i.get('patternName'),
-                     'hasAiResult': True if i.get('id') == int(pattern_id) else False} for i in all_patterns.data]
+                     'hasAiResult': True if pattern_id and i.get('id') == int(pattern_id) else False} for i in
+                    all_patterns.data]
         return AppResponse(message='get ai pattern result succeed', data=patterns)
