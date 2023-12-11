@@ -80,6 +80,8 @@ class AIService(object):
         if template_id:
             task_params['template_id'] = template_id
 
+        self.analysis_service.clear_ai_result()
+
         res = self.slice_service.update_ai_status(
             status=SliceStartedStatus.default, ai_name=ai_name, upload_batch_number=upload_batch_number,
             template_id=template_id, ip_address=ip_address)
@@ -142,8 +144,6 @@ class AIService(object):
 
         ai_type = task.ai_type
         request_context.ai_type = ai_type
-
-        self.analysis_service.clear_ai_result()
 
         groups = self.analysis_service.get_mark_groups(template_id=task.template_id).data
         group_name_to_id = {group['label']: int(group['id']) for group in groups}

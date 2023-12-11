@@ -541,6 +541,10 @@ class SliceAnalysisDomainService(object):
         group_map = dict()
         for group in mark_groups:
             group_map[group.id] = {"parent_id": group.parent_id, 'group_name': group.group_name}
+
+        if group_id not in group_map:
+            return ''
+
         group_name = [group_map[group_id].get('group_name')]
         parent_id = group_map[group_id]['parent_id']
         if parent_id:
