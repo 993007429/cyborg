@@ -417,7 +417,7 @@ class SliceService(object):
         return AppResponse(err_code=err_code, message=message, data=entity.data_paths if entity else None)
 
     def export_slice_files(self, client_ip: str, case_ids: List[str], path: str, need_db_file: bool = False) -> \
-    AppResponse[list]:
+            AppResponse[list]:
         url = Settings.ELECTRON_UPLOAD_SERVER.format(client_ip)
         file_path_list = list()  # 待发送的文件路径列表
         for case_id in case_ids:

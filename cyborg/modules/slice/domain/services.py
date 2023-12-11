@@ -844,8 +844,6 @@ class SliceDomainService(object):
                 self.repository.save_slice(slice)
         return True
 
-
-
     @transaction
     async def free_up_space(self, end_time: str, company: str) -> bool:
         records = self.repository.get_records(end_time=end_time, company=request_context.current_company)

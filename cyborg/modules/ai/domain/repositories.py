@@ -30,8 +30,7 @@ class AIRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def get_ai_tasks(
-            self, status: Optional[AITaskStatus], until_id: Optional[int] = None, limit: int = 100) -> List[
-        AITaskEntity]:
+            self, status: Optional[AITaskStatus], until_id: Optional[int] = None, limit: int = 100) -> List[AITaskEntity]:
         ...
 
     @abstractmethod
