@@ -134,10 +134,10 @@ def save_ai_threshold():
     """
     保存算法参数
     """
-    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type'))
+    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type') or request.form.get('algor_type'))
     threshold_range = int(request.form.get('threshold_range')) if request.form.get(
         'threshold_range') else None  # 0 只改asc-h asc-us  1: 改全部
-    threshold_value = float(request.form.get('threshold_value'))
+    threshold_value = float(request.form.get('threshold_value') or request.form.get('threshold'))
     all_use = request.form.get('all_use') == 'true'
 
     res = AppServiceFactory.user_service.save_ai_threshold(
@@ -150,14 +150,14 @@ def get_ai_threshold():
     """
     获取算法参数
     """
-    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type'))
+    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type') or request.form.get('algor_type'))
     res = AppServiceFactory.user_service.get_ai_threshold()
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/manage/getDefaultAiThreshold', methods=['get', 'post'])
 def get_default_ai_threshold():
-    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type'))
+    request_context.ai_type = AIType.get_by_value(request.form.get('alg_type') or request.form.get('algor_type'))
     res = AppServiceFactory.user_service.get_default_ai_threshold()
     return jsonify(res.dict())
 

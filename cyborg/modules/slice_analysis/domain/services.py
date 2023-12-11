@@ -844,9 +844,12 @@ class SliceAnalysisDomainService(object):
 
         if len(rois) == 0:
             if ai_type in [AIType.tct, AIType.lct, AIType.bm]:
-                self.create_mark(
+                msg, mark = self.create_mark(
                     ai_type, method='rectangle', mark_type=3,
                     position={'x': [0], 'y': [0]}, ai_result_ready=False)
+                if msg:
+                    logger.exception(msg)
+                rois = [mark.to_roi(ai_type=ai_type)] if mark else []
             elif ai_type == AIType.human_tl:
                 cells = {k: {'data': []} for k in HUMAN_TL_CELL_TYPES}
                 rois = cells

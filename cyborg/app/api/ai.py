@@ -78,9 +78,9 @@ def revoke_task():
 
 @api_blueprint.route('/ai/analyseThreshold', methods=['get', 'post'])
 def analyse_threshold():
-    threshold = float(request.form.get('threshold_value'))
+    threshold = float(request.form.get('threshold_value') or request.form.get('threshold'))
     analyse_mode = request.form.get('mode')
-    ai_type = request.form.get('alg_type')
+    ai_type = request.form.get('alg_type') or request.form.get('algor_type')
     request_context.ai_type = AIType.get_by_value(ai_type)
 
     res = AppServiceFactory.ai_service.get_analyze_threshold(threshold=threshold, analyse_mode=analyse_mode)
