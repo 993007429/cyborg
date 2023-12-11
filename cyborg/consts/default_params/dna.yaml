@@ -1,12 +1,10 @@
-all_use: true
+all_use: false
 threshold_range: 1
 slice_range: 1
 threshold_value: 0.5
 qc_cell_num: 5000
 min_pos_cell: -1
 qc_thres: 0.5
-other: true
-microbe: true
 
 cell_conf:
   ASC-US: 0.35
@@ -36,6 +34,8 @@ cell_num:
   RAP: 100
   META: 100
   GC: 100
+  other: true
+  microbe: true
 
 
 

@@ -397,7 +397,7 @@ class AIService(object):
         self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name})
         return AppResponse()
 
-    def del_ai_pattern(self, id: int, ai_type: str) -> AppResponse:
+    def del_ai_pattern(self, id: int) -> AppResponse:
         # todo 前端增加传参aiType
         pattern = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
         kwargs = {'company': request_context.company, 'ai_type': pattern[0].ai_name}
@@ -427,7 +427,9 @@ class AIService(object):
         threshold_range = int(ai_threshold.get('threshold_range', 0))  # 0:只改asc-h asc-us  1: 改全部
         slice_range = int(ai_threshold.get('slice_range', 1))  # 0 只改篩選  1: 改全部
         threshold_value = ai_threshold.get('threshold_value')
-        all_use = ai_threshold.get('all_use') == 'true'  # 应用于已处理切片
+        all_use = ai_threshold.get('all_use')  # 应用于已处理切片
+        logger.info('all_user====%s'% all_use)
+        logger.info(type(all_use))
         search_key = ai_threshold.get('search_key') if ai_threshold.get('search_key') is not None else {}  # 筛选条件
 
         if request_context.ai_type.is_tct_type:

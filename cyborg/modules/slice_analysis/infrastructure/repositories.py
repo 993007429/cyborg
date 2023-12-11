@@ -387,6 +387,7 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
 
     def get_mark_group_by_kwargs(self, kwargs: Optional[dict]) -> List[MarkGroupEntity]:
         query = self.session.query(MarkGroupModel)
+        logger.info(kwargs)
         if 'id' in kwargs:
             query = query.filter(MarkGroupModel.id == kwargs['id'])
         if 'group_name' in kwargs:
@@ -394,11 +395,11 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         if 'template_id' in kwargs:
             query = query.filter(MarkGroupModel.template_id == kwargs['template_id'])
         models = query.all()
+        logger.info(models)
         return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
     @transaction
     def update_mark_group_by_kwargs(self, group_id: int, kwargs: dict) -> bool:
-        logger.info('kwargs===%s' % kwargs)
         self.session.query(MarkGroupModel).filter_by(id=group_id).update(kwargs)
         return True
 

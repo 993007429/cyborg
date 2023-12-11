@@ -147,7 +147,8 @@ class SliceAnalysisDomainService(object):
                     for item in cell.get('data', []):
                         for sub_item in item.get('data', []):
                             sub_item['mark_type'] = 1
-                            cell_types = list(filter(None, [cell.get('label'), item.get('label'), sub_item.get('label')]))
+                            cell_types = list(
+                                filter(None, [cell.get('label'), item.get('label'), sub_item.get('label')]))
                             sub_item['cell_type'] = '>'.join(cell_types)
                             mark_list.append(sub_item)
         else:
@@ -523,7 +524,8 @@ class SliceAnalysisDomainService(object):
         remove_mark = []
         for mark in mark_list:
             mark_id = mark['id']
-            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', str(case_id), 'slices', str(file_id), str(mark_id) + '.wav')
+            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', str(case_id), 'slices', str(file_id),
+                                      str(mark_id) + '.wav')
             audio_url = ''
             if os.path.exists(audio_path) and os.path.getsize(audio_path):
                 audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={str(case_id)}&fileid={str(file_id)}&markid={str(mark_id)}&company={company}'
@@ -902,15 +904,13 @@ class SliceAnalysisDomainService(object):
     @transaction
     def sync_mark_groups(self, groups: List[MarkGroupEntity]) -> Tuple[int, str]:
         for group in groups:
-            kwargs = {'group_name': group.group_name, 'template_id': group.template_id,
-                      'label': group.label, 'color': group.color, 'parent_id': group.parent_id}
-            # group_ = self.repository.get_mark_group_by_kwargs({'templated_id': group.template_id, 'group_name': group.group_name,
-            #                                                    'parent_id': group.parent_id})
-            group_ = self.repository.get_mark_group_by_kwargs(kwargs)
+            group_ = self.repository.get_mark_group_by_kwargs(
+                {'template_id': group.template_id, 'group_name': group.group_name,
+                 'parent_id': group.parent_id})
             try:
                 if group_:
-                    group_ = self.repository.get_mark_group_by_kwargs(kwargs)
-                    # self.repository.update_mark_group_by_kwargs(group[0].)
+                    self.repository.update_mark_group_by_kwargs(group_[0].id, {
+                        'group_name': group.group_name, 'color': group.color, 'default_color': group.color})
                 else:
                     self.repository.save_mark_group(group)
             except Exception:
@@ -1099,15 +1099,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                    ai_result_before_modify[region_id]['pos_tumor'] +
-                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                        ai_result_before_modify[region_id]['pos_tumor'] +
+                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] += 1
                         ai_result_before_modify['total'] += 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                    ai_result_before_modify['pos_tumor'] +
-                                    ai_result_before_modify['neg_tumor'] + 1e-10), 4)
+                                        ai_result_before_modify['pos_tumor'] +
+                                        ai_result_before_modify['neg_tumor'] + 1e-10), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
                             ai_result_before_modify['tps'] = 0
@@ -1123,15 +1123,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] -= 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                    ai_result_before_modify[region_id]['pos_tumor'] +
-                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                        ai_result_before_modify[region_id]['pos_tumor'] +
+                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] -= 1
                         ai_result_before_modify['total'] -= 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                    ai_result_before_modify['pos_tumor'] +
-                                    ai_result_before_modify['neg_tumor'] + 1e-10
+                                        ai_result_before_modify['pos_tumor'] +
+                                        ai_result_before_modify['neg_tumor'] + 1e-10
                                 ), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
@@ -1149,15 +1149,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id][cell_type] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                    ai_result_before_modify[region_id]['pos_tumor'] +
-                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                        ai_result_before_modify[region_id]['pos_tumor'] +
+                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[previous_type] -= 1
                         ai_result_before_modify[cell_type] += 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                    ai_result_before_modify['pos_tumor'] +
-                                    ai_result_before_modify['neg_tumor'] + 1e-10
+                                        ai_result_before_modify['pos_tumor'] +
+                                        ai_result_before_modify['neg_tumor'] + 1e-10
                                 ), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
