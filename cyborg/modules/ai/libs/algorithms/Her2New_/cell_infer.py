@@ -5,7 +5,6 @@ import random
 import torch
 import cv2
 
-from cyborg.infra.oss import oss
 from cyborg.modules.ai.utils.file import load_alg_model
 from dataset import Dataset
 import numpy as np
@@ -168,7 +167,7 @@ def cell_infer_(C_net, crop_coords_wsi, ext, lvl_list, mask, slide, device, opt_
 
         image = image.float() / 255
         image = image.permute(3, 1, 2, 0)
-        mean_std_file = load_alg_model(oss.path_join(
+        mean_std_file = load_alg_model(os.path.join(
             'AI', 'Her2New_', 'wsi_infer', f'C_net{model_name}', 'mean_std.npy'))
         mean, std = np.load(mean_std_file)
         for t, m, s in zip(image, mean, std):
