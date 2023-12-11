@@ -387,13 +387,13 @@ class AIService(object):
         if data:
             return AppResponse(err_code=11, message="the name has existed.")
         if not id:
-            self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
+            id = self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
                 'ai_name': ai_type,
                 'name': pattern_name,
                 'model_name': model_name or 'LCT_mobile_micro0324',
                 'company': request_context.company
             }))
-            return AppResponse()
+            return AppResponse(data={'id': id})
         self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name})
         return AppResponse()
 
@@ -404,6 +404,8 @@ class AIService(object):
         data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
         if len(data) == 1:
             return AppResponse(err_code=11, message='the last one cannot del.')
+        # 有切片正在处理中  禁止删除
+        self.slice_service.domain_service.get_slice()
         self.domain_service.repository.del_ai_pattern(id)
         return AppResponse()
 

@@ -152,6 +152,6 @@ class Settings(object):
     ALG_MODEL_NAMES = {
         'tct': ['LCT_mobile_micro0324', 'LCT40k_convnext_nofz', 'LCT40k_convnext_HDX', 'LCT_mix80k0417_8',
                 'yolov6l6_15cls_0923_10x'],
-        'lct': [],
-        'dna': []
+        'lct': ['LCT_mobile_micro0324', 'LCT40k_convnext_nofz', 'LCT40k_convnext_HDX', 'LCT_mix80k0417_8',
+                'yolov6l6_15cls_0923_10x']
     }

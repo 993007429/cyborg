@@ -156,10 +156,11 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         self.session.query(AIPatternModel).filter(AIPatternModel.id == id).delete()
         return True
 
-    def save_ai_pattern(self, ai_pattern: AIPatternEntity) -> bool:
+    def save_ai_pattern(self, ai_pattern: AIPatternEntity) -> int:
         model = self.convert_to_model(ai_pattern, AIPatternModel)
         if not model:
             return False
         self.session.add(model)
         self.session.flush([model])
-        return True
+        ai_pattern.update_data(**model.raw_data)
+        return ai_pattern.id
