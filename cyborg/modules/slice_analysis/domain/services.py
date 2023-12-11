@@ -523,10 +523,10 @@ class SliceAnalysisDomainService(object):
         remove_mark = []
         for mark in mark_list:
             mark_id = mark['id']
-            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', case_id, 'slices', file_id, mark_id + '.wav')
+            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', str(case_id), 'slices', str(file_id), str(mark_id) + '.wav')
             audio_url = ''
             if os.path.exists(audio_path) and os.path.getsize(audio_path):
-                audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={case_id}&fileid={file_id}&markid={mark_id}&company={company}'
+                audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={str(case_id)}&fileid={str(file_id)}&markid={str(mark_id)}&company={company}'
             mark['audioUrl'] = audio_url
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
