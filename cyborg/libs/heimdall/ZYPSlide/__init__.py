@@ -55,13 +55,17 @@ class ZYPSlide(SlideBase):
         SlideBase.__init__(self)
 
     def read(self, location=[0, 0], size=None, scale=1, greyscale=False):
-        '''
+        """
         :param location: (x, y) at level=0
         :param size: (width, height)
         :param scale: resize scale, scale>1 -> zoom out, scale<1 -> zoom in
         :param greyscale: if True, convert image to greyscale
         :return: a numpy image,  np_img.shape=[height, width, channel=1 or 3]
-        '''
+        """
+        if scale >= math.pow(2,self.maxlvl-1):
+            crop_region = np.zeros((32,32,3),dtype=np.uint8)
+            crop_region.fill(255)
+            return crop_region
 
         if size is None:
             width, height = self.width, self.height
@@ -88,8 +92,6 @@ class ZYPSlide(SlideBase):
         lib.FreePtr(byref(img))
         del bits
         crop_region = crop_region[:, :, ::-1]
-        if greyscale:
-            crop_region = 0.2989 * crop_region[:, :, 0] + 0.5870 * crop_region[:, :, 1] + 0.1140 * crop_region[:, :, 2]
         return crop_region
 
     def save_label(self, path=None):
