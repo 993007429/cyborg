@@ -1,6 +1,6 @@
 import json
 import logging
-import time, hmac,base64
+import time, hmac, base64
 import hashlib
 from urllib.parse import quote
 from typing import List, Optional
@@ -14,7 +14,6 @@ from cyborg.infra.cache import cache
 from cyborg.modules.user_center.utils.utils import get_time_now, ms_to_hours
 
 logger = logging.getLogger(__name__)
-
 
 APPID = "cbc70b42"
 APIKey = "000bff23e345f2520099b6191af76f18"  # 实时语音转写
@@ -141,10 +140,12 @@ class UserCoreService(object):
                 'clarityStandardsLower': company.clarity_standards_min}
         return AppResponse(data=data)
 
-    def update_company_label(self, label: int, clarity_standards_min: float, clarity_standards_max: float) -> AppResponse:
+    def update_company_label(self, label: int, clarity_standards_min: float,
+                             clarity_standards_max: float) -> AppResponse:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
         if company:
-            code, message = self.domain_service.update_company_label(company, label, clarity_standards_min, clarity_standards_max)
+            code, message = self.domain_service.update_company_label(company, label, clarity_standards_min,
+                                                                     clarity_standards_max)
         else:
             code, message = 1, '对象不存在'
         return AppResponse(code=code, message=message)
@@ -245,7 +246,7 @@ class UserCoreService(object):
         company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         ai_threshold = company.ai_threshold if company else {}
         params = ai_threshold.get(request_context.ai_type, {})
-        smart_value_dict = {'true':True, 'false': False, 'none': None}
+        smart_value_dict = {'true': True, 'false': False, 'none': None}
         # additional parameters
         params = self.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
         if params.get('all_use') and params.get('all_use') in smart_value_dict:
@@ -257,7 +258,8 @@ class UserCoreService(object):
         default_ai_threshold = company.default_ai_threshold if company else {}
         default_threshold_value = default_ai_threshold.get(request_context.ai_type, 0.5)
         # additional parameters
-        params = self.domain_service.merge_default_params(params={'threshold_value':default_threshold_value}, ai_type=request_context.ai_type)
+        params = self.domain_service.merge_default_params(params={'threshold_value': default_threshold_value},
+                                                          ai_type=request_context.ai_type)
         return AppResponse(message='query succeed', data=params)
 
     def get_ws_url(self) -> str:

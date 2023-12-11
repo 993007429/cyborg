@@ -110,4 +110,5 @@ class AIType(BaseEnum):
     def is_tct_type(self):
         return self in [self.tct, self.lct, self.dna]
 
+
 A = TypeVar('A', bound=AIType)

@@ -43,7 +43,8 @@ def update_user():
     new_password = request.form.get('password')
     new_role = request.form.get('role')
     user_id = request.form.get("id")
-    res = AppServiceFactory.user_service.update_user(user_id=user_id, username=new_user_name, password=new_password, role=new_role)
+    res = AppServiceFactory.user_service.update_user(user_id=user_id, username=new_user_name, password=new_password,
+                                                     role=new_role)
     return jsonify(res.dict())
 
 
@@ -135,11 +136,12 @@ def save_ai_threshold():
     保存算法参数
     """
     request_context.ai_type = AIType.get_by_value(request.form.get('algor_type'))
-    threshold_range = int(request.form.get('threshold_range', 0))  #0:只改asc-h asc-us  1: 改全部
-    slice_range = int(request.form.get('slice_range', 1)) # 0 只改篩選  1: 改全部
+    threshold_range = int(request.form.get('threshold_range', 0))  # 0:只改asc-h asc-us  1: 改全部
+    slice_range = int(request.form.get('slice_range', 1))  # 0 只改篩選  1: 改全部
     threshold_value = request.form.get('threshold_value')
     all_use = request.form.get('all_use') == 'true'  # 应用于已处理切片
-    search_key = json.loads(request.form.get('search_key')) if request.form.get('search_key') is not None else {} #筛选条件
+    search_key = json.loads(request.form.get('search_key')) if request.form.get(
+        'search_key') is not None else {}  # 筛选条件
 
     if request_context.ai_type.is_tct_type:
         threshold_value = float(threshold_value)
@@ -153,7 +155,7 @@ def save_ai_threshold():
         threshold_value = json.loads(threshold_value)
         extra_params = {}
     else:
-        extra_params={}
+        extra_params = {}
 
     res = AppServiceFactory.user_service.save_ai_threshold(
         threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value, all_use=all_use,

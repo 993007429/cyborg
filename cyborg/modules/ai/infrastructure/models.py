@@ -1,9 +1,6 @@
-import json
-
-from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean, func, Text
+from sqlalchemy import Column, String, Integer, Float, JSON, SmallInteger, DateTime, Index, Boolean, func
 
 from cyborg.seedwork.infrastructure.models import BaseModel
-from cyborg.modules.user_center.user_core.domain.entities import COMPANY_AI_THRESHOLD
 
 
 class AIModel(BaseModel):
@@ -96,7 +93,6 @@ class TCTProbModel(BaseModel):
     cell_num = Column(Integer, nullable=True, comment='细胞数')
     num_pos_cell = Column(Integer, nullable=True, comment='阳性细胞数')
     qc_score = Column(Float, nullable=True, comment='质控得分')
-
 
 
 class AITaskModel(BaseModel):

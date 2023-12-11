@@ -69,7 +69,6 @@ class AIRepository(metaclass=ABCMeta):
     def get_tct_probs_by_slices(self, slices: List[dict]) -> List[TCTProbEntity]:
         ...
 
-
     @abstractmethod
     def get_ai_pattern_by_kwargs(self, kwargs: dict) -> List[AIPatternEntity]:
         ...

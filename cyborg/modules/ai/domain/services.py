@@ -26,7 +26,7 @@ from cyborg.infra.fs import fs
 from cyborg.infra.redlock import with_redlock
 from cyborg.infra.session import transaction
 from cyborg.libs.heimdall.dispatch import open_slide
-from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity, AIPatternEntity
+from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
 from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus, TCTDiagnosisType, MicrobeType
 from cyborg.seedwork.domain.value_objects import AIType
@@ -1199,8 +1199,9 @@ class AIDomainService(object):
         prob_np = np.array(prob_list)
         num_pos_cell_np = np.array(num_pos_cell_list)
         pred_tbs = np.argmax(prob_np, axis=1)
-        if params.get('threshold_range')==1:
-            pos_idx = np.where(np.logical_and(1 - prob_np[:, 0] > params.get('threshold_value'), num_pos_cell_np>params.get('min_pos_cell')))[0]
+        if params.get('threshold_range') == 1:
+            pos_idx = np.where(np.logical_and(1 - prob_np[:, 0] > params.get('threshold_value'),
+                                              num_pos_cell_np > params.get('min_pos_cell')))[0]
         else:
             # remain lsil, hsil, agc prediction
             pos_idx = np.where(np.any(np.vstack([

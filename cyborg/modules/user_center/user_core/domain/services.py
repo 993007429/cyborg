@@ -82,7 +82,8 @@ class UserCoreDomainService(object):
         company = self.company_repository.get_company_by_id(company_id)
         table_checked = company.table_checked if company else None
         return table_checked or [
-            '样本号', '姓名', '性别', '切片数量', '处理状态', '切片标签', '切片编号', '文件名', '自定义标签', 'AI模块', '模式',
+            '样本号', '姓名', '性别', '切片数量', '处理状态', '切片标签', '切片编号', '文件名', '自定义标签', 'AI模块',
+            '模式',
             '切片质量', '扫描倍数', '清晰度', '细胞量', 'AI建议', '复核结果',
             '最后更新', '报告', '创建时间'
         ]
@@ -355,7 +356,7 @@ class UserCoreDomainService(object):
             'threshold_value': threshold_value,
             'all_use': all_use
         })
-        ai_threshold[ai_type.value]=params
+        ai_threshold[ai_type.value] = params
         company.update_data(ai_threshold=ai_threshold)
         if self.company_repository.save(company):
             if all_use and ai_type.is_tct_type:

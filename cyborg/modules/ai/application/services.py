@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import time
-import json
 from typing import List, Optional
 from cyborg.app.settings import Settings
 

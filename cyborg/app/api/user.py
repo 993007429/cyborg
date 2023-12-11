@@ -90,4 +90,3 @@ def modify_label():
 def get_ws_url():
     url = AppServiceFactory.user_service.get_ws_url()
     return jsonify({"code": 0, "data": {"url": url}, "message": "生成websocket url成功"})
-
