@@ -167,6 +167,13 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
                     or_(self.mark_model_class.doctor_diagnosis.like('["单个细胞%'),
                         self.mark_model_class.doctor_diagnosis.like('["细胞团%'),
                         self.mark_model_class.doctor_diagnosis.contains(diagnosis_result))).all()
+            elif diagnosis_result == '异物':
+                models = self.session.query(self.mark_model_class).filter(
+                    or_(self.mark_model_class.doctor_diagnosis.like('["絮状杂质%'),
+                        self.mark_model_class.doctor_diagnosis.like('["黏液丝%'),
+                        self.mark_model_class.doctor_diagnosis.like('["细胞折痕%'),
+                        self.mark_model_class.doctor_diagnosis.like('["无%'),
+                        self.mark_model_class.doctor_diagnosis.contains(diagnosis_result))).all()
             else:
                 models = self.session.query(self.mark_model_class).filter(
                     self.mark_model_class.doctor_diagnosis.contains(diagnosis_result)).all()
