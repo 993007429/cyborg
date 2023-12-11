@@ -84,6 +84,7 @@ class HybridFileSystem(LocalFileSystem):
             return oss.generate_sign_url(method='GET', key=file_key, expire_in=3600 * 24)
         else:
             file_path = f'{Settings.DATA_DIR}/{file_key}'
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, 'wb') as f:
                 f.write(buffer.getvalue())
             return file_path
