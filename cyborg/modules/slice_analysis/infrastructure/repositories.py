@@ -396,6 +396,12 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
         models = query.all()
         return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
+    @transaction
+    def update_mark_group_by_kwargs(self, group_id: int, kwargs: dict) -> bool:
+        logger.info('kwargs===%s' % kwargs)
+        self.session.query(MarkGroupModel).filter_by(id=group_id).update(kwargs)
+        return True
+
 
 class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
 
@@ -654,6 +660,11 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
     def get_template_by_template_id(self, template_id: int) -> dict:
         row = self.session.query(TemplateModel.id, TemplateModel.template_name).filter(
             TemplateModel.id == template_id).first()
+        return {'id': row[0], 'name': row[1]} if row else {}
+
+    def get_template_by_template_name(self, template_name: str) -> dict:
+        row = self.session.query(TemplateModel.id, TemplateModel.template_name).filter(
+            TemplateModel.template_name == template_name).first()
         return {'id': row[0], 'name': row[1]} if row else {}
 
     def get_share_mark_groups(self) -> List[MarkGroupEntity]:

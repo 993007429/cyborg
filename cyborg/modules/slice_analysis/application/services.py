@@ -413,6 +413,12 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def select_template(self, template_id: int) -> AppResponse:
+        template = self.domain_service.config_repository.get_template_by_template_id(template_id)
+        if not template:
+            custom_template = self.domain_service.config_repository.get_template_by_template_name('自定义')
+            if custom_template:
+                template_id = custom_template.get('id')
+        logger.info('template_id===%s' % template_id)
         groups = self.domain_service.repository.get_mark_groups_by_template_id(
             template_id=template_id, primary_only=True, is_import=0, is_ai=0)
         data = self.domain_service.show_mark_groups(groups)
@@ -428,7 +434,7 @@ class SliceAnalysisService(object):
         share_mark_groups = self.domain_service.config_repository.get_share_mark_groups()
         code, message = self.domain_service.sync_mark_groups(share_mark_groups)
         if code:
-            return AppResponse(message=message, code=code)
+            return AppResponse(message=message, err_code=code)
         templates = self.domain_service.config_repository.get_all_templates()
         return AppResponse(message='query succeed', data={'templates': templates})
 

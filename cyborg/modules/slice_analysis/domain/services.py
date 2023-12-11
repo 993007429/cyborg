@@ -522,12 +522,12 @@ class SliceAnalysisDomainService(object):
         mark_cell_types = {}
         remove_mark = []
         for mark in mark_list:
-            # mark_id = mark['id']
-            # audio_path = os.path.join(Settings.DATA_DIR, company, 'data', case_id, 'slices', file_id, mark_id + '.wav')
-            # audio_url = ''
-            # if os.path.exists(audio_path) and os.path.getsize(audio_path):
-            #     audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={case_id}&fileid={file_id}&markid={mark_id}&company={company}'
-            # mark['audioUrl'] = audio_url
+            mark_id = mark['id']
+            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', case_id, 'slices', file_id, mark_id + '.wav')
+            audio_url = ''
+            if os.path.exists(audio_path) and os.path.getsize(audio_path):
+                audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={case_id}&fileid={file_id}&markid={mark_id}&company={company}'
+            mark['audioUrl'] = audio_url
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
                     cell_type = self.get_mark_group(mark['group_id'], template_id=template_id)
@@ -902,12 +902,15 @@ class SliceAnalysisDomainService(object):
     @transaction
     def sync_mark_groups(self, groups: List[MarkGroupEntity]) -> Tuple[int, str]:
         for group in groups:
-            kwargs = {'group_name': group.group_name, 'template_id': group.template_id, 'id': group.id,
+            kwargs = {'group_name': group.group_name, 'template_id': group.template_id,
                       'label': group.label, 'color': group.color, 'parent_id': group.parent_id}
+            # group_ = self.repository.get_mark_group_by_kwargs({'templated_id': group.template_id, 'group_name': group.group_name,
+            #                                                    'parent_id': group.parent_id})
             group_ = self.repository.get_mark_group_by_kwargs(kwargs)
             try:
                 if group_:
-                    self.repository.save_mark_group(group)
+                    group_ = self.repository.get_mark_group_by_kwargs(kwargs)
+                    # self.repository.update_mark_group_by_kwargs(group[0].)
                 else:
                     self.repository.save_mark_group(group)
             except Exception:

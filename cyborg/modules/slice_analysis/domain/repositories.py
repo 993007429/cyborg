@@ -183,6 +183,10 @@ class SliceMarkRepository(metaclass=ABCMeta):
     def get_mark_group_by_kwargs(self, kwargs: Optional[dict]) -> List[MarkGroupEntity]:
         ...
 
+    @abstractmethod
+    def update_mark_group_by_kwargs(self, group_id: int, kwargs: Optional[dict]) -> List[MarkGroupEntity]:
+        ...
+
 
 class AIConfigRepository(metaclass=ABCMeta):
 
@@ -204,6 +208,10 @@ class AIConfigRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def get_template_by_template_id(self, template_id: int) -> dict:
+        ...
+
+    @abstractmethod
+    def get_template_by_template_name(self, template_name: str) -> dict:
         ...
 
     @abstractmethod
