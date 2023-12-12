@@ -382,11 +382,11 @@ class AIService(object):
 
     def edit_ai_pattern(self, body: dict) -> AppResponse:
         id, ai_type, pattern_name, model_name = body.get('id'), body.get('aiType'), body.get('patternName'), body.get('modelName')
-        kwargs = {'company': request_context.company, 'ai_type': ai_type, 'pattern_name': pattern_name}
-        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
-        if data:
-            return AppResponse(err_code=11, message="the name has existed.")
         if not id:
+            kwargs = {'company': request_context.company, 'ai_type': ai_type, 'pattern_name': pattern_name}
+            data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+            if data:
+                return AppResponse(err_code=11, message="the name has existed.")
             id = self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
                 'ai_name': ai_type,
                 'name': pattern_name,
@@ -394,7 +394,7 @@ class AIService(object):
                 'company': request_context.company
             }))
             return AppResponse(data={'id': id})
-        self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name})
+        self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name, 'model_name': model_name})
         return AppResponse()
 
     def del_ai_pattern(self, id: int) -> AppResponse:

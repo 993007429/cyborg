@@ -144,11 +144,13 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
     def update_ai_pattern(self, id: int, kwargs: dict) -> bool:
         condition = {}
         if 'name' in kwargs:
-            condition = {'name': kwargs.get('name')}
+            condition['name'] = kwargs.get('name')
         if 'ai_threshold' in kwargs:
-            condition = {'ai_threshold': kwargs.get('ai_threshold')}
+            condition['ai_threshold'] = kwargs.get('ai_threshold')
         if 'company' in kwargs:
-            condition = {'company': kwargs.get('company')}
+            condition['company'] = kwargs.get('company')
+        if 'model_name' in kwargs:
+            condition['model_name'] = kwargs.get('model_name')
         self.session.query(AIPatternModel).filter(AIPatternModel.id == id).update(condition)
         return True
 
