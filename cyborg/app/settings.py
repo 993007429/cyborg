@@ -53,6 +53,7 @@ class Settings(object):
         '/aipath/api/ai/inform',
         '/aipath/api/ai/connect',
         '/aipath/api/ai/cailibrateInform',
+        '/aipath/api/roche',
     ]
 
     LIMIT_URL = [
@@ -127,6 +128,8 @@ class Settings(object):
     TOTAL_GPU_MEM = GPU_SETTINGS['total_gpu_mem'] if GPU_SETTINGS else 12
 
     IMAGE_SERVER = LOCAL_SETTINGS['default']['image_server']
+
+    FILE_SERVER = LOCAL_SETTINGS['default']['file_server']
 
     REPORT_SERVER = LOCAL_SETTINGS['default']['report_server']
 

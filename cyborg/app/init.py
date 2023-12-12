@@ -17,7 +17,7 @@ class CustomJSONProvider(DefaultJSONProvider):
 
 
 def init_app():
-    from cyborg.app.api import api_blueprint, user, record, slice_file, slice_analysis, ai, report, admin   # noqa
+    from cyborg.app.api import api_blueprint, user, record, slice_file, slice_analysis, ai, report, roche, admin   # noqa
 
     """项目初始化"""
     # 主应用的根目录

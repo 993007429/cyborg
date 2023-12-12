@@ -21,6 +21,8 @@ alembic==1.4.3
     # via -r requirements.in
 amqp==5.1.1
     # via kombu
+annotated-types==0.6.0
+    # via pydantic
 anyio==3.7.1
     # via httpcore
 asgiref==3.7.2
@@ -205,6 +207,8 @@ openpyxl==3.0.9
     # via -r requirements.in
 opt-einsum==3.3.0
     # via paddlepaddle
+orjson==3.9.10
+    # via -r requirements.in
 packaging==21.3
     # via
     #   -r requirements.in
@@ -242,8 +246,10 @@ pyclipper==1.3.0.post2
     # via -r requirements.in
 pycocotools==2.0.6
     # via mmdet
-pydantic==1.10.7
+pydantic==2.5.2
     # via -r requirements.in
+pydantic-core==2.14.5
+    # via pydantic
 pyjwt==1.6.4
     # via -r requirements.in
 pymysql==0.10.1
@@ -305,7 +311,6 @@ shapely==1.8.0
 six==1.16.0
     # via
     #   -r requirements.in
-    #   -r requirements.in
     #   click-repl
     #   dependency-injector
     #   flask-limiter
@@ -333,12 +338,14 @@ tomli==2.0.1
     # via yapf
 tqdm==4.64.1
     # via -r requirements.in
-typing-extensions==4.5.0
+typing-extensions==4.9.0
     # via
     #   aioshutil
+    #   annotated-types
     #   asgiref
     #   limits
     #   pydantic
+    #   pydantic-core
 urllib3==1.26.15
     # via
     #   minio

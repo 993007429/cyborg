@@ -66,7 +66,7 @@ class RocheAITaskEntity(BaseDomainEntity):
 
     @property
     def result_file_key(self):
-        return f'partner/roche/analysis/{self.analysis_id}.h5'
+        return f'roche/result-files/{self.analysis_id}.h5'
 
     def to_dict(self):
         return {

@@ -558,7 +558,7 @@ class RocheDomainService(object):
             # wsi_masks = file.create_group('wsi_masks')
 
         buffer.seek(0)
-        return oss.put_object_from_io(buffer, task.result_file_key)
+        return fs.save_file(task.result_file_key, buffer)
 
     def callback_analysis_status(self, ai_task: RocheAITaskEntity, err_msg: str = '') -> bool:
         url = f'{Settings.ROCHE_API_SERVER}/analysis'

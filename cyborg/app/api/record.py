@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import datetime
 
+from cyborg.app.api.json import orjsonify
 from flask import request, jsonify, send_file
 from werkzeug import formparser
 
@@ -86,7 +87,7 @@ def _get_query_records_params() -> dict:
 @api_blueprint.route('/records/search', methods=['get', 'post'])
 def search():
     res = AppServiceFactory.slice_service.search_records(**_get_query_records_params())
-    return jsonify(res.dict())
+    return orjsonify(res.dict())
 
 
 @api_blueprint.route('/records/all', methods=['get', 'post'])

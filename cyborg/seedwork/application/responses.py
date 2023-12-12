@@ -33,6 +33,9 @@ class AppResponse(BaseModel, Generic[T]):
     message: Optional[str] = None
     data: Optional[T] = None
 
+    class Config:
+        arbitrary_types_allowed = True
+
     def __repr__(self):
         return f'Response(err_code={self.err_code}, message={self.message})'
 
@@ -68,12 +71,12 @@ class GlobalResponse(Exception):
 class IllegalArgumentResponse(AppResponse):
     """常规的请求参数有误/不合法
     """
-    err_code = 400
-    message = '请求参数有误'
+    err_code: int = 400
+    message: Optional[str] = '请求参数有误'
 
 
 class UnprocessableEntityResponse(AppResponse):
     """请求参数/格式与类型都正确，但是无法完成处理请求
     """
-    err_code = 422
-    message = '请求处理失败'
+    err_code: int = 422
+    message: Optional[str] = '请求处理失败'
