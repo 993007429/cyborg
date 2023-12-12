@@ -435,17 +435,17 @@ class AIService(object):
         slice_range = int(ai_threshold.get('slice_range', 1))  # 0 只改篩選  1: 改全部
         threshold_value = ai_threshold.get('threshold_value')
         all_use = ai_threshold.get('all_use')  # 应用于已处理切片
-        logger.info('all_user====%s'% all_use)
-        logger.info(type(all_use))
         search_key = ai_threshold.get('search_key') if ai_threshold.get('search_key') is not None else {}  # 筛选条件
-
+        logger.info(request_context.ai_type)
         if request_context.ai_type.is_tct_type:
             threshold_value = float(threshold_value)
             extra_params = {
                 'qc_cell_num': int(ai_threshold.get('qc_cell_num')),
                 'min_pos_cell': int(ai_threshold.get('min_pos_cell')),
                 'cell_conf': ai_threshold.get('cell_conf'),
-                'cell_num': ai_threshold.get('cell_num')
+                'cell_num': ai_threshold.get('cell_num'),
+                'other': ai_threshold.get('other', True),
+                'microbe': ai_threshold.get('microbe', True),
             }
         elif request_context.ai_type == AIType.dna_ploidy:
             threshold_value = threshold_value
