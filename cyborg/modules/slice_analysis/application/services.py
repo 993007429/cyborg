@@ -18,7 +18,6 @@ from cyborg.modules.slice_analysis.domain.value_objects import AIType, TiledSlic
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.infra.cache import cache
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -183,13 +182,15 @@ class SliceAnalysisService(object):
         ai_type = request_context.ai_type
         company = request_context.company
 
-        slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id, company_id=request_context.company).data
+        slice_info = self.slice_service.get_slice_info(case_id=case_id, file_id=file_id,
+                                                       company_id=request_context.company).data
         tiled_slice = self._get_tiled_slice(case_id=case_id, file_id=file_id, ai_type=ai_type)
         radius = float(format(slice_info['radius'] / tiled_slice.mpp, '.5f'))
         mark_config = SliceMarkConfig(radius=radius, is_solid=slice_info['is_solid'] == 1)
 
         marks = self.domain_service.get_marks(
-            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config, template_id=slice_info['templateId'],
+            ai_type=ai_type, view_path=view_path, tiled_slice=tiled_slice, mark_config=mark_config,
+            template_id=slice_info['templateId'],
             company=company, case_id=case_id, file_id=file_id
         )
         return AppResponse(message='query succeed', data={'marks': marks})
@@ -413,16 +414,21 @@ class SliceAnalysisService(object):
 
     @connect_slice_db()
     def select_template(self, template_id: int) -> AppResponse:
+        template_name = ''
         template = self.domain_service.config_repository.get_template_by_template_id(template_id)
         if not template:
             custom_template = self.domain_service.config_repository.get_template_by_template_name('自定义')
             if custom_template:
                 template_id = custom_template.get('id')
+                template_name = custom_template.get('name')
+        else:
+            template_name = template.get('name')
         groups = self.domain_service.repository.get_mark_groups_by_template_id(
             template_id=template_id, primary_only=True, is_import=0, is_ai=0)
         data = self.domain_service.show_mark_groups(groups)
         cache.set(f'{request_context.company}:last_selected_template_id', template_id)
-        return AppResponse(message='operation succeed', data=data)
+        return AppResponse(message='operation succeed',
+                           data={"groups": data, "template": {'id': template_id, 'templateName': template_name}})
 
     def get_share_templates(self) -> AppResponse[dict]:
         templates = self.domain_service.config_repository.get_all_templates()
@@ -637,7 +643,8 @@ class SliceAnalysisService(object):
     def add_templates(self, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> AppResponse[dict]:
         if not name:
             return AppResponse(code=11, message='add template failed, please check the input.')
-        ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name)) if ai_name else None
+        ai_id = self.domain_service.config_repository.get_ai_id_by_type(
+            AIType.get_by_value(ai_name)) if ai_name else None
         template = TemplateEntity(raw_data=dict(
             template_name=name,
             create_time=time.time(),
@@ -646,9 +653,11 @@ class SliceAnalysisService(object):
             is_multi_mark=is_multi_mark
         ))
         is_success, template_id = self.domain_service.config_repository.add_templates(mark_groups, template)
-        return AppResponse(message='add template success' if is_success else "add template failed", data={"template_id": template_id})
+        return AppResponse(message='add template success' if is_success else "add template failed",
+                           data={"template_id": template_id})
 
-    def edit_templates(self, template_id: int, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> (
+    def edit_templates(self, template_id: int, name: str, ai_name: str, is_multi_mark: int, mark_groups: List[dict]) -> \
+    (
             AppResponse)[dict]:
         if not name:
             return AppResponse(code=11, message='edit template failed, please check the input.')

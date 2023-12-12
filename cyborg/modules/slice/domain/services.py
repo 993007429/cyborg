@@ -232,6 +232,7 @@ class SliceDomainService(object):
             info.pop('clarity', None)
             info.pop('ai_tips', None)
             info.pop('ai_status', None)
+            info.pop('ai_diagnosisState', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
             logger.info('info======%s' % info)
@@ -240,6 +241,10 @@ class SliceDomainService(object):
                     slice.update_data(fileid=v)
                 elif k == 'ai_tips' and not v:
                     continue
+                elif k == 'pattern_id':
+                    slice.update_data(pattern_id=v)
+                elif k == 'pattern_name':
+                    slice.update_data(pattern_name=v)
                 elif k == 'ai_suggest':
                     if info.get('check_result') and slice.update_ai_result(v):
                         cover = True
