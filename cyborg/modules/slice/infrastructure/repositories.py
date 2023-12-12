@@ -50,7 +50,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
             slice_type: Optional[str] = None,
             company: Optional[str] = None,
-            page: int = 0, per_page: int = sys.maxsize
+            page: int = 0, per_page: int = sys.maxsize,
+            pattern_id: int = None
     ) -> List[SliceEntity]:
         query = self.session.query(SliceModel)
         if file_name is not None:
@@ -65,7 +66,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(SliceModel.type == 'slice')
         if company:
             query = query.filter_by(company=company)
-
+        if pattern_id:
+            query = query.filter_by(pattern_id == pattern_id)
         offset = page * per_page
         models = query.offset(offset).limit(per_page)
         return [SliceEntity.from_dict(model.raw_data) for model in models]

@@ -34,7 +34,8 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
             slice_type: Optional[str] = None,
             company: Optional[str] = None,
-            page: int = 0, per_page: int = sys.maxsize
+            page: int = 0, per_page: int = sys.maxsize,
+            pattern_id: int = None
     ) -> List[SliceEntity]:
         ...
 

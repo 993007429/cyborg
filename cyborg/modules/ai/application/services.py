@@ -405,7 +405,12 @@ class AIService(object):
         if len(data) == 1:
             return AppResponse(err_code=11, message='the last one cannot del.')
         # 有切片正在处理中  禁止删除
-        self.slice_service.domain_service.get_slice()
+        slices = self.slice_service.domain_service.repository.get_slices(
+            started=SliceStartedStatus.analyzing, slice_type='slice', company=request_context.current_company,
+            page=0, per_page=1
+        )
+        if slices:
+            return AppResponse(err_code=11, message='Has tasks running,the pattern cannot del.')
         self.domain_service.repository.del_ai_pattern(id)
         return AppResponse()
 
