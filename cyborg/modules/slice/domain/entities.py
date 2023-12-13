@@ -258,13 +258,13 @@ class SliceEntity(BaseDomainEntity):
             'labels': self.labels or [],
             'isMark': self.is_marked,
             'clarityLevel': self.clarity_level,
-            'aiTips': self.ai_tips or [],
+            'aiTips': self.ai_tips  or [],
             'errCode': self.err_code or 0,
             'errMessage': self.err_message or '',
-            'cellNumTips': self.cell_num_tips or None,
-            'company': self.company
-            'patternName': self.pattern_name,
-            'patternId': self.pattern_id
+            'cellNumTips': self.cell_num_tips or [],
+            "company": self.company,
+            "patternName": self.pattern_name,
+            "patternId": self.pattern_id
         }
         d.update(self.data_paths)
         if all_fields:

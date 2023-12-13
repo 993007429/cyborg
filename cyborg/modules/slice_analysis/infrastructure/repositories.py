@@ -387,15 +387,15 @@ class SQLAlchemySliceMarkRepository(SliceMarkRepository, SQLAlchemyRepository):
 
     def get_mark_group_by_kwargs(self, kwargs: Optional[dict]) -> List[MarkGroupEntity]:
         query = self.session.query(MarkGroupModel)
-        logger.info(kwargs)
         if 'id' in kwargs:
             query = query.filter(MarkGroupModel.id == kwargs['id'])
         if 'group_name' in kwargs:
             query = query.filter(MarkGroupModel.group_name == kwargs['group_name'])
         if 'template_id' in kwargs:
             query = query.filter(MarkGroupModel.template_id == kwargs['template_id'])
+        if 'parent_id' in kwargs:
+            query = query.filter(MarkGroupModel.parent_id == kwargs['parent_id'])
         models = query.all()
-        logger.info(models)
         return [MarkGroupEntity.from_dict(model.raw_data) for model in models]
 
     @transaction
@@ -450,9 +450,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     group_dict[k]['children'].append(
                         {"id": group['id'], "parentId": group['parentId'], "groupName": group['groupName'],
                          "color": group['color'], 'children': []})
-        logger.info('second_level==%s' % second_level)
-        logger.info('mark_group==%s' % mark_group)
-        logger.info('group_dict==%s' % group_dict)
         for group in mark_group:
             if not group['parentId']:
                 continue
@@ -464,21 +461,15 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                         if group_['id'] == k:
                             first_level = group_['parentId']
                             break
-                    logger.info('first_level==%s' % first_level)
                     if first_level:
                         second = group_dict[first_level]['children']
-                        logger.info('second==%s' % second)
                         for i in second:
                             index = second.index(i)
-                            logger.info('index==%s' % index)
-                            logger.info('group==%s' % group)
                             if i['id'] == k:
                                 item = {"id": group['id'], "parentId": group['parentId'],
                                         "groupName": group['groupName'],
                                         "color": group['color'], 'children': []}
                                 group_dict[first_level]['children'][index]['children'].append(item)
-        logger.info('group_dict==%s' % group_dict)
-        logger.info('row==%s' % row)
         return {'id': row[0], 'name': row[1], 'type': row[2], 'aiName': row[2], 'isMultiMark': row[3],
                 'markGroups': list(group_dict.values())}
 
@@ -515,7 +506,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         ))
         for item in mark_group:
             if not item['parentId']:
-                logger.info('item===%s' % item)
                 first_level_mark = deepcopy(mark)
                 first_level_mark.raw_data['group_name'] = item['groupName']
                 first_level_mark.raw_data['color'] = item['color']
@@ -564,40 +554,56 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
 
     @transaction
     def edit_templates(self, mark_group: List[dict], template: TemplateEntity, template_id: int) -> bool:
+        def get_element_values(data_list, key):
+            values = []
+            for data in data_list:
+                if key in data:
+                    values.append(data[key])
+                if isinstance(data.get('children'), list):
+                    values.extend(get_element_values(data.get('children'), key))
+            return values
+
         current_time = time.time()
         template = self.convert_to_model(template, TemplateModel)
         if not template:
             return False
         self.session.add(template)
         self.session.flush([template])
-        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == template_id).delete()
         mark = MarkGroupEntity(raw_data=dict(
-            group_name='',
-            shape='',
+            parent_id=None,
+            template_id=template_id,
+            op_time=current_time,
+            default_color='',
             color='',
-            create_time=0,
+            group_name='',
             is_template=0,
             is_selected=0,
             selectable=0,
             editable=0,
             is_ai=0,
-            parent_id=None,
-            template_id=template_id,
-            op_time=current_time,
-            default_color='',
             is_empty=1,
             is_show=1,
             is_import=0
         ))
+        # 删除此次需要删除的标注组
+        rows = self.session.query(ShareMarkGroupModel.id).filter(ShareMarkGroupModel.template_id == template_id).all()
+        all_ids = [row[0] for row in rows]
+        ids = get_element_values(mark_group, 'id')
+        c2 = list(set(all_ids).difference(set(ids)))  # 求a中有而b中没有的元素
+        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id.in_(c2)).delete(synchronize_session=False)
         for item in mark_group:
             logger.info(item)
             if not item['parentId']:
                 first_level_mark = deepcopy(mark)
+                # 判断id是否存在 id不存在或者id存在，对象不存在 当新增
+                # id存在且对象存在 当更新
                 id = item.get('id', '')
+                if id:
+                    group = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                    if not group:
+                        id = ''
+                is_add = id == ''
                 first_parent_id = id
-                is_add = True
-                logger.info('id===%s' % id)
-                logger.info('is_add===%s' % is_add)
                 if is_add:
                     first_level_mark.raw_data['group_name'] = item['groupName']
                     first_level_mark.raw_data['color'] = item['color']
@@ -609,19 +615,27 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     self.session.flush([model])
                     first_level_mark.update_data(**model.raw_data)
                     first_parent_id = model.id
+                else:
+                    self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).update(
+                        {'color': item['color'], 'default_color': item['color'], 'group_name': item['groupName']}
+                    )
                 logger.info('add first level mark success.first_parent_id= %s' % first_parent_id)
+
                 for second_mark in item['children'] if 'children' in item else []:
                     logger.info('second_mark==%s' % second_mark)
                     second_level_mark = deepcopy(mark)
                     second_parent_id = ''
-                    is_add = True
-                    logger.info('is_add===%s' % is_add)
+                    id = second_mark.get('id')
+                    if id:
+                        group = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                        if not group:
+                            id = ''
+                    is_add = id == ''
                     if is_add:
                         second_level_mark.raw_data['group_name'] = second_mark['groupName']
                         second_level_mark.raw_data['color'] = second_mark['color']
                         second_level_mark.raw_data['default_color'] = second_mark['color']
                         second_level_mark.raw_data['parent_id'] = first_parent_id
-                        logger.info('second_level_mark===%s' % second_level_mark)
                         model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
                         if not model:
                             return False
@@ -629,11 +643,19 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                         self.session.flush([model])
                         second_level_mark.update_data(**model.raw_data)
                         second_parent_id = model.id
+                    else:
+                        self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).update(
+                            {'color': second_mark['color'], 'default_color': second_mark['color'], 'group_name': second_mark['groupName']}
+                        )
                     logger.info('add second level mark success. first_parent_id=%s' % second_parent_id)
                     for third_mark in second_mark['children'] if 'children' in second_mark else []:
-                        logger.info('third_mark==%s' % third_mark)
                         third_level_mark = deepcopy(mark)
-                        logger.info('is_add===%s' % is_add)
+                        id = third_mark.get('id')
+                        if id:
+                            group = self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).first()
+                            if not group:
+                                id = ''
+                        is_add = id == ''
                         if is_add:
                             third_level_mark.raw_data['group_name'] = third_mark['groupName']
                             third_level_mark.raw_data['color'] = third_mark['color']
@@ -645,6 +667,11 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                             self.session.add(model)
                             self.session.flush([model])
                             third_level_mark.update_data(**model.raw_data)
+                        else:
+                            self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).update(
+                                {'color': third_mark['color'], 'default_color': third_mark['color'],
+                                 'group_name': third_mark['groupName']}
+                            )
                         logger.info('add third level mark success. %s' % third_level_mark)
         logger.info('add mark groups success.')
         return True

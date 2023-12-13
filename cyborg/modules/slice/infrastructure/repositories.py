@@ -240,8 +240,6 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             ai_threshold: Optional[dict] = None,
             pattern_name: Optional[List[str]] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
-        logger.info('pattern_name===%s' % pattern_name)
-        logger.info('type===%s' % type(pattern_name))
         search_value = search_value.strip() if search_value else None
         is_record_search_key = search_key in ['sampleNum', 'name']
         is_slice_search_key = not is_record_search_key
