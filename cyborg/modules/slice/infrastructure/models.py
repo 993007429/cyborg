@@ -77,7 +77,7 @@ class SliceModel(BaseModel):
     ai_dict = Column(JSON, default={}, comment='各个模块计算状态')
     cell_num = Column('cellNum', Integer, nullable=True, comment='细胞数量')
     slide_quality = Column('slideQuality', String(255), nullable=True, comment='切片质量')
-    origin_slide_quality = Column('origin_slide_quality', String(255), nullable=True, comment='原始切片质量')
+    origin_slide_quality = Column(String(255), default='', comment='原始切片质量')
     high_through = Column('highThrough', Integer, nullable=True, default=0, comment='高通量上传切片为1')
     ai_status = Column('aiStatus', Integer, nullable=True, comment='算法计算完成为1')
     uid = Column(String(255), default='{}', comment='切片唯一标识')
