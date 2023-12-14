@@ -26,7 +26,7 @@ from cyborg.modules.slice.domain.repositories import CaseRecordRepository, Repor
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.image import rotate_jpeg
-from cyborg.utils.strings import camel_to_snake
+from cyborg.utils.strings import dict_camel_to_snake
 from cyborg.modules.slice.domain.value_objects import SliceAlg
 
 
@@ -211,6 +211,7 @@ class SliceDomainService(object):
     @transaction
     def update_slice_info(
             self, case_id: str, file_id: str, high_through: bool, info: dict) -> bool:
+        info = dict_camel_to_snake(info)
         slice = self.repository.get_slice(
             case_id=case_id, file_id=file_id, company=request_context.current_company)
         record = self.repository.get_record_by_case_id(
@@ -229,13 +230,12 @@ class SliceDomainService(object):
             info.pop('radius', None)
             info.pop('is_solid', None)
             info.pop('clarity', None)
-            info.pop('aiTips', None)
+            info.pop('ai_tips', None)
             info.pop('ai_status', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
 
             for k, v in info.items():
-                k = camel_to_snake(k)
                 if k == 'id':
                     slice.update_data(fileid=v)
                 elif k == 'ai_suggest':
@@ -254,8 +254,8 @@ class SliceDomainService(object):
             self.repository.save_slice(slice)
 
         else:  # 新建切片信息
-            info['ajax_token'] = info.pop('ajaxToken', {})
-            info['user_file_path'] = info.pop('userFilePath', '')
+            info['ajax_token'] = info.pop('ajax_token', {})
+            info['user_file_path'] = info.pop('user_file_path', '')
             slice = SliceEntity(raw_data=info)
             if high_through:
                 slice.update_data(high_through=1)
