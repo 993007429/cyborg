@@ -398,19 +398,18 @@ class AIService(object):
         return AppResponse()
 
     def del_ai_pattern(self, id: int) -> AppResponse:
-        # todo 前端增加传参aiType
         pattern = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
         kwargs = {'company': request_context.company, 'ai_type': pattern[0].ai_name}
         data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
         if len(data) == 1:
-            return AppResponse(err_code=11, message='the last one cannot del.')
+            return AppResponse(err_code=11, message='删除失败，模式至少保留1个。')
         # 有切片正在处理中  禁止删除
         slices = self.slice_service.domain_service.repository.get_slices(
             started=SliceStartedStatus.analyzing, slice_type='slice', company=request_context.current_company,
             page=0, per_page=1
         )
         if slices:
-            return AppResponse(err_code=11, message='Has tasks running,the pattern cannot del.')
+            return AppResponse(err_code=11, message='删除失败，有相关的任务正在运行中。')
         self.domain_service.repository.del_ai_pattern(id)
         return AppResponse()
 
