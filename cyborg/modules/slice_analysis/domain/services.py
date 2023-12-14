@@ -904,12 +904,10 @@ class SliceAnalysisDomainService(object):
     @transaction
     def sync_mark_groups(self, groups: List[MarkGroupEntity]) -> Tuple[int, str]:
         for group in groups:
-            logger.info(group)
             group_ = self.repository.get_mark_group_by_kwargs({'id': group.id})
             # group_ = self.repository.get_mark_group_by_kwargs(
             #     {'template_id': group.template_id, 'group_name': group.group_name,
             #      'parent_id': group.parent_id})
-            logger.info(group_)
             try:
                 if group_:
                     self.repository.update_mark_group_by_kwargs(group.id, {

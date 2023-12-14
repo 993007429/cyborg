@@ -265,7 +265,7 @@ class UserCoreService(object):
         return AppResponse(message='query succeed', data=params)
 
     def get_ws_url(self) -> str:
-        base_url = "ws://rtasr.xfyun.cn/v1/ws"
+        base_url = "wss://rtasr.xfyun.cn/v1/ws"
         ts = str(int(time.time()))
         tt = (APPID + ts).encode('utf-8')
         md5 = hashlib.md5()

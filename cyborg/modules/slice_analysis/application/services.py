@@ -660,9 +660,6 @@ class SliceAnalysisService(object):
             AppResponse)[dict]:
         if not name:
             return AppResponse(code=11, message='edit template failed, please check the input.')
-        # template_name = self.domain_service.config_repository.get_ai_name_by_template_id(template_id)
-        # if name != template_name:
-        #     return AppResponse(code=11, message="edit template failed, the name can't edit.")
         ai_id = None
         if ai_name:
             ai_id = self.domain_service.config_repository.get_ai_id_by_type(AIType.get_by_value(ai_name))
