@@ -375,7 +375,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                         s.clarity_level = s.get_clarity_level(clarity_standards_max=clarity_standards_max,
                                                               clarity_standards_min=clarity_standards_min)
                         if ai_threshold and s.alg:
-                            params = ai_threshold.get(s.alg, {})
+                            params = ai_threshold.get(AIType.get_by_value(s.alg).value, {})
                             if params:
                                 s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg),
                                                                       params.get('qc_cell_num', None))
