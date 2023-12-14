@@ -5,6 +5,7 @@ from cyborg.app.api import api_blueprint
 from cyborg.app.request_context import request_context
 from cyborg.app.service_factory import AppServiceFactory
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
+from cyborg.seedwork.application.responses import AppResponse
 
 
 @api_blueprint.route('/ai/start', methods=['get', 'post'])
@@ -87,10 +88,24 @@ def analyse_threshold():
     return jsonify(res.dict())
 
 
-@api_blueprint.route('/ai/aiStatistics', methods=['get', 'post'])  # 获取ai计算统计结果
+@api_blueprint.route('/ai/aiStatistics', methods=['get', 'post'])
 def ai_statistics():
     request_context.ai_type = AIType.get_by_value(request.form.get('aiType'))
     start_date = request.form.get('startTime')
     end_date = request.form.get('endTime')
     res = AppServiceFactory.ai_service.get_ai_statistics(start_date=start_date, end_date=end_date)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/files/save_info', methods=['get', 'post'])
+def hack_ai_suggest():
+    mode = request.form.get('mode')
+    if mode == '1':
+        res = AppServiceFactory.ai_service.hack_slide_quality()
+    elif mode == '2':
+        diagnosis = request.form.get('index1')
+        microbe_list = json.loads(request.form.get("index2_list"))
+        res = AppServiceFactory.ai_service.hack_ai_suggest(diagnosis=diagnosis, microbe_list=microbe_list)
+    else:
+        res = AppResponse()
     return jsonify(res.dict())

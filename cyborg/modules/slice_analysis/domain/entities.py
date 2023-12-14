@@ -156,26 +156,17 @@ class MarkEntity(BaseDomainEntity):
     def parse_ai_result(
             self, ai_type: AIType,
             is_deleted: Optional[int] = None, lesion_type: Optional[str] = None,
-            page: int = 0, page_size: int = sys.maxsize, ai_suggest: Optional[dict] = None) -> dict:
+            page: int = 0, page_size: int = sys.maxsize, ai_suggest: Optional[dict] = None,
+            slide_quality: Optional[str] = None) -> dict:
         ai_result = self.ai_result
         if not ai_result:
             return {}
         new_ai_result = dict()
         if ai_type in [AIType.tct, AIType.lct, AIType.dna]:
             if ai_suggest:
-                diagnosis, tbs_label = '', ''
-                if '阴性' in ai_suggest:
-                    diagnosis, tbs_label = '阴性', ''
-                elif '阳性' in ai_suggest:
-                    for label in ['HSIL', 'ASC-US', 'LSIL', 'AGC', 'ASC-H']:
-                        if label in ai_suggest:
-                            diagnosis, tbs_label = '阳性', label
-                else:
-                    pass
-                if '样本不满意' in ai_suggest:
-                    tbs_label = tbs_label + '-样本不满意'
-
-                ai_result['diagnosis'] = [diagnosis, tbs_label]
+                ai_result['diagnosis'] = ai_suggest["diagnosis"]
+                ai_result['microbe'] = ai_suggest["microbe"]
+                ai_result['slide_quality'] = int(slide_quality or 0)
             else:
                 ai_result['diagnosis'] = ['', '']
         elif ai_type == AIType.her2:
@@ -256,7 +247,7 @@ class MarkEntity(BaseDomainEntity):
             ai_result["total"] = total
             ai_result["nuclei"] = paged_data
             if ai_suggest:
-                ai_result["dna_diagnosis"] = ai_suggest
+                ai_result["dna_diagnosis"] = ai_suggest['dna_diagnosis']
 
         return ai_result
 

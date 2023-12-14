@@ -24,10 +24,11 @@ from cyborg.consts.tct import TCTConsts
 from cyborg.infra.cache import cache
 from cyborg.infra.fs import fs
 from cyborg.infra.redlock import with_redlock
+from cyborg.infra.session import transaction
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
 from cyborg.modules.ai.domain.repositories import AIRepository
-from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus
+from cyborg.modules.ai.domain.value_objects import ALGResult, Mark, AITaskStatus, TCTDiagnosisType, MicrobeType
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.utils.id_worker import IdWorker
 
@@ -1240,3 +1241,97 @@ class AIDomainService(object):
             'num_slide': num_slide, 'num_manual': num_manual, 'sensitivity': sensitivity,
             'sensitivity_plus': sensitivity_plus, 'specificity': specificity
         }
+
+    def hack_slide_quality(self, slice_info: dict) -> Tuple[Optional[str], str, str]:
+        ai_suggest = slice_info['ai_suggest']
+        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest)
+        if ai_suggest_dict['flag'] == '0':
+            return '无效的AI建议', '', ''
+
+        diagnosis = ai_suggest_dict['diagnosis']
+        dna_diagnosis = ai_suggest_dict["dna_diagnosis"]
+        microbe = ai_suggest_dict["microbe"]
+
+        if "-样本不满意" in ai_suggest:
+            new_slide_quality = '1'
+            diagnosis[1] = diagnosis[1].replace("-样本不满意", "")
+        else:
+            new_slide_quality = '0'
+            diagnosis[1] = diagnosis[1] + "-样本不满意"
+
+        new_ai_suggest = ' '.join(diagnosis) + ' ' + ','.join(microbe)
+        if ';' in ai_suggest:
+            new_ai_suggest = new_ai_suggest + ';' + dna_diagnosis
+
+        return None, new_ai_suggest, new_slide_quality
+
+    @transaction
+    def hack_ai_suggest(
+            self, diagnosis: str, microbe_list: List[int], slice_info: dict) -> Optional[str]:
+
+        slice_id = slice_info['id']
+        ai_suggest = slice_info['ai_suggest']
+
+        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest)
+        diagnosis_str = ' '.join(ai_suggest_dict['diagnosis'])
+        microbe_str = ','.join(ai_suggest_dict['microbe'])
+        dna_diagnosis = ai_suggest_dict['dna_diagnosis']
+
+        diagnosis_type = TCTDiagnosisType.get_by_value(int(diagnosis)) if diagnosis else None
+        microbe_types = list(filter(None, [MicrobeType.get_by_value(microbe) for microbe in microbe_list]))
+
+        if diagnosis_type:
+            prob_nilm, prob_hsil, prob_asch, prob_lsil, prob_ascus, prob_agc = {
+                TCTDiagnosisType.HSIL: (0, 1, 0, 0, 0, 0),
+                TCTDiagnosisType.ASC_H: (0, 0, 1, 0, 0, 0),
+                TCTDiagnosisType.LSIL: (0, 0, 0, 1, 0, 0),
+                TCTDiagnosisType.ASC_US: (0, 0, 0, 0, 1, 0),
+                TCTDiagnosisType.AGC: (0, 0, 0, 0, 0, 1),
+                TCTDiagnosisType.negative: (2, 0, 0, 0, 0, 0)
+            }[diagnosis_type]
+            tct_prob = self.repository.get_tct_prob(slice_id=slice_id)
+            if tct_prob:
+                tct_prob.update_data(
+                    prob_nilm=prob_nilm,
+                    prob_hsil=prob_hsil,
+                    prob_asch=prob_asch,
+                    prob_lsil=prob_lsil,
+                    prob_ascus=prob_ascus,
+                    prob_agc=prob_agc
+                )
+                self.repository.save_tct_prob(tct_prob)
+
+            diagnosis_str = diagnosis_type.desc
+            if '-样本不满意' in ai_suggest:
+                diagnosis_str = f'{diagnosis_str}-样本不满意'
+
+        if microbe_types:
+            microbe_str = ','.join([microbe_type.desc for microbe_type in microbe_types])
+
+        new_ai_suggest = f'{diagnosis_str} {microbe_str}'
+        if dna_diagnosis:
+            new_ai_suggest += ';' + dna_diagnosis
+
+        ai_type = AIType.get_by_value(slice_info['alg'])
+        current_date = slice_info['update_time'].split("T")[0]
+        logger.info(f"{ai_type.value}-{slice_info['company']}-{current_date}")
+        stats_list = self.repository.get_ai_stats(ai_type=ai_type, company=slice_info['company'], date=current_date)
+        stats = stats_list[0] if stats_list else None
+        if stats:
+            if '阴性' in ai_suggest and '阳性' in new_ai_suggest:  # 阴性改成阳性
+                stats.update_data(
+                    negative_count_dr=stats.negative_count_dr - 1,
+                    positive_count_dr=stats.positive_count_dr + 1
+                )
+            elif '阳性' in ai_suggest and '阴性' in new_ai_suggest:  # 阳性改成阴性
+                stats.update_data(
+                    negative_count_dr=stats.negative_count_dr + 1,
+                    positive_count_dr=stats.positive_count_dr - 1
+                )
+
+            self.repository.save_ai_stats(stats=stats)
+
+        logger.info('>>>>>>>>>>')
+        logger.info(new_ai_suggest)
+
+        return new_ai_suggest

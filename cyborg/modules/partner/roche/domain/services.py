@@ -18,7 +18,6 @@ from cyborg.app.settings import Settings
 from cyborg.consts.her2 import Her2Consts
 from cyborg.consts.pdl1 import Pdl1Consts
 from cyborg.infra.fs import fs
-from cyborg.infra.oss import oss
 from cyborg.libs.heimdall.dispatch import open_slide
 from cyborg.modules.partner.roche.domain.consts import HER2_HEAT_COLORLUTS, ROCHE_TIME_FORMAT, \
     HER2_ALGORITHM_DISPLAY_ID, \
