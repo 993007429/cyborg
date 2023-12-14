@@ -352,7 +352,7 @@ class SliceService(object):
         entity.clarity_level = entity.get_clarity_level(clarity_standards_max=company.clarity_standards_max,
                                                         clarity_standards_min=company.clarity_standards_min)
         if company.ai_threshold and entity.alg:
-            params = company.ai_threshold.get(entity.alg, {})
+            params = company.ai_threshold.get(AIType.get_by_value(entity.alg).value, {})
             if params:
                 entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), params.get('qc_cell_num', None))
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
