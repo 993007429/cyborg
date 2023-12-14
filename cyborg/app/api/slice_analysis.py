@@ -1,6 +1,7 @@
 import json
 import logging
 
+from cyborg.app.api.json import orjsonify
 from flask import request, jsonify, send_file, redirect
 
 from cyborg.app.api import api_blueprint
@@ -39,7 +40,7 @@ def get_marks():
     ai_type = request.form.get('ai_type')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
     res = AppServiceFactory.new_slice_analysis_service().get_marks(view_path=view_path)
-    return jsonify(res.dict())
+    return orjsonify(res.dict())
 
 
 @api_blueprint.route('/slice/selectCount', methods=['get', 'post'])

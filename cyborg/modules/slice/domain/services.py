@@ -149,7 +149,6 @@ class SliceDomainService(object):
             "is_has_label": 1 if os.path.exists(slice_label_path) and os.path.getsize(
                 slice_label_path) else 0,
             "clarity": clarity_score,
-            "is_cs": 0,
             "high_through": high_through,
             "upload_batch_number": upload_batch_number,
             "tool_type": tool_type,
@@ -289,6 +288,20 @@ class SliceDomainService(object):
         slice.update_data(ai_suggest=new_ai_suggest)
         self.repository.save_slice(slice)
         return True
+
+    def hack_ai_suggest(self, ai_suggest: str, slide_quality: Optional[str]) -> bool:
+        slic = self.repository.get_slice(
+            case_id=request_context.case_id, file_id=request_context.file_id, company=request_context.current_company)
+        slic.update_data(
+            ai_suggest=ai_suggest,
+            origin_ai_suggest=slic.origin_ai_suggest or slic.ai_suggest
+        )
+        if slide_quality is not None:
+            slic.update_data(
+                slide_quality=slide_quality,
+                origin_slide_quality=slic.origin_slide_quality or slic.slide_quality
+            )
+        return self.repository.save_slice(slic)
 
     def update_mark_config(
             self, case_id: str, file_id: str, radius: Optional[float] = None, is_solid: Optional[int] = None
@@ -783,6 +796,8 @@ class SliceDomainService(object):
 
     def apply_ai_threshold(self, company: str, ai_type: AIType, threshold_range: int, threshold_value: float) -> bool:
         for prob, slice in self.repository.get_prob_list(company=company, ai_type=ai_type):
+            if slice.is_ai_suggest_hacked:
+                continue
             ai_suggest = slice.ai_suggest.split(" ")
             if len(ai_suggest) == 1:
                 pre_tbs_label, pre_else = '', ['']

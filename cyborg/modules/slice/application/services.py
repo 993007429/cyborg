@@ -265,6 +265,10 @@ class SliceService(object):
                                                               total=total)
         return AppResponse(data=updated)
 
+    def hack_ai_suggest(self, ai_suggest: str, slide_quality: Optional[str] = None) -> AppResponse:
+        success = self.domain_service.hack_ai_suggest(ai_suggest=ai_suggest, slide_quality=slide_quality)
+        return AppResponse(err_msg=None if success else '更新失败')
+
     def finish_ai(
             self, status: SliceStartedStatus, ai_suggest: Optional[str] = None, slide_quality: Optional[int] = None,
             cell_num: Optional[int] = None, as_id: Optional[int] = None

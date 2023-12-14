@@ -68,6 +68,7 @@ class SliceModel(BaseModel):
     operator = Column(String(255), nullable=True, comment="")
     alg = Column(String(255), nullable=True, comment='算法类型')
     ai_suggest = Column(String(255), default='', comment='AI建议结果')
+    origin_ai_suggest = Column(String(255), default='', comment='原始AI建议结果')
     check_result = Column(String(255), default='', comment='人工复核结果')
     slice_number = Column(String(255), nullable=True, comment='样本号')
     clarity = Column(String(255), nullable=True, comment='清晰度')
@@ -76,11 +77,7 @@ class SliceModel(BaseModel):
     ai_dict = Column(JSON, default={}, comment='各个模块计算状态')
     cell_num = Column('cellNum', Integer, nullable=True, comment='细胞数量')
     slide_quality = Column('slideQuality', String(255), nullable=True, comment='切片质量')
-    csUpload_status = Column('csUploadStatus', Integer, nullable=True, default=0,
-                             comment='上传众包状态（0未上传，1已上传）')
-    csAll_finished = Column('csAllFinished', Integer, nullable=True, default=0,
-                            comment='完成众包模式下所有流程（0未完成，1已完成）')
-    is_cs = Column('isCs', Integer, nullable=True, default=0, comment='众包模式下上传切片为1')
+    origin_slide_quality = Column('origin_slide_quality', String(255), nullable=True, comment='原始切片质量')
     high_through = Column('highThrough', Integer, nullable=True, default=0, comment='高通量上传切片为1')
     ai_status = Column('aiStatus', Integer, nullable=True, comment='算法计算完成为1')
     uid = Column(String(255), default='{}', comment='切片唯一标识')

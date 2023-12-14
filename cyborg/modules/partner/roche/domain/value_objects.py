@@ -112,9 +112,8 @@ class RocheAlgorithm(BaseValueObject):
     manual_score_mode: str
     results_parameters: List[dict]
     # clone_type: List[str]
-    # supported_mpp_ranges: List[List[int]]
     # secondary_analysis_support: bool,
-    # secondary_analysis_annotation_type: RocheAnnotationType,
+    secondary_analysis_annotation_type: RocheAnnotationType
     # max_secondary_analysis_allowed: int,
     # 'overlay_acceptance_required': False,
     # 'slide_score_acceptance_required': False,

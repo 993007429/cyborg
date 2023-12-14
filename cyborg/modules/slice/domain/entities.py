@@ -135,7 +135,7 @@ class SliceEntity(BaseDomainEntity):
         return None
 
     @property
-    def parsed_ai_suggest(self):
+    def parsed_ai_suggest(self) -> dict:
         """将tct lct dna模块的ai_suggest字符串解析成字典"""
         ai_suggest_dict = {
             "diagnosis": [],
@@ -191,6 +191,14 @@ class SliceEntity(BaseDomainEntity):
         return ai_suggest_dict
 
     @property
+    def is_ai_suggest_hacked(self):
+        return self.origin_ai_sugguest and self.ai_suggest != self.origin_ai_sugguest
+
+    @property
+    def is_slide_quality_hacked(self):
+        return self.origin_slide_quality and self.slide_quality != self.origin_slide_quality
+
+    @property
     def is_imported_from_ai(self):
         """
         是否是导入了ai结果的标注
@@ -221,7 +229,8 @@ class SliceEntity(BaseDomainEntity):
         d = {
             'id': self.fileid,
             'uid': self.id,
-            "ai_suggest": self.ai_suggest or '',
+            'ai_suggest': self.ai_suggest or '',
+            'parsed_ai_suggest': self.parsed_ai_suggest,
             'alg': self.alg,
             'check_result': self.check_result or '',
             'filename': self.filename,

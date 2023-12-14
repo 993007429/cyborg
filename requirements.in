@@ -3,7 +3,7 @@ Flask-Limiter==1.5
 uWSGI==2.0.20
 requests==2.27.1
 dependency_injector==4.39.1
-pydantic==1.10.7
+pydantic==2.5.2
 sqlalchemy==1.4.22
 alembic==1.4.3
 celery==5.2.7
@@ -51,6 +51,7 @@ h5py==3.9.0
 geojson==3.0.1
 redlock==1.2.0
 Cython==3.0.4
+orjson==3.9.10
 
 # for linux: pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 torch2trt==0.4.0 -f https://download.pytorch.org/whl/torch_stable.html
 # torch==1.8.1+cu111

@@ -318,7 +318,7 @@ class SliceAnalysisService(object):
 
         rois = self.domain_service.get_rois(
             ai_type=request_context.ai_type,
-            ai_suggest=slice_info['ai_suggest'],
+            ai_suggest=slice_info['parsed_ai_suggest'],
             ai_status=slice_info['ai_status'],
             is_deleted=is_deleted,
             lesion_type=lesion_type,

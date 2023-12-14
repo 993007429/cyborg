@@ -4,6 +4,7 @@ import time
 from typing import List
 
 from cyborg.app.request_context import request_context
+from cyborg.app.settings import Settings
 from cyborg.celery.app import app
 from cyborg.infra.oss import oss
 from cyborg.modules.ai.application.services import AIService
@@ -146,7 +147,10 @@ class RocheService(object):
             return RocheAppResponse(err_code=1, message='ai task not found')
 
         if task.status in (RocheAITaskStatus.completed, ):
-            result_file = oss.generate_sign_url(method='GET', key=task.result_file_key, expire_in=24 * 3600)
+            if oss:
+                result_file = oss.generate_sign_url(method='GET', key=task.result_file_key, expire_in=24 * 3600)
+            else:
+                result_file = f'{Settings.FILE_SERVER}/analysis/{analysis_id}/result-file'
             return RocheAppResponse(data=[{
                 'analysis_id': analysis_id,
                 'result_file': result_file,
@@ -154,6 +158,10 @@ class RocheService(object):
             }])
         else:
             return RocheAppResponse(err_code=1, message='暂无结果')
+
+    def get_result_file_path(self, analysis_id: str) -> RocheAppResponse:
+        task = self.domain_service.repository.get_ai_task_by_analysis_id(analysis_id)
+        return RocheAppResponse(data=f'{Settings.DATA_DIR}/{task.result_file_key}')
 
     def cancel_task(self, analysis_id: str) -> RocheAppResponse:
         task = self.domain_service.repository.get_ai_task_by_analysis_id(analysis_id)

@@ -260,7 +260,7 @@ class AIService(object):
         for slice_info in slices:
             request_context.case_id = slice_info['caseid']
             request_context.file_id = slice_info['fileid']
-            res = self.start_ai(ai_name=ai_name, is_calibrate=True)
+            res = self.start_ai(ai_name=f'model_calibrate_{ai_name}', is_calibrate=True)
             data.append(res.data)
         return AppResponse(message='操作成功', data=data)
 
@@ -325,6 +325,37 @@ class AIService(object):
             ai_type=request_context.ai_type, company=request_context.current_company,
             start_date=start_date, end_date=end_date)
         return AppResponse(data=data)
+
+    def hack_slide_quality(self) -> AppResponse:
+        slice_info = self.slice_service.get_slice_info(
+            case_id=request_context.case_id, file_id=request_context.file_id, company_id=request_context.current_company
+        ).data
+        if not slice_info:
+            return AppResponse(err_msg='切片不存在')
+
+        err_msg, new_ai_suggest, new_slide_quality = self.domain_service.hack_slide_quality(slice_info=slice_info)
+        if err_msg:
+            logger.info(f'修复ai结果错误: {err_msg}')
+            return AppResponse()
+
+        self.slice_service.hack_ai_suggest(ai_suggest=new_ai_suggest, slide_quality=new_slide_quality)
+        return AppResponse()
+
+    def hack_ai_suggest(
+            self, diagnosis: str, microbe_list: List[int]) -> AppResponse:
+
+        slice_info = self.slice_service.get_slice_info(
+            case_id=request_context.case_id, file_id=request_context.file_id, company_id=request_context.current_company
+        ).data
+        if not slice_info:
+            return AppResponse(err_msg='切片不存在')
+
+        new_ai_suggest = self.domain_service.hack_ai_suggest(
+            diagnosis=diagnosis, microbe_list=microbe_list, slice_info=slice_info)
+
+        if new_ai_suggest is not None:
+            self.slice_service.hack_ai_suggest(ai_suggest=new_ai_suggest)
+        return AppResponse()
 
     def maintain_ai_tasks(self) -> AppResponse:
         failed = self.domain_service.maintain_ai_tasks()

@@ -74,6 +74,17 @@ class LocalFileSystem(FileSystem):
 
 class HybridFileSystem(LocalFileSystem):
 
+    def save_file(self, file_key: str, buffer: BytesIO) -> str:
+        if oss:
+            oss.put_object_from_io(buffer, file_key)
+            return oss.generate_sign_url(method='GET', key=file_key, expire_in=3600 * 24)
+        else:
+            file_path = f'{Settings.DATA_DIR}/{file_key}'
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'wb') as f:
+                f.write(buffer.getvalue())
+            return file_path
+
     def save_object(self, file_key: str, obj: Union[list, dict]) -> str:
         buffer = BytesIO()
         buffer.write(json.dumps(obj, ensure_ascii=False).encode('utf-8'))
