@@ -266,6 +266,8 @@ class UserCoreDomainService(object):
             usage=0,
             export_json=export_json
         ))
+
+        new_company.adjust_model_list()
         self.company_repository.save(new_company)
 
         logger.info('增加了%s组织' % new_company.company)

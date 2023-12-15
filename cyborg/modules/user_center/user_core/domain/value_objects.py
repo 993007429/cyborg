@@ -1,0 +1,26 @@
+from cyborg.seedwork.domain.value_objects import BaseEnum
+
+
+class AIProduct(BaseEnum):
+    mutialg = 'mutialg'
+    human = 'human'
+    tct1 = 'tct1'
+    tct2 = 'tct2'
+    lct1 = 'lct1'
+    lct2 = 'lct2'
+    ki67 = 'ki67'
+    er = 'er'
+    pr = 'pr'
+    pdl1 = 'pdl1'
+    cellseg = 'cellseg'
+    center = 'center'
+    pdl1db = 'pdl1db'
+    fish = 'fish'
+    tagging = 'tagging'
+    ki67hot = 'ki67hot'
+    her2 = 'her2'
+    np = 'np'
+    dna = 'dna'
+    dna_ploidy = 'dna_ploidy'
+    cd30 = 'cd30'
+    bm = 'bm'
