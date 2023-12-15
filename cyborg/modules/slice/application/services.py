@@ -399,11 +399,15 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         entity.clarity_level = entity.get_clarity_level(clarity_standards_max=company.clarity_standards_max,
                                                         clarity_standards_min=company.clarity_standards_min)
-        if company.ai_threshold and entity.alg:
-            params = company.ai_threshold.get(AIType.get_by_value(entity.alg).value, {})
-            if params:
-                entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg),
-                                                                params.get('qc_cell_num', None))
+        if AIType.get_by_value(entity.alg) in [AIType.tct, AIType.lct, AIType.bm]:
+            threshold = self.domain_service.get_threshold(company_id)
+            qc_cell_num = 5000
+            if threshold and threshold.get(AIType.get_by_value(entity.alg).value):
+                for item in threshold.get(AIType.get_by_value(entity.alg).value):
+                    if item['pattern_id'] == entity.pattern_id:
+                        qc_cell_num = item['qc_cell_num']
+                        break
+            entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), qc_cell_num)
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:

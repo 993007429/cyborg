@@ -928,6 +928,15 @@ class SliceDomainService(object):
         slice.update_data(is_marked=is_marked)
         self.repository.save_slice(slice)
 
+    def get_threshold(self, company: str):
+        return self.repository.get_threshold(company)
+
+    def del_threshold(self, company: str, pattern_id, ai_type: str):
+        return self.repository.del_threshold(company, pattern_id, ai_type)
+
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
+        return self.repository.update_threshold(company, threshold, ai_type)
+
 
 if __name__ == '__main__':
     path = '/Users/zhaoyu/dipath_data/company1/data/2023_05_19_16_05_11_102179/slices/8271014/鼻息肉.jpg'

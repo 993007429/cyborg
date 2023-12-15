@@ -411,6 +411,7 @@ class AIService(object):
         if slices:
             return AppResponse(err_code=11, message='删除失败，有相关的任务正在运行中。')
         self.domain_service.repository.del_ai_pattern(id)
+        self.slice_service.domain_service.del_threshold(request_context.company, id, kwargs.get('ai_type'))
         return AppResponse()
 
     def get_ai_threshold(self, id: int) -> AppResponse:
@@ -427,7 +428,6 @@ class AIService(object):
         return AppResponse(message='query succeed', data=params)
 
     def update_ai_threshold(self, body: dict) -> AppResponse:
-        logger.info('update_ai_threshold==%s' % body)
         request_context.ai_type = AIType.get_by_value(body.get('aiType'))
         ai_threshold = body.get('aiThreshold')
         threshold_range = int(ai_threshold.get('threshold_range', 0))  # 0:只改asc-h asc-us  1: 改全部
@@ -460,6 +460,8 @@ class AIService(object):
         if not saved:
             return AppResponse(err_code=11, message='modify ai threshold failed')
         self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold.get(request_context.ai_type.value)})
+        if request_context.ai_type.is_tct_type:
+            self.slice_service.domain_service.update_threshold(request_context.company, {'pattern_id': body.get('id'), 'qc_cell_num': int(ai_threshold.get('qc_cell_num'))}, body.get('aiType'))
         return AppResponse()
 
     def get_model(self) -> AppResponse:

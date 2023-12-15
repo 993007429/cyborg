@@ -158,6 +158,18 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
     def get_labels(self, company: str) -> List[str]:
         ...
 
+    @abstractmethod
+    def get_threshold(self, company: str):
+        ...
+
+    @abstractmethod
+    def del_threshold(self, company: str, pattern_id: int, ai_type: str):
+        ...
+
+    @abstractmethod
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
+        ...
+
 
 class ReportConfigRepository(SingleModelRepository[ReportConfigEntity], metaclass=ABCMeta):
 

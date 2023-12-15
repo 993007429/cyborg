@@ -209,10 +209,7 @@ def purge_tasks():
 
 @api_blueprint.route('/manage/getAiPattern', methods=['get', 'post'])
 def get_ai_pattern():
-    try:
-        body = request.get_json()
-    except Exception:
-        body = {}
+    body = request.get_json(silent=True) or {}
     request_context.ai_type = AIType.get_by_value(body.get('aiType'))
     res = AppServiceFactory.ai_service.get_ai_pattern()
     return jsonify(res.dict())

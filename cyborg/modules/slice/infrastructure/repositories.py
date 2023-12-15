@@ -12,7 +12,8 @@ from cyborg.modules.ai.infrastructure.models import TCTProbModel
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel, ReportConfigModel, SliceErrModel
+from cyborg.modules.slice.infrastructure.models import (SliceModel, CaseRecordModel, ReportConfigModel, SliceErrModel,
+                                                        SliceConfigModel)
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
 from cyborg.utils.strings import camel_to_snake
@@ -388,11 +389,17 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                     if s.type == 'slice':
                         s.clarity_level = s.get_clarity_level(clarity_standards_max=clarity_standards_max,
                                                               clarity_standards_min=clarity_standards_min)
-                        if ai_threshold and s.alg:
-                            params = ai_threshold.get(AIType.get_by_value(s.alg).value, {})
-                            if params:
-                                s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg),
-                                                                      params.get('qc_cell_num', None))
+                        if AIType.get_by_value(s.alg) in [AIType.tct, AIType.lct, AIType.bm]:
+                            rows = self.session.query(SliceConfigModel.threshold_config).filter_by(
+                                company=s.company).first()
+                            qc_cell_num = 5000
+                            threshold = rows[0] if rows else None
+                            if threshold and threshold.get(AIType.get_by_value(s.alg).value):
+                                for item in threshold.get(AIType.get_by_value(s.alg).value):
+                                    if item['pattern_id'] == entity.pattern_id:
+                                        qc_cell_num = item['qc_cell_num']
+                                        break
+                            s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg), qc_cell_num)
                         if s.started == SliceStartedStatus.failed:
                             slice_err = self.session.query(SliceErrModel).filter_by(caseid=s.caseid,
                                                                                     fileid=s.fileid).first()
@@ -459,6 +466,35 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             if row[0]:
                 labels.extend(row[0])
         return list(set(labels))
+
+    def get_threshold(self, company: str):
+        rows = self.session.query(SliceConfigModel.threshold_config).filter_by(company=company).first()
+        return rows[0] if rows else None
+
+    def del_threshold(self, company: str, pattern_id: int, ai_type: str):
+        threshold = self.session.query(SliceConfigModel).filter_by(company=company).first()
+        if not threshold:
+            return
+        a = threshold.threshold_config
+        for i in a.get(ai_type, []) if a else []:
+            if i.get('pattern_id') == pattern_id:
+                a.get(ai_type).remove(i)
+                break
+        self.session.query(SliceConfigModel).filter_by(id=threshold.id).update({'threshold_config': a})
+
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
+        slice_config = self.session.query(SliceConfigModel).filter_by(company=company).first()
+        if not slice_config:
+            return
+        a = slice_config.threshold_config
+        for i in a.get(ai_type, []) if a else []:
+            if i.get('pattern_id') == threshold.get('pattern_id'):
+                index = a.get(ai_type).index(i)
+                a.get(ai_type)[index] = threshold
+                break
+        else:
+            a[ai_type].append(threshold)
+        self.session.query(SliceConfigModel).filter_by(id=slice_config.id).update({'threshold_config': a})
 
 
 class SQLAlchemyReportConfigRepository(ReportConfigRepository, SQLAlchemySingleModelRepository[ReportConfigEntity]):

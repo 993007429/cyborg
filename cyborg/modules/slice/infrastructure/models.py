@@ -101,6 +101,7 @@ class SliceModel(BaseModel):
 
 
 class ReportConfigModel(BaseModel):
+    __table_args__ = {'extend_existing': True}
     __tablename__ = 'report_config'
 
     id = Column(Integer, primary_key=True, comment='主键ID')
@@ -117,3 +118,12 @@ class SliceErrModel(BaseModel):
     err_code = Column(Integer, default=0, comment="错误码")
     err_message = Column(Text, default='', comment="错误信息")
     update_time = Column(String(255), default='', comment="更新时间")
+
+
+class SliceConfigModel(BaseModel):
+    __table_args__ = {'extend_existing': True}
+    __tablename__ = 'slice_config'
+
+    id = Column(Integer, primary_key=True, comment='主键ID')
+    company = Column(String(255), nullable=True, unique=True, comment='名字')
+    threshold_config = Column(JSON, nullable=True, default=[], comment='不同算法参数配置')
