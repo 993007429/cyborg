@@ -1097,15 +1097,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] += 1
                         ai_result_before_modify['total'] += 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                        ai_result_before_modify['pos_tumor'] +
-                                        ai_result_before_modify['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify['pos_tumor'] +
+                                    ai_result_before_modify['neg_tumor'] + 1e-10), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
                             ai_result_before_modify['tps'] = 0
@@ -1121,15 +1121,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id]['total'] -= 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[cell_type] -= 1
                         ai_result_before_modify['total'] -= 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                        ai_result_before_modify['pos_tumor'] +
-                                        ai_result_before_modify['neg_tumor'] + 1e-10
+                                    ai_result_before_modify['pos_tumor'] +
+                                    ai_result_before_modify['neg_tumor'] + 1e-10
                                 ), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)
@@ -1147,15 +1147,15 @@ class SliceAnalysisDomainService(object):
                             ai_result_before_modify[region_id][cell_type] += 1
                             ai_result_before_modify[region_id]['tps'] = round(
                                 ai_result_before_modify[region_id]['pos_tumor'] / (
-                                        ai_result_before_modify[region_id]['pos_tumor'] +
-                                        ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
+                                    ai_result_before_modify[region_id]['pos_tumor'] +
+                                    ai_result_before_modify[region_id]['neg_tumor'] + 1e-10), 4)
                         ai_result_before_modify[previous_type] -= 1
                         ai_result_before_modify[cell_type] += 1
                         try:
                             ai_result_before_modify['tps'] = round(
                                 ai_result_before_modify['pos_tumor'] / (
-                                        ai_result_before_modify['pos_tumor'] +
-                                        ai_result_before_modify['neg_tumor'] + 1e-10
+                                    ai_result_before_modify['pos_tumor'] +
+                                    ai_result_before_modify['neg_tumor'] + 1e-10
                                 ), 4)
                         except (ValueError, KeyError) as e:
                             logger.warning(e)

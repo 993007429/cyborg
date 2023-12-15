@@ -396,7 +396,7 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                             threshold = rows[0] if rows else None
                             if threshold and threshold.get(AIType.get_by_value(s.alg).value):
                                 for item in threshold.get(AIType.get_by_value(s.alg).value):
-                                    if item['pattern_id'] == entity.pattern_id:
+                                    if item['pattern_id'] == s.pattern_id:
                                         qc_cell_num = item['qc_cell_num']
                                         break
                             s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg), qc_cell_num)
