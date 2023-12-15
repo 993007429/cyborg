@@ -435,11 +435,11 @@ class AIService(object):
         threshold_value = ai_threshold.get('threshold_value')
         all_use = ai_threshold.get('all_use')  # 应用于已处理切片
         search_key = ai_threshold.get('search_key') if ai_threshold.get('search_key') is not None else {}  # 筛选条件
-        logger.info(request_context.ai_type)
+        qc_cell_num = int(ai_threshold.get('qc_cell_num'))
         if request_context.ai_type.is_tct_type:
             threshold_value = float(threshold_value)
             extra_params = {
-                'qc_cell_num': int(ai_threshold.get('qc_cell_num')),
+                'qc_cell_num': qc_cell_num,
                 'min_pos_cell': int(ai_threshold.get('min_pos_cell')),
                 'cell_conf': ai_threshold.get('cell_conf'),
                 'cell_num': ai_threshold.get('cell_num'),
@@ -451,7 +451,6 @@ class AIService(object):
             extra_params = {}
         else:
             extra_params = {}
-
         ai_threshold, saved = self.user_service.domain_service.save_ai_threshold(
             company_id=request_context.current_company, ai_type=request_context.ai_type,
             threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
@@ -461,7 +460,7 @@ class AIService(object):
             return AppResponse(err_code=11, message='modify ai threshold failed')
         self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold.get(request_context.ai_type.value)})
         if request_context.ai_type.is_tct_type:
-            self.slice_service.domain_service.update_threshold(request_context.company, {'pattern_id': body.get('id'), 'qc_cell_num': int(ai_threshold.get('qc_cell_num'))}, body.get('aiType'))
+            self.slice_service.domain_service.update_threshold(request_context.company, {'pattern_id': body.get('id'), 'qc_cell_num': qc_cell_num}, body.get('aiType'))
         return AppResponse()
 
     def get_model(self) -> AppResponse:
