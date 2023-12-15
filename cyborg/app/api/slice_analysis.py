@@ -97,7 +97,7 @@ def modify_marks():
             item = {}
             mark_id, file_name = int(mark.get('id')), str(mark.get('id')) + '.wav'
             audio.save(os.path.join(slice_doc_path, file_name))
-            audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={caseid}&fileid={fileid}&markid={mark_id}&company={request_context.company}'
+            audio_url = f'/files/getAudio?caseid={caseid}&fileid={fileid}&markid={mark_id}&company={request_context.company}'
             item['markId'] = mark_id
             item['audioUrl'] = audio_url
             data.append(item)

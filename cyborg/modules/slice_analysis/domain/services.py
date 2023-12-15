@@ -528,7 +528,7 @@ class SliceAnalysisDomainService(object):
                                       str(mark_id) + '.wav')
             audio_url = ''
             if os.path.exists(audio_path) and os.path.getsize(audio_path):
-                audio_url = f'{Settings.IMAGE_SERVER}/files/getAudio?caseid={str(case_id)}&fileid={str(file_id)}&markid={str(mark_id)}&company={company}'
+                audio_url = f'/files/getAudio?caseid={str(case_id)}&fileid={str(file_id)}&markid={str(mark_id)}&company={company}'
             mark['audioUrl'] = audio_url
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
