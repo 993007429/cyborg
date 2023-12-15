@@ -8,6 +8,7 @@ import aioshutil
 
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
+from cyborg.modules.user_center.user_core.domain.value_objects import AIProduct
 from cyborg.seedwork.domain.entities import BaseDomainEntity
 from cyborg.utils.strings import snake_to_camel
 
@@ -42,11 +43,21 @@ class CompanyEntity(BaseDomainEntity):
     async def remove_data_dir(self):
         await aioshutil.rmtree(self.base_dir, ignore_errors=True)
 
+    def adjust_model_list(self):
+        products = [AIProduct.get_by_value(model) for model in self.model_lis]
+        self.update_data(model_lis=[product.value for product in products if product])
+
     def to_dict(self):
         d = {snake_to_camel(k): v for k, v in super().to_dict().items()}
+
+        # HACK 移除废弃模块，目前tct相关模块名称为tct1, tct2, lct1, lct2
+        for model in ['tct', 'lct']:
+            if model in self.model_lis:
+                self.model_lis.remove(model)
+        d['model_lis'] = json.dumps(self.model_lis)
+
         # HACK for fe
         d['name'] = self.company
-        d['model_lis'] = json.dumps(self.model_lis)
         d['defaultAiThreshold'] = json.dumps(self.default_ai_threshold)
         d['trialTimes'] = json.dumps(self.trial_times)
         return d
