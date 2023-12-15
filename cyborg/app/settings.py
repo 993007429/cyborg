@@ -114,6 +114,7 @@ class Settings(object):
     CELERY_BROKER_URL = f"{CACHE_REDIS_URI}/{LOCAL_SETTINGS['celery']['broker_db']}"
     CELERY_BACKEND_URL = f"{CACHE_REDIS_URI}/{LOCAL_SETTINGS['celery']['backend_db']}"
 
+    DEFAULT_SETTINGS = LOCAL_SETTINGS['default']
     GPU_SETTINGS = LOCAL_SETTINGS['gpu'] if 'gpu' in LOCAL_SETTINGS else None
     MINIO_SETTINGS = LOCAL_SETTINGS['minio'] if 'minio' in LOCAL_SETTINGS else None
     ROCHE_SETTINGS = LOCAL_SETTINGS['roche'] if 'roche' in LOCAL_SETTINGS else None
@@ -127,9 +128,9 @@ class Settings(object):
 
     TOTAL_GPU_MEM = GPU_SETTINGS['total_gpu_mem'] if GPU_SETTINGS else 12
 
-    IMAGE_SERVER = LOCAL_SETTINGS['default']['image_server']
+    IMAGE_SERVER = DEFAULT_SETTINGS['image_server']
 
-    FILE_SERVER = LOCAL_SETTINGS['default']['file_server']
+    FILE_SERVER = DEFAULT_SETTINGS['file_server'] if 'file_server' in DEFAULT_SETTINGS else IMAGE_SERVER
 
     REPORT_SERVER = LOCAL_SETTINGS['default']['report_server']
 
