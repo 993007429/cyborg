@@ -45,7 +45,11 @@ class OtherSlide(SlideBase):
                 os.path.dirname(filename), os.path.basename(os.path.splitext(filename)[0]), 'Scan.txt')
             if os.path.exists(scan_file_path):
                 self.config = configparser.ConfigParser()
-                self.config.read(scan_file_path)
+                try:
+                    self.config.read(scan_file_path, encoding='unicode_escape')
+                except UnicodeDecodeError:
+                    self.config.read(scan_file_path, encoding='gbk')
+
                 self.width = int(self.config.get('General', 'sceneWidthAfterProcessed'))
                 self.height = int(self.config.get('General', 'sceneHeightAfterProcessed'))
                 self.rowcount = int(self.config.get('General', 'RowCount'))
