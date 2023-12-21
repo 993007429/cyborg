@@ -15,7 +15,11 @@ class HdxSlide(SlideBase):
     def __init__(self, filename):
         self.filename = filename
         self.config = configparser.ConfigParser()
-        self.config.read(os.path.splitext(filename)[0] + os.sep + 'Scan.txt')
+        try:
+            self.config.read(os.path.splitext(filename)[0] + os.sep + 'Scan.txt', encoding='unicode_escape')
+        except UnicodeDecodeError:
+            self.config.read(os.path.splitext(filename)[0] + os.sep + 'Scan.txt', encoding='gbk')
+
         self.width = int(self.config.get('General', 'sceneWidthAfterProcessed'))
         self.height = int(self.config.get('General', 'sceneHeightAfterProcessed'))
         self.rowcount = int(self.config.get('General', 'RowCount'))
