@@ -202,7 +202,7 @@ class SliceService(object):
     def upload_slice(
             self, upload_id: str, case_id: str, file_id: str, company_id: str, file_name: str, slide_type: str,
             upload_path: str, total_upload_size: int, tool_type: str, user_file_path: str,
-            cover_slice_number: bool = False, upload_batch_number: str = '',
+            sample_num: str = '', cover_slice_number: bool = False, upload_batch_number: str = '',
             create_record: bool = False, high_through: bool = False, operator: str = ''
     ) -> AppResponse[dict]:
 
@@ -244,7 +244,7 @@ class SliceService(object):
                     tool_type=tool_type,
                     label_rec_mode=company['label'], user_file_path=user_file_path,
                     cover_slice_number=cover_slice_number, operator=operator, upload_batch_number=upload_batch_number,
-                    sample_num=upload_id if upload_id else case_id, create_record=create_record,
+                    sample_num=sample_num if sample_num else case_id, create_record=create_record,
                     high_through=high_through,
                 )
                 if slice_info:
