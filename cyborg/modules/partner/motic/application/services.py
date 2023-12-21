@@ -74,10 +74,11 @@ class MoticService(object):
                 logger.info(f'>>>>>>{file_name}>>>>>>>>{file_path}>>>>>>>>{file_size}')
 
                 res = self.slice_service.upload_slice(
-                    upload_id=upload_id, case_id='', file_id=str(roi.slideId), company_id=request_context.current_company,
+                    upload_id=upload_id, case_id='', file_id=str(roi.slideId),
+                    company_id=request_context.current_company,
                     file_name=file_name, slide_type='slices', upload_path=slide_path,
                     total_upload_size=file_size, tool_type=ai_name,
-                    user_file_path='', cover_slice_number=True, create_record=True
+                    user_file_path='', sample_num=motic_task_id, cover_slice_number=True, create_record=True
                 )
                 if res.err_code:
                     logger.info(res.err_code)

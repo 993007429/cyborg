@@ -491,7 +491,7 @@ class SliceDomainService(object):
                 cell_format = common_format
                 write_label = ''
                 if title == '样本号':
-                    write_label = record.caseid
+                    write_label = record.sample_num
                 elif title == '姓名':
                     write_label = record.name or ''
                 elif title == '性别':
