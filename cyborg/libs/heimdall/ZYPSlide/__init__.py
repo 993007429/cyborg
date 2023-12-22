@@ -1,34 +1,24 @@
-#!/usr/bin/env python
-
-import os
-import math
 import sys
+import math
+from enum import IntEnum
+from threading import Lock
+from ctypes import *  # noqa
+
 import cv2
 import numpy as np
 from PIL import Image
-from ctypes import *
-from enum import IntEnum
-from threading import Lock
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-base_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR)
-sys.path.append(base_dir)
 
 from ..SlideBase import SlideBase
 
-if sys.platform=='win32':
-    cur_encoding='gbk'
-    # 加载dll
-    os.environ["PATH"] = os.path.join(os.path.abspath(os.path.dirname(__file__)),'win_libs') + ";" + os.environ["PATH"]
-    if sys.version.startswith('3.8'):
-        os.add_dll_directory(os.path.join(os.path.abspath(os.path.dirname(__file__)),'win_libs'))
-    lib = windll.LoadLibrary(os.path.join(os.path.abspath(os.path.dirname(__file__)),'win_libs','ZYSlideLib_C_X64.dll'))
+if sys.platform == 'win32':
+    cur_encoding = 'gbk'
+    lib = windll.LoadLibrary('ZYSlideLib_C_X64.dll')
 else:
-    cur_encoding='utf-8'
-    lib = cdll.LoadLibrary(os.path.join(os.path.abspath(os.path.dirname(__file__)),'linux_libs', 'libZYSlideLib_Linux.so'))
+    cur_encoding = 'utf-8'
+    lib = cdll.LoadLibrary('libZYSlideLib_Linux.so')
 
 lock = Lock()
+
 
 class SlideInfo(IntEnum):  # 自定义枚举类型
     ScanScale = 0
@@ -42,11 +32,12 @@ class SlideInfo(IntEnum):  # 自定义枚举类型
     def from_param(cls, obj):
         return obj.value
 
+
 class ZYPSlide(SlideBase):
     def __init__(self, filename):
         self.slide = POINTER(c_uint64)()
         self.filename = filename
-        self.bfilename= filename.encode(cur_encoding)
+        self.bfilename = filename.encode(cur_encoding)
         lib.OpenSlide.restypes = c_bool
         lib.OpenSlide.argtypes = c_char_p, POINTER(POINTER(c_uint64))
         lib.GetSlideInfo.restypes = c_int
@@ -54,7 +45,7 @@ class ZYPSlide(SlideBase):
         lib.GetScaleImage.restypes = c_int
         lib.GetScaleImage.argtypes = c_float, c_int, c_int, c_int, c_int, POINTER(POINTER(c_ubyte)), POINTER(c_uint64)
         lib.OpenSlide(c_char_p(self.bfilename), byref(self.slide))
-        scale, width, height = c_char_p(),c_char_p(), c_char_p()
+        scale, width, height = c_char_p(), c_char_p(), c_char_p()
         lib.GetSlideInfo(SlideInfo.ScanScale, byref(scale), self.slide)
         lib.GetSlideInfo(SlideInfo.SlideWidth, byref(width), self.slide)
         lib.GetSlideInfo(SlideInfo.SlideHeight, byref(height), self.slide)
@@ -62,7 +53,6 @@ class ZYPSlide(SlideBase):
         self.width = int(width.value)
         self.height = int(height.value)
         SlideBase.__init__(self)
-
 
     def read(self, location=[0, 0], size=None, scale=1, greyscale=False):
         '''
@@ -103,7 +93,7 @@ class ZYPSlide(SlideBase):
         crop_region = crop_region[:, :, ::-1]
         return crop_region
 
-    def saveLabel(self, path=None):
+    def save_label(self, path=None):
         charlabel = POINTER(c_ubyte)()
         iLabelSize = lib.GetLabel(byref(charlabel), self.slide)
         np_arr = np.ctypeslib.as_array(charlabel, (iLabelSize,))
@@ -111,9 +101,9 @@ class ZYPSlide(SlideBase):
             f.write(np_arr)
         lib.FreePtr(byref(charlabel))
 
-    def getThumbnail(self, size=500):
-        scale = math.ceil(max(self.width, self.height)/size)
-        thumbnail = self.read((0,0), (self.height, self.width), scale)
+    def get_thumbnail(self, size=500):
+        scale = math.ceil(max(self.width, self.height) / size)
+        thumbnail = self.read((0, 0), (self.height, self.width), scale)
         return Image.fromarray(thumbnail)
 
     @property
