@@ -367,7 +367,7 @@ class AIService(object):
             app.control.revoke(task['result_id'], terminate=True)
         return AppResponse(data=failed)
 
-    def purge_tasks(self) -> AppResponse:
-        purged = self.domain_service.reset_running_tasks()
+    def purge_tasks(self, purge_ranking: bool = False) -> AppResponse:
+        purged = self.domain_service.reset_running_tasks(purge_ranking=purge_ranking)
         app.control.purge()
         return AppResponse(data={'purged': purged})

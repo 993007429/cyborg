@@ -23,6 +23,11 @@ class SQLAlchemyAIRepository(AIRepository, SQLAlchemyRepository):
         ai_task.update_data(**model.raw_data)
         return True
 
+    @transaction
+    def delete_ai_task(self, task_id: int) -> bool:
+        self.session.query(AITaskModel).filter_by(id=task_id).delete()
+        return True
+
     def get_ai_task_by_id(self, task_id: int) -> Optional[AITaskEntity]:
         model = self.session.query(AITaskModel).get(task_id)
         return AITaskEntity.from_dict(model.raw_data) if model else None

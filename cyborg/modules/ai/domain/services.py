@@ -97,13 +97,19 @@ class AIDomainService(object):
                 failed.append(task.to_dict())
         return failed
 
-    def reset_running_tasks(self) -> int:
+    def reset_running_tasks(self, purge_ranking: bool = False) -> int:
         tasks = self.repository.get_ai_tasks(status=AITaskStatus.analyzing)
         purged = 0
         for task in tasks:
             task.reset()
             if self.repository.save_ai_task(task):
                 purged += 1
+
+        if purge_ranking:
+            tasks = self.repository.get_ai_tasks(status=AITaskStatus.default)
+            for task in tasks:
+                self.repository.delete_ai_task(task.id)
+
         cache.delete(self.RUNNING_AI_TASKS_CACHE_KEY)
         return purged
 
