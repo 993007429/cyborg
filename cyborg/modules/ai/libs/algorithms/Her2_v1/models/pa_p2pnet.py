@@ -5,7 +5,7 @@ from torch import nn
 
 import numpy as np
 import torch.nn.functional as F
-from models.backbone import build_backbone
+from .backbone import build_backbone
 
 
 class AnchorPoints(nn.Module):

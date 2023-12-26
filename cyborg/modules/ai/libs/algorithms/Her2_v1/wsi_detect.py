@@ -1,37 +1,31 @@
-
+import logging
 import sys,os
-proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-current_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(proj_root)
-sys.path.append(current_root)
-#from settings import lib_path
-#sys.path.append(lib_path)
-#sys.path.insert(0,r'C:\znbl3_230220\alg\python_lib_38')
 
 import configparser
-#from Slide.dispatch import openSlide
-import utils 
-#import region_process
 import subprocess
 import json
 import numpy as np
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-config_path = os.path.join(current_root,'config.ini')
-from collections import defaultdict
-from logger import logger
 import time
 
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-label_dict = {
-        '微弱的不完整膜阳性肿瘤细胞': 0,
-        '弱-中等的完整细胞膜阳性肿瘤细胞': 1,
-        '阴性肿瘤细胞': 2,
-        '强度的完整细胞膜阳性肿瘤细胞': 3,
-        '中-强度的不完整细胞膜阳性肿瘤细胞': 4,
-        "其他": 5,
-    }
 
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+current_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_root)
+
+config_path = os.path.join(current_root,'config.ini')
+
+logger = logging.getLogger(__name__)
+
+label_dict = {
+    '微弱的不完整膜阳性肿瘤细胞': 0,
+    '弱-中等的完整细胞膜阳性肿瘤细胞': 1,
+    '阴性肿瘤细胞': 2,
+    '强度的完整细胞膜阳性肿瘤细胞': 3,
+    '中-强度的不完整细胞膜阳性肿瘤细胞': 4,
+    "其他": 5,
+}
 
 
 def pointinpolygon(center_coords=[],labels=[], x_coords=[],y_coords=[]):
@@ -134,9 +128,7 @@ def run_her2_v1(slice_path,roi_list):
         ###
         logger.info('region start')
         main_pid = os.getpid()
-        command = ['python', region_python,str(main_pid),slice_path]
-        if sys.platform == 'linux':
-            command = ['python3',region_python,'--allow-run-as-root',str(main_pid),slice_path]
+        command = [sys.executable,region_python,'--allow-run-as-root',str(main_pid),slice_path]
         tim1 = time.time()
         region_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
 
@@ -178,16 +170,13 @@ def run_her2_v1(slice_path,roi_list):
         roi_x = json.dumps(roi['x'])
         roi_y = json.dumps(roi['y'])
 
-        command = ['python', cell_python,'--ppid',str(main_pid),
-                   '--slice_path',slice_path,
-                   '--roi_x',roi_x,
-                   '--roi_y',roi_y]
-        if sys.platform == 'linux':
-            command = ['python3', cell_python,
-                        '--ppid',str(main_pid),
-                        '--slice_path',slice_path,
-                        '--roi_x',roi_x,
-                        '--roi_y',roi_y]
+        command = [
+            sys.executable, cell_python,
+            '--ppid',str(main_pid),
+            '--slice_path',slice_path,
+            '--roi_x',roi_x,
+            '--roi_y',roi_y
+        ]
         tim1 = time.time()
         cell_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
         stdout, stderr = cell_process.communicate()

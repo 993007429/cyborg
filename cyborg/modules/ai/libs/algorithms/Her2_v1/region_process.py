@@ -1,31 +1,22 @@
+import logging
 import sys,os
-proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-current_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(proj_root)
-sys.path.append(current_root)
-#from settings import lib_path
-#sys.path.append(lib_path)
-#sys.path.insert(0,r'C:\znbl3_230220\alg\python_lib_38')
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-import argparse
 import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-from dataset import region_dataset 
 import utils
 import configparser
 import numpy as np
 import torch
-from PIL import Image
-#from Slide.dispatch import openSlide
 from cyborg.libs.heimdall.dispatch import open_slide
 import cv2
-import psutil
-from logger import logger
-from cyborg.modules.ai.utils.file import load_alg_model
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+current_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_root)
 config_path = os.path.join(current_root,'config.ini')
+
+logger = logging.getLogger(__name__)
+
 
 def scale_coords(img_len,coord,padding,mask):
     # Rescale coords (xyxy) from img1_shape to img0_shape
@@ -170,7 +161,7 @@ if __name__ == '__main__':
     region_['region_stride_ratio'] = float(config.get('region','stride_ratio'))
     region_model = config.get('region','region_model')
     #region_['region_model'] = os.path.join(current_root,'Model',region_model)
-    region_['region_model'] = os.path.join('AI', 'Her2_v1', region_model)
+    region_['region_model'] = os.path.join('AI', 'Her2_v1', 'Model', region_model)
     region_['region_vis'] = config.get('region','region_vis').strip().lower() == 'true'
     '''
     common

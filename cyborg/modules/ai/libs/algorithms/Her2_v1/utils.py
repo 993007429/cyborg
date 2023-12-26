@@ -1,21 +1,14 @@
 import os,sys
 import numpy as np
+
+from cyborg.modules.ai.libs.algorithms.Her2_v1.models import experimental
+from cyborg.modules.ai.libs.algorithms.Her2_v1.models.general import non_max_suppression
 from dataset import region_dataset,cell_dataset
 import math
 import torch
-from models import experimental as e
-from models.general import non_max_suppression
-#sys.path.insert(0,r'C:\znbl3_230220\alg\python_lib_38')
-from PIL import Image,ImageDraw
-import argparse
-import torch.distributed as dist
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
 import region_process as region
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-#os.environ['RANK'] = '0'
-#os.environ['WORLD_SIZE'] = '2'
+
 import psutil
 import cv2
 
@@ -27,7 +20,7 @@ def check_parent_pid(pid):
         return psutil.pid_exists(pid)
 
 def load_model(checkpth,device):
-    return e.attempt_load(checkpth,device)
+    return experimental.attempt_load(checkpth,device)
 
 def non_max_suppression_(preds,region_):
     conf_thres = region_['region_threshold'] 
@@ -50,8 +43,7 @@ def produce_roi_threshold_map(roi_x,roi_y,slide,scale):
     x_max = np.clip(int(x_max / scale),0,w)
     y_min = np.clip(int(y_min / scale),0,h)
     y_max = np.clip(int(y_max / scale),0,h)
-    
-    
+
     threshold_map = cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (255, 255, 255), -1)
     
     return threshold_map

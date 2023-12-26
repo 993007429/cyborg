@@ -4,12 +4,12 @@ Backbone modules.
 """
 import torch
 from torch import nn
-from models.utils import is_main_process
+from .utils import is_main_process
 
-from models.fpn import FPN
-from models.resnet import resnet50
-from models.transformer import build_transformer
-from models.position_encoding import build_position_encoding
+from .fpn import FPN
+from .resnet import resnet50
+from .transformer import build_transformer
+from .position_encoding import build_position_encoding
 
 
 class FrozenBatchNorm2d(torch.nn.Module):
