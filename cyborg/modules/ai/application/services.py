@@ -158,7 +158,9 @@ class AIService(object):
             elif ai_type == AIType.dna_ploidy:
                 result = self.domain_service.run_dna_ploidy(task)
             elif ai_type == AIType.her2:
-                result = self.domain_service.run_her2(task, group_name_to_id)
+                #run_her2_v1(self, task: AITaskEntity, group_name_to_id: dict)
+                result = self.domain_service.run_her2_v1(task,group_name_to_id)
+                #result = self.domain_service.run_her2(task, group_name_to_id)
             elif ai_type == AIType.ki67:
                 result = self.domain_service.run_ki67_new(task, group_name_to_id)
             elif ai_type == AIType.ki67hot:
