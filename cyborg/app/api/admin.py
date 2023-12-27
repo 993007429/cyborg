@@ -184,5 +184,6 @@ def get_config():
 
 @api_blueprint.route('/manage/purgeTasks', methods=['get', 'post'])
 def purge_tasks():
-    res = AppServiceFactory.ai_service.purge_tasks()
+    purge_ranking = bool(request.form.get('purge_ranking'))
+    res = AppServiceFactory.ai_service.purge_tasks(purge_ranking=purge_ranking)
     return jsonify(res.dict())

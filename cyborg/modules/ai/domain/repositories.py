@@ -13,6 +13,10 @@ class AIRepository(metaclass=ABCMeta):
         ...
 
     @abstractmethod
+    def delete_ai_task(self, task_id: int) -> bool:
+        ...
+
+    @abstractmethod
     def get_ai_task_by_id(self, task_id: int) -> Optional[AITaskEntity]:
         ...
 
