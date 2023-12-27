@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     path_list = os.listdir(algo_dir)
 
-    algo_whitelist = ['Her2New_']
+    algo_whitelist = ['Her2_v1']
 
     for filepath in path_list:
         if filepath not in algo_whitelist:
@@ -61,6 +61,15 @@ if __name__ == '__main__':
                     if 'common.py' in f:
                         continue
                     if 'main.py' in f:
+                        continue
+                elif 'Her2_v1' in f:
+                    if 'utils' in f:
+                        continue
+                    if 'common.py' in f:
+                        continue
+                    if 'cell_process_main.py' in f:
+                        continue
+                    if 'region_process_main.py' in f:
                         continue
 
                 extensions = [Extension(os.path.splitext(os.path.basename(f))[0], [f])]

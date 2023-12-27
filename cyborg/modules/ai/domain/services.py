@@ -427,7 +427,6 @@ class AIDomainService(object):
         rois = task.rois or [task.new_default_roi()]
 
         from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
-
         center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
             slide_path=task.slide_path, roi_list=rois)
 
@@ -440,6 +439,74 @@ class AIDomainService(object):
                 y_coords
             )
 
+            ai_result = Her2Consts.rois_summary_dict.copy()
+            label_to_roi_name = Her2Consts.cell_label_dict
+            for idx, coord in enumerate(center_coords):
+                roi_name = label_to_roi_name[str(cls_labels[idx])]
+                ai_result[roi_name] += 1
+
+                x = float(coord[0]) if slide.width > float(coord[0]) else float(slide.width - 1)
+                y = float(coord[1]) if slide.height > float(coord[1]) else float(slide.height - 1)
+
+                mark = Mark(
+                    position={'x': [x], 'y': [y]},
+                    fill_color=Her2Consts.type_color_dict[Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]],
+                    mark_type=2,
+                    diagnosis={'type': Her2Consts.label_to_diagnosis_type[int(cls_labels[idx])]},
+                    radius=1 / mpp,
+                    editable=0,
+                    group_id=group_name_to_id.get(Her2Consts.idx_to_label[int(cls_labels[idx])]),
+                    area_id=roi_id,
+                    method='spot'
+                )
+                cell_marks.append(mark)
+
+            whole_slide = 1 if len(x_coords) == 0 else 0
+            group_id = group_name_to_id.get('ROI') if whole_slide != 1 else None
+
+            ai_result.update({
+                'whole_slide': whole_slide,
+                '分级结果': Her2Consts.level[int(lvl)]
+            })
+
+            roi_marks.append(Mark(
+                id=roi_id,
+                position={'x': x_coords, 'y': y_coords},
+                method='rectangle',
+                mark_type=3,
+                is_export=1,
+                ai_result=ai_result,
+                editable=1,
+                stroke_color='grey',
+                group_id=group_id
+            ))
+
+        return ALGResult(
+            ai_suggest=ai_result['分级结果'],
+            cell_marks=cell_marks,
+            roi_marks=roi_marks,
+        )
+
+    def run_her2_v1(self, task: AITaskEntity, group_name_to_id: dict):
+        cell_marks = []
+        roi_marks = []
+        ai_result = {}
+
+        slice_path = task.slide_path
+        roi_list = task.rois or [task.new_default_roi()]
+        from cyborg.modules.ai.libs.algorithms.Her2_v1.wsi_detect import run_alg, roi_filter
+        pts_with_id, labels_with_id, summary_dict, lvl, error_code = run_alg(slice_path, roi_list)
+        slide = open_slide(task.slide_path)
+        mpp = slide.mpp or 0.242042
+
+        for roi in roi_list:
+            roi_id, x_coords, y_coords = roi['id'], roi['x'], roi['y']
+            center_coords, cls_labels = roi_filter(
+                pts_with_id[roi_id],
+                labels_with_id[roi_id],
+                x_coords,
+                y_coords
+            )
             ai_result = Her2Consts.rois_summary_dict.copy()
             label_to_roi_name = Her2Consts.cell_label_dict
             for idx, coord in enumerate(center_coords):
