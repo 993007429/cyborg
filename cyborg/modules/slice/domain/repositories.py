@@ -34,7 +34,8 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
             slice_type: Optional[str] = None,
             company: Optional[str] = None,
-            page: int = 0, per_page: int = sys.maxsize
+            page: int = 0, per_page: int = sys.maxsize,
+            pattern_id: int = None
     ) -> List[SliceEntity]:
         ...
 
@@ -123,12 +124,13 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
             create_time_min: Optional[str] = None, create_time_max: Optional[str] = None,
             page: int = 0, limit: int = 20,
             case_ids: Optional[List[str]] = None,
-            is_marked: Optional[int] = None,
-            labels: Optional[str] = None,
-            clarity_level: Optional[str] = None,
-            slice_quality: Optional[str] = None,
+            is_marked: Optional[List[int]] = None,
+            labels: Optional[List[str]] = None,
+            clarity_level: Optional[List[str]] = None,
+            slice_quality: Optional[List[str]] = None,
             clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
-            ai_threshold: Optional[dict] = None
+            ai_threshold: Optional[dict] = None,
+            pattern_name: Optional[List[str]] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
         ...
 
@@ -141,7 +143,7 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
         ...
 
     @abstractmethod
-    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+    def get_prob_list(self, company: str, ai_type: AIType, caseid_list: Optional[List[str]] = None) -> List[Tuple[TCTProbEntity, SliceEntity]]:
         ...
 
     @abstractmethod
@@ -154,6 +156,18 @@ class CaseRecordRepository(SingleModelRepository[CaseRecordEntity], metaclass=AB
 
     @abstractmethod
     def get_labels(self, company: str) -> List[str]:
+        ...
+
+    @abstractmethod
+    def get_threshold(self, company: str):
+        ...
+
+    @abstractmethod
+    def del_threshold(self, company: str, pattern_id: int, ai_type: str):
+        ...
+
+    @abstractmethod
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
         ...
 
 

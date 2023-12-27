@@ -3,6 +3,7 @@ import datetime
 import json
 import logging
 import os
+import sys
 import random
 import string
 from io import BytesIO
@@ -33,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 class SliceService(object):
-
     upload_id_to_caseid_cache_key = 'uploadid:{}:caseid'
 
     def __init__(self, domain_service: SliceDomainService, user_service: UserCoreService):
@@ -98,8 +98,52 @@ class SliceService(object):
         data = [record.to_dict() for record in records]
         return AppResponse(data=Pagination(locals()).to_dict())
 
+    @staticmethod
+    def get_query_records_params(search_conditions: dict) -> dict:
+        page = search_conditions.get('page', 1) - 1  # 服务端下标统一从0开始
+        limit = search_conditions.get('limit', sys.maxsize)
+        search_key = search_conditions.get("search_key")
+        search_value = search_conditions.get("search_value")
+
+        ai_suggest = search_conditions.get("ai_suggest") if search_conditions.get("ai_suggest") != [] else None
+        check_result = search_conditions.get("check_result") if search_conditions.get("check_result") != [] else None
+        user_file_folder = search_conditions.get("userFileFolder") if search_conditions.get(
+            "userFileFolder") != [] else None
+        operator = search_conditions.get("operator") if search_conditions.get("operator") != [] else None
+
+        report = search_conditions.get("reports") if search_conditions.get(
+            "reports") != [] else None  # 报告的有无   1有  2无   [1, 2]
+        update_min = search_conditions.get("update_min").strip('"') if search_conditions.get("update_min") else None
+        update_max = search_conditions.get("update_max").strip('"') if search_conditions.get("update_max") else None
+        create_time_min = search_conditions.get("create_min").strip('"') if search_conditions.get(
+            "create_min") else None
+        create_time_max = search_conditions.get("create_max").strip('"') if search_conditions.get(
+            "create_max") else None
+        gender = search_conditions.get("gender") if search_conditions.get("gender") != [] else None
+        age_min = search_conditions.get('age_min')
+        age_max = search_conditions.get('age_max')
+        sample_part = search_conditions.get("samplePart") if search_conditions.get("samplePart") != [] else None  # 多选
+        sample_type = search_conditions.get("sampleType") if search_conditions.get("sampleType") != [] else None
+        statuses = search_conditions.get("status") if search_conditions.get(
+            "status") != [] else None  # 0未处理 1处理中 2已处理 3处理异常
+        alg = search_conditions.get("alg_list") if search_conditions.get("alg_list") != [] else None  # ['tct','ki67']
+        seq_key = search_conditions.get("seq_key") if search_conditions.get(
+            "seq_key") else "create_time"  # 年龄 切片数量  更新时间 创建时间 ['age','slice_num','update_time','sampleNum','create_time']
+        seq = search_conditions.get("seq") if search_conditions.get("seq") else '1'  # 默认顺序  1倒序  2正序
+
+        slice_no = search_conditions.get("slice_no") if search_conditions.get("label") != [] else None
+        is_has_label = search_conditions.get("label") if search_conditions.get("label") != [] else None
+        case_ids = search_conditions.get('case_id')  # 切片主键ID  ['12', '13']
+        is_marked = search_conditions.get('is_mark')
+        labels = search_conditions.get('labels')
+        clarity_level = search_conditions.get('clarityLevel')
+        slice_quality = search_conditions.get('sliceQuality')
+        del search_conditions
+        return locals()
+
     def export_records(self, **kwargs) -> AppResponse[str]:
-        company = self.user_service.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
+        company = self.user_service.domain_service.company_repository.get_company_by_id(
+            company=request_context.current_company)
         if not company:
             return AppResponse(err_code=1, message='no such company')
         kwargs['clarity_standards_min'] = company.clarity_standards_min
@@ -192,7 +236,6 @@ class SliceService(object):
     def get_slices(
             self, case_ids: List[int] = None, page: int = 0, per_page: int = 20
     ) -> AppResponse:
-
         slices = self.domain_service.repository.get_slices(
             case_ids=case_ids, slice_type='slice', company=request_context.current_company,
             page=page, per_page=per_page
@@ -355,10 +398,15 @@ class SliceService(object):
             return AppResponse(err_code=1, message='no such company')
         entity.clarity_level = entity.get_clarity_level(clarity_standards_max=company.clarity_standards_max,
                                                         clarity_standards_min=company.clarity_standards_min)
-        if company.ai_threshold and entity.alg:
-            params = company.ai_threshold.get(AIType.get_by_value(entity.alg).value, {})
-            if params:
-                entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), params.get('qc_cell_num', None))
+        if AIType.get_by_value(entity.alg) in [AIType.tct, AIType.lct, AIType.bm]:
+            threshold = self.domain_service.get_threshold(company_id)
+            qc_cell_num = 5000
+            if threshold and threshold.get(AIType.get_by_value(entity.alg).value):
+                for item in threshold.get(AIType.get_by_value(entity.alg).value):
+                    if item['pattern_id'] == entity.pattern_id:
+                        qc_cell_num = item['qc_cell_num']
+                        break
+            entity.cell_num_tips = entity.get_cell_num_tips(AIType.get_by_value(entity.alg), qc_cell_num)
         return AppResponse(err_code=err_code, message=message, data=entity.to_dict(all_fields=True) if entity else None)
 
     def get_slice_file_info(self, case_id: str, file_id: str) -> AppResponse[dict]:
@@ -371,7 +419,8 @@ class SliceService(object):
             case_id=case_id, file_id=file_id, company_id=request_context.current_company)
         return AppResponse(err_code=err_code, message=message, data=entity.data_paths if entity else None)
 
-    def export_slice_files(self, client_ip: str, case_ids: List[str], path: str, need_db_file: bool = False) -> AppResponse[list]:
+    def export_slice_files(self, client_ip: str, case_ids: List[str], path: str, need_db_file: bool = False) -> \
+            AppResponse[list]:
         url = Settings.ELECTRON_UPLOAD_SERVER.format(client_ip)
         file_path_list = list()  # 待发送的文件路径列表
         for case_id in case_ids:
@@ -587,6 +636,14 @@ class SliceService(object):
             company=request_context.current_company)
         return AppResponse(data=[s.to_dict() for s in slices])
 
+    def get_analyzed_slices_by_conditions(self, search_key: dict) -> AppResponse:
+        cases = self.search_records(**self.get_query_records_params(search_conditions=search_key)).data
+        case_ids = [case['caseid'] for case in cases['data']]
+        slices = self.domain_service.repository.get_slices(
+            case_ids=case_ids, ai_type=request_context.ai_type, started=SliceStartedStatus.success,
+            company=request_context.current_company)
+        return AppResponse(data=[s.to_dict() for s in slices])
+
     def get_report_opinion(self) -> AppResponse:
         record = self.domain_service.repository.get_record_by_case_id(
             case_id=request_context.case_id, company=request_context.current_company)
@@ -635,12 +692,14 @@ class SliceService(object):
         report_data.update(AppServiceFactory.new_slice_analysis_service().get_capture_images().data)
         report_data['dnaStatics'] = roi_data.get('dnaStatics')
         report_data['dnaIcons'] = dnaIcons
-        report_data['signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}'  # noqa
+        report_data[
+            'signUrl'] = f'{Settings.IMAGE_SERVER}/user/sign2?id={request_context.current_user.username}&companyid={request_context.current_company}'  # noqa
         report_data['reportTime'] = datetime.datetime.now().strftime('%Y-%m-%d')
 
         if alg_type == AIType.dna_ploidy:
             report_data['dna_statistics'] = AppServiceFactory.new_slice_analysis_service().get_dna_statistics().data
-            report_data['dna_suggest'], report_data['dna_diagnose'] = AppServiceFactory.slice_service.get_dna_check_result().data
+            report_data['dna_suggest'], report_data[
+                'dna_diagnose'] = AppServiceFactory.slice_service.get_dna_check_result().data
         elif alg_type == AIType.np:
             cell_statics, area_statics = AppServiceFactory.new_slice_analysis_service().get_np_info().data
             report_data['cellTypeTable'] = {
@@ -775,11 +834,17 @@ class SliceService(object):
         else:
             return AppResponse(err_code=2, message='找不到报告数据')
 
-    def apply_ai_threshold(self, threshold_range: int, threshold_value: float) -> bool:
+    def apply_ai_threshold(self, params: dict, search_key: dict) -> bool:
+
+        if params.get('slice_range') == 0 and len(search_key) > 0:
+            cases = self.search_records(**self.get_query_records_params(search_conditions=search_key)).data
+            caseid_list = [case['caseid'] for case in cases['data']]
+        else:
+            caseid_list = None
+
         return self.domain_service.apply_ai_threshold(
-            company=request_context.current_company, ai_type=request_context.ai_type,
-            threshold_range=threshold_range, threshold_value=threshold_value
-        )
+            company=request_context.current_company, ai_type=request_context.ai_type, params=params,
+            caseid_list=caseid_list)
 
     def get_record_count(self, end_time: str) -> AppResponse:
         records = self.domain_service.repository.get_records(end_time=end_time, company=request_context.current_company)

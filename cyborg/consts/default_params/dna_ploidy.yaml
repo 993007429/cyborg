@@ -1,0 +1,7 @@
+threshold_range: 0
+other: true
+microbe: true
+threshold_value:
+  conf_thres: 0.42
+  iod_ratio: 0.25
+

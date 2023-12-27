@@ -89,6 +89,8 @@ class AIType(BaseEnum):
     model_calibrate_tct = 'model_calibrate_tct'
     model_calibrate_lct = 'model_calibrate_lct'
     model_calibrate_dna = 'model_calibrate_dna'
+    HER2QCS = 'HER2QCS'
+    lungCancer = 'lungCancer'
 
     @property
     def ai_name(self) -> str:
@@ -103,6 +105,10 @@ class AIType(BaseEnum):
     @property
     def is_human_type(self):
         return self in [self.human, self.human_tl, self.human_bm]
+
+    @property
+    def is_tct_type(self):
+        return self in [self.tct, self.lct, self.dna]
 
 
 A = TypeVar('A', bound=AIType)

@@ -12,6 +12,9 @@ from cyborg.infra.oss import oss
 from cyborg.modules.slice_analysis.domain.value_objects import AIType
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.utils.strings import camel_to_snake
+from cyborg.app.settings import Settings
+from cyborg.infra.fs import fs
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +68,14 @@ def mark_show():
 
 @api_blueprint.route('/slice/modifyMark', methods=['get', 'post'])
 def modify_marks():
+    import os
+    caseid = request.form.get('caseid')
+    fileid = request.form.get('fileid')
+    ai_type = request.form.get('ai_type', '')
     scope = request.form.get('scope')
     target_group_id = request.form.get('target_group_id')
     marks = json.loads(request.form.get('marks')) if request.form.get('marks') is not None else None
 
-    ai_type = request.form.get('ai_type', '')
     request_context.ai_type = AIType.get_by_value(ai_type) or AIType.human
 
     if scope == 'null':
@@ -77,6 +83,25 @@ def modify_marks():
 
     res = AppServiceFactory.new_slice_analysis_service().update_marks(
         marks_data=marks, scope=scope, target_group_id=int(target_group_id) if target_group_id else None)
+
+    audio = request.files['audio']
+    if audio and audio.filename.split('.')[1] not in ['wav', 'mp3']:
+        res.message = 'File is not an audio file'
+        res.code = 1
+        return jsonify(res.dict)
+
+    if audio:
+        data = []
+        slice_doc_path = fs.path_join(Settings.DATA_DIR, request_context.company, 'data', caseid, 'slices', fileid)
+        for mark in marks:
+            item = {}
+            mark_id, file_name = int(mark.get('id')), str(mark.get('id')) + '.wav'
+            audio.save(os.path.join(slice_doc_path, file_name))
+            audio_url = f'/files/getAudio?caseid={caseid}&fileid={fileid}&markid={mark_id}&company={request_context.company}'
+            item['markId'] = mark_id
+            item['audioUrl'] = audio_url
+            data.append(item)
+        res.data = data
     return jsonify(res.dict())
 
 
@@ -257,13 +282,24 @@ def query_group():
 @api_blueprint.route('/slice/selectTemplate', methods=['get', 'post'])
 def select_template():
     request_context.ai_type = AIType.label
-    res = AppServiceFactory.new_slice_analysis_service().select_template(template_id=int(request.form.get('id')))
+    template_id = int(request.form.get('id'))
+    res = AppServiceFactory.slice_service.update_template_id(template_id=template_id)
+    if res.err_code:
+        return res
+    res = AppServiceFactory.new_slice_analysis_service().select_template(template_id=template_id)
     return jsonify(res.dict())
 
 
 @api_blueprint.route('/slice/templateList', methods=['get', 'post'])
 def template_list():
+    request_context.ai_type = AIType.label
     res = AppServiceFactory.new_slice_analysis_service().get_all_templates()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/share_templates', methods=['get', 'post'])
+def share_templates():
+    res = AppServiceFactory.new_slice_analysis_service().get_share_templates()
     return jsonify(res.dict())
 
 
@@ -328,4 +364,46 @@ def del_label():
 @api_blueprint.route('/slice/getLabels', methods=['get', 'post'])
 def get_labels():
     res = AppServiceFactory.slice_service.get_labels()
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/get_template', methods=['get', 'post'])
+def get_template():
+    body = request.get_json()
+    template_id = body.get('id')
+    if not template_id or not isinstance(template_id, int):
+        return jsonify(AppResponse(err_code=11, message='参数格式错误').dict())
+    res = AppServiceFactory.new_slice_analysis_service().get_template(template_id)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/add_template', methods=['get', 'post'])
+def add_template():
+    body = request.get_json()
+    name = body.get('name')
+    ai_name = body.get('aiName')
+    is_multi_mark = body.get('isMultiMark')
+    mark_groups = body.get('markGroups')
+    res = AppServiceFactory.new_slice_analysis_service().add_templates(name, ai_name, is_multi_mark, mark_groups)
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/edit_template', methods=['get', 'post'])
+def edit_template():
+    body = request.get_json()
+    template_id = body.get('id')
+    name = body.get('name')
+    ai_name = body.get('aiName', '')
+    is_multi_mark = body.get('isMultiMark')
+    mark_groups = body.get('markGroups')
+    res = AppServiceFactory.new_slice_analysis_service().edit_templates(
+        template_id, name, ai_name, is_multi_mark, mark_groups
+    )
+    return jsonify(res.dict())
+
+
+@api_blueprint.route('/slice/del_template', methods=['get', 'post'])
+def del_template():
+    body = request.get_json()
+    res = AppServiceFactory.new_slice_analysis_service().del_templates(body.get('id'))
     return jsonify(res.dict())

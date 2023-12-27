@@ -25,6 +25,7 @@ class TemplateModel(BaseModel):
     is_selected = Column('isSelected', Integer)
     ai_id = Column('aiId', Integer)
     has_imported = Column('hasImported', Integer, default=0)
+    is_multi_mark = Column('isMultiMark', Integer, default=0, comment='是否允许选择多标注组')
 
 
 class MarkModel(BaseModel):
@@ -69,7 +70,6 @@ def get_ai_mark_model(table_name_suffix: str) -> Type[MarkModel]:
     class AIMarkModel(MarkModel):
         __tablename__ = f'Mark_{table_name_suffix}'
         __import_table_name__ = __tablename__.replace('_label', '') + '_1'  # 对应的算法标注导入源表
-
     return AIMarkModel
 
 
@@ -132,3 +132,25 @@ class ChangeRecordModel(BaseModel):
     table_name = Column('tableName', Text, nullable=True, comment='操作表')
     op_type = Column('opType', Text, nullable=True, comment='操作类型')
     op_name = Column('opName', Text, nullable=True, comment='操作人')
+
+
+class ShareMarkGroupModel(BaseModel):
+    __tablename__ = 'mark_group'
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
+    group_name = Column('groupName', Text, nullable=True, comment="")
+    shape = Column(Text, nullable=True, comment="")
+    color = Column(Text, nullable=True, comment="")
+    create_time = Column('createTime', Float(64), nullable=True, comment='创建时间')
+    is_template = Column('isTemplate', Integer, nullable=True, comment="")
+    is_selected = Column('isSelected', Integer, nullable=True, comment="")
+    selectable = Column(Integer, nullable=True, comment="")
+    editable = Column(Integer, nullable=True, comment="")
+    is_ai = Column('isAi', Integer, nullable=True, comment="")
+    parent_id = Column('parentId', Integer, nullable=True, comment="")
+    template_id = Column('templateId', Integer, nullable=True, comment="")
+    op_time = Column('opTime', Float)
+    default_color = Column('defaultColor', Text)
+    is_empty = Column('isEmpty', Integer)
+    is_show = Column('isShow', Integer)
+    is_import = Column('isImport', Integer)

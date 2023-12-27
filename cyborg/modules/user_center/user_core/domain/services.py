@@ -7,6 +7,7 @@ import time
 from typing import Optional, Tuple, List
 
 from pubsub import pub
+import yaml
 
 from cyborg.app.settings import Settings
 from cyborg.infra.fs import fs
@@ -81,8 +82,8 @@ class UserCoreDomainService(object):
         company = self.company_repository.get_company_by_id(company_id)
         table_checked = company.table_checked if company else None
         return table_checked or [
-            '样本号', '姓名', '性别', '切片数量', '处理状态', '切片标签', '切片编号', '文件名', 'AI模块', '清晰度',
-            'AI建议', '复核结果',
+            '样本号', '姓名', '性别', '切片数量', '处理状态', '切片标签', '切片编号', '文件名', 'AI模块',
+            '清晰度', 'AI建议', '复核结果',
             '最后更新', '报告', '创建时间'
         ]
 
@@ -342,19 +343,35 @@ class UserCoreDomainService(object):
         return ''
 
     def save_ai_threshold(
-            self, company_id: str, ai_type: AIType, threshold_range: int, threshold_value: float, all_use: bool):
-        company = self.company_repository.get_company_by_id(company=company_id)
+            self, company_id: str, ai_type: AIType, threshold_range: int, slice_range: int, threshold_value: float,
+            all_use: bool, extra_params: dict, search_key: dict) -> Tuple[dict, bool]:
 
+        company = self.company_repository.get_company_by_id(company=company_id)
         ai_threshold = company.ai_threshold
-        ai_threshold[ai_type.value].update({
+        params = self.merge_default_params(params=extra_params, ai_type=ai_type)
+        params.update({
+            'slice_range': slice_range,
             'threshold_range': threshold_range,
             'threshold_value': threshold_value,
             'all_use': all_use
         })
+        ai_threshold[ai_type.value] = params
         company.update_data(ai_threshold=ai_threshold)
         if self.company_repository.save(company):
-            if all_use:
-                event = CompanyAIThresholdUpdatedEvent(threshold_range=threshold_range, threshold_value=threshold_value)
+            if all_use and ai_type.is_tct_type:
+                event = CompanyAIThresholdUpdatedEvent(params=params, search_key=search_key)
                 pub.sendMessage(event.event_name, event=event)
-            return True
-        return False
+            else:
+                # 其他算法类型暂时没有对已处理结果生效
+                pass
+
+            return ai_threshold, True
+        return ai_threshold, False
+
+    def merge_default_params(self, params: dict, ai_type: AIType):
+        if os.path.exists(f'cyborg/consts/default_params/{ai_type.value}.yaml') and isinstance(params, dict):
+            with open(f'cyborg/consts/default_params/{ai_type.value}.yaml', 'r') as f:
+                params_default = yaml.safe_load(f)
+                params_default.update(params)
+                params = params_default
+        return params

@@ -13,6 +13,20 @@ class AIModel(BaseModel):
     ai_name = Column(String(255), comment="AI模块名")
 
 
+class AIPatternModel(BaseModel):
+
+    __tablename__ = 'ai_pattern'
+
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, comment="主键ID")
+    ai_name = Column(String(255), comment="AI模块名")
+    name = Column(String(255), comment="模块模式名称")
+    model_name = Column(String(255), comment="模型名称")
+    ai_threshold = Column(JSON, nullable=True, comment='算法阈值')
+    company = Column(String(255), comment="组织名称")
+
+
 class AIStatisticsModel(BaseModel):
 
     __table_args__ = {'extend_existing': True}
@@ -46,6 +60,7 @@ class TemplateModel(BaseModel):
     is_selected = Column('isSelected', Integer)
     ai_id = Column('aiId', Integer)
     has_imported = Column('hasImported', Integer, default=0)
+    is_multi_mark = Column('isMultiMark', Integer, default=0, comment='是否允许选择多标注组')
 
 
 class TCTProbModel(BaseModel):
@@ -62,6 +77,19 @@ class TCTProbModel(BaseModel):
     prob_asch = Column(Float, comment='ASCH 概率')
     prob_agc = Column(Float, comment='AGC 概率')
     prob_hsil = Column(Float, comment='HSIL 概率')
+    num_cc = Column(Integer, nullable=True, comment='线索')
+    num_tri = Column(Integer, nullable=True, comment='滴虫')
+    num_can = Column(Integer, nullable=True, comment='霉菌')
+    num_act = Column(Integer, nullable=True, comment='放线菌')
+    num_hsv = Column(Integer, nullable=True, comment='疱疹')
+    num_inf = Column(Integer, nullable=True, comment='炎性')
+    num_atr = Column(Integer, nullable=True, comment='萎缩')
+    num_rap = Column(Integer, nullable=True, comment='修复')
+    num_meta = Column(Integer, nullable=True, comment='化生')
+    num_gc = Column(Integer, nullable=True, comment='腺细胞')
+    cell_num = Column(Integer, nullable=True, comment='细胞数')
+    num_pos_cell = Column(Integer, nullable=True, comment='阳性细胞数')
+    qc_score = Column(Float, nullable=True, comment='质控得分')
 
 
 class AITaskModel(BaseModel):

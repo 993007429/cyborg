@@ -1,8 +1,10 @@
 import logging
+import os.path
 import random
 import sys
 import json
 import time
+import traceback
 from collections import OrderedDict
 from itertools import groupby
 from typing import List, Tuple, Optional, Union
@@ -145,7 +147,8 @@ class SliceAnalysisDomainService(object):
                     for item in cell.get('data', []):
                         for sub_item in item.get('data', []):
                             sub_item['mark_type'] = 1
-                            cell_types = list(filter(None, [cell.get('label'), item.get('label'), sub_item.get('label')]))
+                            cell_types = list(
+                                filter(None, [cell.get('label'), item.get('label'), sub_item.get('label')]))
                             sub_item['cell_type'] = '>'.join(cell_types)
                             mark_list.append(sub_item)
         else:
@@ -487,7 +490,9 @@ class SliceAnalysisDomainService(object):
     def get_marks(
             self, ai_type: AIType, view_path: dict, tiled_slice: TiledSlice,
             mark_config: Optional[SliceMarkConfig] = None,
-            template_id: int = None
+            template_id: int = None,
+            company: str = None,
+            case_id: str = None, file_id: str = None,
     ) -> List[dict]:
         x_coords = view_path.get('x')
         y_coords = view_path.get('y')
@@ -516,11 +521,24 @@ class SliceAnalysisDomainService(object):
             ai_type=ai_type, marks=marks, radius_ratio=radius_ratio, is_max_level=is_max_level,
             mark_config=mark_config, show_groups=group_ids)
         mark_cell_types = {}
+        remove_mark = []
         for mark in mark_list:
+            mark_id = mark['id']
+            audio_path = os.path.join(Settings.DATA_DIR, company, 'data', str(case_id), 'slices', str(file_id),
+                                      str(mark_id) + '.wav')
+            audio_url = ''
+            if os.path.exists(audio_path) and os.path.getsize(audio_path):
+                audio_url = f'/files/getAudio?caseid={str(case_id)}&fileid={str(file_id)}&markid={str(mark_id)}&company={company}'
+            mark['audioUrl'] = audio_url
             if ai_type == AIType.label and 'group_id' in mark:
                 if mark['group_id'] not in mark_cell_types:
-                    mark_cell_types[mark['group_id']] = self.get_mark_group(mark['group_id'], template_id=template_id)
+                    cell_type = self.get_mark_group(mark['group_id'], template_id=template_id)
+                    if cell_type is None:
+                        remove_mark.append(mark)
+                        continue
+                    mark_cell_types[mark['group_id']] = cell_type
                 mark['cell_type'] = mark_cell_types[mark['group_id']]
+        mark_list = [i for i in mark_list if i not in remove_mark]
         if ai_type not in [AIType.human, AIType.label]:
             """
             除了手工和标注模块外，还需显示手工模块标注。tct和lct模块显示专属的手工标注用于算法训练
@@ -535,6 +553,8 @@ class SliceAnalysisDomainService(object):
         return mark_list
 
     def get_mark_group(self, group_id: int, template_id: int):
+        logger.info('group_id==%s' % group_id)
+        logger.info('template_id==%s' % template_id)
         if not group_id:
             return ''
         mark_groups = self.repository.get_mark_groups_by_template_id(template_id=template_id)
@@ -880,6 +900,21 @@ class SliceAnalysisDomainService(object):
 
         for item in kwargs.get('children', []):
             self.update_mark_group(parent_id=group.id, **item)
+
+    @transaction
+    def sync_mark_groups(self, groups: List[MarkGroupEntity]) -> Tuple[int, str]:
+        for group in groups:
+            group_ = self.repository.get_mark_group_by_kwargs({'id': group.id})
+            try:
+                if group_:
+                    self.repository.update_mark_group_by_kwargs(group.id, {
+                        'group_name': group.group_name, 'color': group.color, 'default_color': group.color})
+                else:
+                    self.repository.save_mark_group(group)
+            except Exception:
+                logger.info(traceback.format_exc())
+                return 1, 'sync mark groups failed.'
+        return 0, ''
 
     def show_mark_groups(self, groups: List[MarkGroupEntity]) -> List[dict]:
         data_list = list()

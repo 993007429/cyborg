@@ -232,12 +232,19 @@ class SliceDomainService(object):
             info.pop('clarity', None)
             info.pop('ai_tips', None)
             info.pop('ai_status', None)
+            info.pop('ai_diagnosisState', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
-
+            logger.info('info======%s' % info)
             for k, v in info.items():
                 if k == 'id':
                     slice.update_data(fileid=v)
+                elif k == 'ai_tips' and not v:
+                    continue
+                elif k == 'pattern_id':
+                    slice.update_data(pattern_id=v)
+                elif k == 'pattern_name':
+                    slice.update_data(pattern_name=v)
                 elif k == 'ai_suggest':
                     if info.get('check_result') and slice.update_ai_result(v):
                         cover = True
@@ -534,6 +541,8 @@ class SliceDomainService(object):
                     write_label = slice.clarity_level if slice else ''
                 elif title == '细胞量':
                     write_label = slice.cell_num if slice else ''
+                elif title == '模式':
+                    write_label = slice.pattern_name if slice else ''
                 elif title == 'AI建议':
                     write_label = slice.ai_suggest if slice else ''
                     cell_format = auto_cell_format(write_label)
@@ -794,35 +803,47 @@ class SliceDomainService(object):
             'skip_count': skip_count
         }
 
-    def apply_ai_threshold(self, company: str, ai_type: AIType, threshold_range: int, threshold_value: float) -> bool:
-        for prob, slice in self.repository.get_prob_list(company=company, ai_type=ai_type):
+    def apply_ai_threshold(self, company: str, ai_type: AIType, params: dict, caseid_list: Optional[List[str]] = None) -> bool:
+
+        for prob, slice in self.repository.get_prob_list(company=company, ai_type=ai_type, caseid_list=caseid_list):
             if slice.is_ai_suggest_hacked:
-                continue
-            ai_suggest = slice.ai_suggest.split(" ")
-            if len(ai_suggest) == 1:
-                pre_tbs_label, pre_else = '', ['']
-            elif len(ai_suggest) == 2:
-                pre_tbs_label, pre_else = ai_suggest[1].strip(), ['']
-            elif len(ai_suggest) > 2:
-                pre_tbs_label, pre_else = ai_suggest[1].strip(), ai_suggest[2:]
-            else:
                 continue
 
             prob_np = np.array(prob.to_list())
             pred_tbs = np.argmax(prob_np)
             tbs_label = TCTConsts.tct_multi_wsi_cls_dict_reverse[pred_tbs]
-            if threshold_range == 0 and ('LSIL' in tbs_label or 'HSIL' in tbs_label or 'AGC' in tbs_label):
-                continue
+
+            # pos/neg
+            if params.get('threshold_range') == 0 and ('LSIL' in tbs_label or 'HSIL' in tbs_label or 'AGC' in tbs_label):
+                diagnosis = '阳性'
             else:
-                diagnosis = '阳性' if 1 - prob_np[0] > threshold_value else '阴性'
+                diagnosis = '阳性' if 1 - prob_np[0] > params.get('threshold_value') else '阴性'
                 if tbs_label == 'NILM' and diagnosis == '阳性':
-                    tbs_label = 'ASC-US'
+                    slide_pred = np.argmax(prob_np[1:]) + 1
+                    tbs_label = TCTConsts.tct_multi_wsi_cls_dict_reverse[slide_pred]
                 tbs_label = '' if diagnosis == '阴性' else tbs_label
 
-                if '不满意' in pre_tbs_label:
+            # slide quality control
+            if prob.cell_num is not None and prob.qc_score is not None:
+                if prob.cell_num < params.get('qc_cell_num') or prob.qc_score < params.get('qc_thres'):
                     tbs_label = tbs_label + '-样本不满意'
-                pre_else = [pre_else] if not isinstance(pre_else, list) else pre_else
-                new_ai_suggest = ' '.join([diagnosis, tbs_label]) + ' ' + ' '.join(pre_else)
+                    slice.slideQuality = 0
+                else:
+                    slice.slideQuality = 1
+            else:
+                if slice.slideQuality == 0:
+                    tbs_label = tbs_label + '-样本不满意'
+
+            # microbe & background cells
+            if prob.num_cc is not None:
+                microbe_background = []
+                for k, v in prob.get_microbe_background_dict().items():
+                    if k in params.get('cell_num') and v >= params.get('cell_num')[k]:
+                        microbe_background.append(TCTConsts.translate_map[k])
+                else:
+                    microbe_background = [""]
+
+                new_ai_suggest = ' '.join([diagnosis, tbs_label]) + ' ' + ','.join(microbe_background)
                 new_ai_suggest = new_ai_suggest.strip()
                 slice.update_data(ai_suggest=new_ai_suggest)
                 self.repository.save_slice(slice)
@@ -906,6 +927,15 @@ class SliceDomainService(object):
     def update_slice_is_marked(self, is_marked: bool, slice: SliceEntity):
         slice.update_data(is_marked=is_marked)
         self.repository.save_slice(slice)
+
+    def get_threshold(self, company: str):
+        return self.repository.get_threshold(company)
+
+    def del_threshold(self, company: str, pattern_id, ai_type: str):
+        return self.repository.del_threshold(company, pattern_id, ai_type)
+
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
+        return self.repository.update_threshold(company, threshold, ai_type)
 
 
 if __name__ == '__main__':

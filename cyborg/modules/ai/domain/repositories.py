@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, List
 
-from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity
+from cyborg.modules.ai.domain.entities import AITaskEntity, AIStatisticsEntity, TCTProbEntity, AIPatternEntity
 from cyborg.modules.ai.domain.value_objects import AITaskStatus
 from cyborg.seedwork.domain.value_objects import AIType
 
@@ -70,4 +70,21 @@ class AIRepository(metaclass=ABCMeta):
 
     @abstractmethod
     def get_tct_probs_by_slices(self, slices: List[dict]) -> List[TCTProbEntity]:
+        ...
+
+    @abstractmethod
+    def get_ai_pattern_by_kwargs(self, kwargs: dict) -> List[AIPatternEntity]:
+        ...
+
+    def update_ai_pattern(self, id: int, kwargs: dict) -> bool:
+
+        ...
+
+    @abstractmethod
+    def del_ai_pattern(self, id: int) -> bool:
+
+        ...
+
+    @abstractmethod
+    def save_ai_pattern(self, ai_pattern: AIPatternEntity) -> bool:
         ...

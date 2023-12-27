@@ -1,0 +1,39 @@
+all_use: false
+threshold_range: 1
+slice_range: 1
+threshold_value: 0.5
+qc_cell_num: 5000
+min_pos_cell: -1
+qc_thres: 0.5
+other: true
+microbe: true
+
+cell_conf:
+  ASC-US: 0.35
+  LSIL: 0.35
+  ASC-H: 0.35
+  HSIL: 0.35
+  AGC: 0.35
+  CC: 0.35
+  TRI: 0.35
+  CAN: 0.35
+  ACT: 0.35
+  HSV: 0.35
+  INF: 0.35
+  ATR: 0.35
+  RAP: 0.35
+  META: 0.35
+  GC: 0.35
+
+cell_num:
+  CC: 100
+  TRI: 50
+  CAN: 10
+  ACT: 10
+  HSV: 10
+  INF: 100
+  ATR: 100
+  RAP: 100
+  META: 100
+  GC: 100
+

@@ -1,3 +1,4 @@
+import logging
 import math
 import sys
 from datetime import datetime, timedelta
@@ -11,10 +12,13 @@ from cyborg.modules.ai.infrastructure.models import TCTProbModel
 from cyborg.modules.slice.domain.entities import CaseRecordEntity, SliceEntity, ReportConfigEntity
 from cyborg.modules.slice.domain.repositories import CaseRecordRepository, ReportConfigRepository
 from cyborg.modules.slice.domain.value_objects import SliceStartedStatus
-from cyborg.modules.slice.infrastructure.models import SliceModel, CaseRecordModel, ReportConfigModel, SliceErrModel
+from cyborg.modules.slice.infrastructure.models import (SliceModel, CaseRecordModel, ReportConfigModel, SliceErrModel,
+                                                        SliceConfigModel)
 from cyborg.seedwork.domain.value_objects import AIType
 from cyborg.seedwork.infrastructure.repositories import SQLAlchemySingleModelRepository
 from cyborg.utils.strings import camel_to_snake
+
+logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModelRepository[CaseRecordEntity]):
@@ -47,7 +51,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             started: Optional[SliceStartedStatus] = None, case_ids: List[int] = None,
             slice_type: Optional[str] = None,
             company: Optional[str] = None,
-            page: int = 0, per_page: int = sys.maxsize
+            page: int = 0, per_page: int = sys.maxsize,
+            pattern_id: int = None
     ) -> List[SliceEntity]:
         query = self.session.query(SliceModel)
         if file_name is not None:
@@ -62,7 +67,8 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             query = query.filter(SliceModel.type == 'slice')
         if company:
             query = query.filter_by(company=company)
-
+        if pattern_id:
+            query = query.filter_by(pattern_id == pattern_id)
         offset = page * per_page
         models = query.offset(offset).limit(per_page)
         return [SliceEntity.from_dict(model.raw_data) for model in models]
@@ -232,9 +238,9 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             clarity_level: Optional[List[str]] = None,
             slice_quality: Optional[List[str]] = None,
             clarity_standards_min: float = 0.2, clarity_standards_max: float = 0.6,
-            ai_threshold: Optional[dict] = None
+            ai_threshold: Optional[dict] = None,
+            pattern_name: Optional[List[str]] = None
     ) -> Tuple[int, List[CaseRecordEntity]]:
-
         search_value = search_value.strip() if search_value else None
         is_record_search_key = search_key in ['sampleNum', 'name']
         is_slice_search_key = not is_record_search_key
@@ -342,6 +348,15 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                 else:
                     temp = or_(temp, SliceModel.check_result.contains(i))
             query = query.filter(temp)
+
+        if pattern_name:
+            temp = (1 == 0)
+            for i in pattern_name:
+                if i == '无':
+                    temp = or_(temp, SliceModel.pattern_name == '')
+                else:
+                    temp = or_(temp, SliceModel.pattern_name.contains(i))
+            query = query.filter(temp)
         if user_file_folder is not None:
             query = query.filter(SliceModel.user_file_folder.in_(user_file_folder))
 
@@ -374,11 +389,17 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
                     if s.type == 'slice':
                         s.clarity_level = s.get_clarity_level(clarity_standards_max=clarity_standards_max,
                                                               clarity_standards_min=clarity_standards_min)
-                        if ai_threshold and s.alg:
-                            params = ai_threshold.get(AIType.get_by_value(s.alg).value, {})
-                            if params:
-                                s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg),
-                                                                      params.get('qc_cell_num', None))
+                        if AIType.get_by_value(s.alg) in [AIType.tct, AIType.lct, AIType.bm]:
+                            rows = self.session.query(SliceConfigModel.threshold_config).filter_by(
+                                company=s.company).first()
+                            qc_cell_num = 5000
+                            threshold = rows[0] if rows else None
+                            if threshold and threshold.get(AIType.get_by_value(s.alg).value):
+                                for item in threshold.get(AIType.get_by_value(s.alg).value):
+                                    if item['pattern_id'] == s.pattern_id:
+                                        qc_cell_num = item['qc_cell_num']
+                                        break
+                            s.cell_num_tips = s.get_cell_num_tips(AIType.get_by_value(s.alg), qc_cell_num)
                         if s.started == SliceStartedStatus.failed:
                             slice_err = self.session.query(SliceErrModel).filter_by(caseid=s.caseid,
                                                                                     fileid=s.fileid).first()
@@ -401,11 +422,15 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
         self.session.query(SliceModel).filter_by(fileid=file_id, company=company_id).delete()
         return True
 
-    def get_prob_list(self, company: str, ai_type: AIType) -> List[Tuple[TCTProbEntity, SliceEntity]]:
-        models = self.session.query(TCTProbModel, SliceModel).join(
+    def get_prob_list(self, company: str, ai_type: AIType, caseid_list: Optional[List[str]] = None) -> List[Tuple[TCTProbEntity, SliceEntity]]:
+        query = self.session.query(TCTProbModel, SliceModel).join(
             SliceModel, TCTProbModel.slice_id == SliceModel.id).filter(
             and_(SliceModel.company == company, SliceModel.alg.contains(ai_type.value), SliceModel.started == 2)
-        ).all()
+        )
+        if caseid_list is not None:
+            query.filter(SliceModel.caseid.in_(caseid_list))
+        models = query.all()
+
         return [(TCTProbEntity.from_dict(prob_model.raw_data), SliceEntity.from_dict(slice_model.raw_data))
                 for prob_model, slice_model in models]
 
@@ -441,6 +466,35 @@ class SQLAlchemyCaseRecordRepository(CaseRecordRepository, SQLAlchemySingleModel
             if row[0]:
                 labels.extend(row[0])
         return list(set(labels))
+
+    def get_threshold(self, company: str):
+        rows = self.session.query(SliceConfigModel.threshold_config).filter_by(company=company).first()
+        return rows[0] if rows else None
+
+    def del_threshold(self, company: str, pattern_id: int, ai_type: str):
+        threshold = self.session.query(SliceConfigModel).filter_by(company=company).first()
+        if not threshold:
+            return
+        a = threshold.threshold_config
+        for i in a.get(ai_type, []) if a else []:
+            if i.get('pattern_id') == pattern_id:
+                a.get(ai_type).remove(i)
+                break
+        self.session.query(SliceConfigModel).filter_by(id=threshold.id).update({'threshold_config': a})
+
+    def update_threshold(self, company: str, threshold: dict, ai_type: str):
+        slice_config = self.session.query(SliceConfigModel).filter_by(company=company).first()
+        if not slice_config:
+            return
+        a = slice_config.threshold_config
+        for i in a.get(ai_type, []) if a else []:
+            if i.get('pattern_id') == threshold.get('pattern_id'):
+                index = a.get(ai_type).index(i)
+                a.get(ai_type)[index] = threshold
+                break
+        else:
+            a[ai_type].append(threshold)
+        self.session.query(SliceConfigModel).filter_by(id=slice_config.id).update({'threshold_config': a})
 
 
 class SQLAlchemyReportConfigRepository(ReportConfigRepository, SQLAlchemySingleModelRepository[ReportConfigEntity]):

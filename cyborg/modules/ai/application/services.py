@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from typing import List, Optional
+from cyborg.app.settings import Settings
 
 from cyborg.app.request_context import request_context
 from cyborg.celery.app import app
@@ -16,7 +17,7 @@ from cyborg.modules.slice_analysis.application.services import SliceAnalysisServ
 from cyborg.modules.user_center.user_core.application.services import UserCoreService
 from cyborg.seedwork.application.responses import AppResponse
 from cyborg.seedwork.domain.value_objects import AIType
-
+from cyborg.modules.ai.domain.entities import AIPatternEntity
 
 logger = logging.getLogger(__name__)
 
@@ -309,13 +310,12 @@ class AIService(object):
 
         return AppResponse()
 
-    def get_analyze_threshold(self, threshold: float, analyse_mode: str) -> AppResponse:
-
-        slices = self.slice_service.get_analyzed_slices().data
-
-        data = self.domain_service.get_analyze_threshold(
-            threshold=threshold, analyse_mode=analyse_mode, slices=slices)
-
+    def get_analyze_threshold(self, params: dict, search_key: dict) -> AppResponse:
+        if params.get('slice_range') == 0 and len(search_key) > 0:
+            slices = self.slice_service.get_analyzed_slices_by_conditions(search_key=search_key).data
+        else:
+            slices = self.slice_service.get_analyzed_slices().data
+        data = self.domain_service.get_analyze_threshold(params=params, slices=slices)
         return AppResponse(data=data)
 
     def get_ai_statistics(self, start_date: Optional[str], end_date: Optional[str]) -> AppResponse:
@@ -371,3 +371,106 @@ class AIService(object):
         purged = self.domain_service.reset_running_tasks(purge_ranking=purge_ranking)
         app.control.purge()
         return AppResponse(data={'purged': purged})
+
+    def get_ai_pattern(self) -> AppResponse:
+        kwargs = {'company': request_context.company}
+        if request_context.ai_type:
+            kwargs['ai_type'] = request_context.ai_type.value
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+        return AppResponse(data=[{'id': item.id, 'patternName': item.name or '通用', 'aiType': item.ai_name,
+                                  'modelName': item.model_name} for item in data])
+
+    def edit_ai_pattern(self, body: dict) -> AppResponse:
+        id, ai_type, pattern_name, model_name = body.get('id'), body.get('aiType'), body.get('patternName'), body.get('modelName')
+        if not id:
+            kwargs = {'company': request_context.company, 'ai_type': ai_type, 'pattern_name': pattern_name}
+            data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+            if data:
+                return AppResponse(err_code=11, message="the name has existed.")
+            id = self.domain_service.repository.save_ai_pattern(AIPatternEntity(raw_data={
+                'ai_name': ai_type,
+                'name': pattern_name,
+                'model_name': model_name or 'LCT_mobile_micro0324',
+                'company': request_context.company
+            }))
+            return AppResponse(data={'id': id})
+        self.domain_service.repository.update_ai_pattern(id, {'name': pattern_name, 'model_name': model_name})
+        return AppResponse()
+
+    def del_ai_pattern(self, id: int) -> AppResponse:
+        pattern = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
+        kwargs = {'company': request_context.company, 'ai_type': pattern[0].ai_name}
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs(kwargs)
+        if len(data) == 1:
+            return AppResponse(err_code=11, message='删除失败，模式至少保留1个。')
+        # 有切片正在处理中  禁止删除
+        slices = self.slice_service.domain_service.repository.get_slices(
+            started=SliceStartedStatus.analyzing, slice_type='slice', company=request_context.current_company,
+            page=0, per_page=1
+        )
+        if slices:
+            return AppResponse(err_code=11, message='删除失败，有相关的任务正在运行中。')
+        self.domain_service.repository.del_ai_pattern(id)
+        self.slice_service.domain_service.del_threshold(request_context.company, id, kwargs.get('ai_type'))
+        return AppResponse()
+
+    def get_ai_threshold(self, id: int) -> AppResponse:
+        data = self.domain_service.repository.get_ai_pattern_by_kwargs({'id': id})
+        if not data:
+            return AppResponse(err_code=11, message='该对象不存在')
+        request_context.ai_type = AIType.get_by_value(data[0].ai_name) or AIType.unknown
+        params = data[0].ai_threshold or {}
+        smart_value_dict = {'true': True, 'false': False, 'none': None}
+        # additional parameters
+        params = self.user_service.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
+        if params.get('all_use') and params.get('all_use') in smart_value_dict:
+            params.update({'all_use': smart_value_dict[params.get('all_use')]})
+        return AppResponse(message='query succeed', data=params)
+
+    def update_ai_threshold(self, body: dict) -> AppResponse:
+        request_context.ai_type = AIType.get_by_value(body.get('aiType'))
+        ai_threshold = body.get('aiThreshold')
+        threshold_range = int(ai_threshold.get('threshold_range', 0))  # 0:只改asc-h asc-us  1: 改全部
+        slice_range = int(ai_threshold.get('slice_range', 1))  # 0 只改篩選  1: 改全部
+        threshold_value = ai_threshold.get('threshold_value')
+        all_use = ai_threshold.get('all_use')  # 应用于已处理切片
+        search_key = ai_threshold.get('search_key') if ai_threshold.get('search_key') is not None else {}  # 筛选条件
+        qc_cell_num = int(ai_threshold.get('qc_cell_num'))
+        if request_context.ai_type.is_tct_type:
+            threshold_value = float(threshold_value)
+            extra_params = {
+                'qc_cell_num': qc_cell_num,
+                'min_pos_cell': int(ai_threshold.get('min_pos_cell')),
+                'cell_conf': ai_threshold.get('cell_conf'),
+                'cell_num': ai_threshold.get('cell_num'),
+                'other': ai_threshold.get('other', True),
+                'microbe': ai_threshold.get('microbe', True),
+            }
+        elif request_context.ai_type == AIType.dna_ploidy:
+            threshold_value = threshold_value
+            extra_params = {}
+        else:
+            extra_params = {}
+        ai_threshold, saved = self.user_service.domain_service.save_ai_threshold(
+            company_id=request_context.current_company, ai_type=request_context.ai_type,
+            threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
+            all_use=all_use, extra_params=extra_params, search_key=search_key
+        )
+        if not saved:
+            return AppResponse(err_code=11, message='modify ai threshold failed')
+        self.domain_service.repository.update_ai_pattern(body.get('id'), {'ai_threshold': ai_threshold.get(request_context.ai_type.value)})
+        if request_context.ai_type.is_tct_type:
+            self.slice_service.domain_service.update_threshold(request_context.company, {'pattern_id': body.get('id'), 'qc_cell_num': qc_cell_num}, body.get('aiType'))
+        return AppResponse()
+
+    def get_model(self) -> AppResponse:
+        data = Settings.ALG_MODEL_NAMES.get(request_context.ai_type, [])
+        return AppResponse(data=data)
+
+    def get_ai_pattern_result(self):
+        pattern_id = self.analysis_service.get_pattern_id()
+        all_patterns = self.get_ai_pattern()
+        patterns = [{'patternId': i.get('id'), 'patternName': i.get('patternName'),
+                     'hasAiResult': True if pattern_id and i.get('id') == int(pattern_id) else False} for i in
+                    all_patterns.data]
+        return AppResponse(message='get ai pattern result succeed', data=patterns)

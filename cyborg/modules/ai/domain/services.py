@@ -1152,7 +1152,7 @@ class AIDomainService(object):
 
                 return '', {'done': True, 'rank': -2}
 
-    def get_analyze_threshold(self, threshold: float, analyse_mode: str, slices: List[dict]) -> dict:
+    def get_analyze_threshold(self, params: dict, slices: List[dict]) -> dict:
         tbs_dict = TCTConsts.tct_multi_wsi_cls_dict.copy()
 
         result_ratio = {'NILM': 0, 'ASC-US': 0, 'LSIL': 0, 'ASC-H': 0, 'HSIL': 0, 'AGC': 0}
@@ -1160,12 +1160,15 @@ class AIDomainService(object):
         result_fn = {'NILM': 0, 'ASC-US': 0, 'LSIL': 0, 'ASC-H': 0, 'HSIL': 0, 'AGC': 0, 'sum': 0}
         result_idx_dict = {'NILM': [], 'ASC-US': [], 'LSIL': [], 'ASC-H': [], 'HSIL': [], 'AGC': []}
         prob_list = []
+        num_pos_cell_list = []
         num_manual = 0
 
         tct_probs = self.repository.get_tct_probs_by_slices(slices)
+
         for idx, tct_prob in enumerate(tct_probs):
             check_result = tct_prob.check_result
             prob_list.append(tct_prob.to_list())
+            num_pos_cell_list.append((tct_prob.num_pos_cell or 0))
             check_result = '' if check_result is None else check_result
             check_result = check_result.split(' ')
             if len(check_result) >= 1:
@@ -1200,13 +1203,15 @@ class AIDomainService(object):
             }
 
         prob_np = np.array(prob_list)
+        num_pos_cell_np = np.array(num_pos_cell_list)
         pred_tbs = np.argmax(prob_np, axis=1)
-        if analyse_mode == 'all':
-            pos_idx = np.where(1 - prob_np[:, 0] > threshold)[0]
+        if params.get('threshold_range') == 1:
+            pos_idx = np.where(np.logical_and(1 - prob_np[:, 0] > params.get('threshold_value'),
+                                              num_pos_cell_np > params.get('min_pos_cell')))[0]
         else:
             # remain lsil, hsil, agc prediction
             pos_idx = np.where(np.any(np.vstack([
-                1 - prob_np[:, 0] > threshold,
+                1 - prob_np[:, 0] > params.get('threshold_value'),
                 pred_tbs == tbs_dict['LSIL'],
                 pred_tbs == tbs_dict['HSIL'],
                 pred_tbs == tbs_dict['AGC']]), axis=0))[0]

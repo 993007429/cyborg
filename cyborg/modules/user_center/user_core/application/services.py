@@ -1,5 +1,10 @@
 import json
 import logging
+import time
+import hmac
+import base64
+import hashlib
+from urllib.parse import quote
 from typing import List, Optional
 from werkzeug.datastructures import FileStorage
 
@@ -11,6 +16,9 @@ from cyborg.infra.cache import cache
 from cyborg.modules.user_center.utils.utils import get_time_now, ms_to_hours
 
 logger = logging.getLogger(__name__)
+
+APPID = "cbc70b42"
+APIKey = "000bff23e345f2520099b6191af76f18"  # 实时语音转写
 
 
 class UserCoreService(object):
@@ -134,10 +142,12 @@ class UserCoreService(object):
                 'clarityStandardsLower': company.clarity_standards_min}
         return AppResponse(data=data)
 
-    def update_company_label(self, label: int, clarity_standards_min: float, clarity_standards_max: float) -> AppResponse:
+    def update_company_label(self, label: int, clarity_standards_min: float,
+                             clarity_standards_max: float) -> AppResponse:
         company = self.domain_service.company_repository.get_company_by_id(request_context.current_company)
         if company:
-            code, message = self.domain_service.update_company_label(company, label, clarity_standards_min, clarity_standards_max)
+            code, message = self.domain_service.update_company_label(company, label, clarity_standards_min,
+                                                                     clarity_standards_max)
         else:
             code, message = 1, '对象不存在'
         return AppResponse(code=code, message=message)
@@ -223,10 +233,12 @@ class UserCoreService(object):
             return AppResponse(err_code=1, message=err_msg, data={'status': -1})
         return AppResponse(data={'status': 1})
 
-    def save_ai_threshold(self, threshold_range: int, threshold_value: float, all_use: bool):
-        saved = self.domain_service.save_ai_threshold(
+    def save_ai_threshold(self, threshold_range: int, slice_range: int, threshold_value: float,
+                          all_use: bool, extra_params: dict, search_key: dict):
+        _, saved = self.domain_service.save_ai_threshold(
             company_id=request_context.current_company, ai_type=request_context.ai_type,
-            threshold_range=threshold_range, threshold_value=threshold_value, all_use=all_use
+            threshold_range=threshold_range, slice_range=slice_range, threshold_value=threshold_value,
+            all_use=all_use, extra_params=extra_params, search_key=search_key
         )
         if not saved:
             return AppResponse(err_code=1, message='modify ai threshold failed')
@@ -235,9 +247,35 @@ class UserCoreService(object):
     def get_ai_threshold(self):
         company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         ai_threshold = company.ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=ai_threshold.get(request_context.ai_type.value))
+        params = ai_threshold.get(request_context.ai_type, {})
+        smart_value_dict = {'true': True, 'false': False, 'none': None}
+        # additional parameters
+        params = self.domain_service.merge_default_params(params=params, ai_type=request_context.ai_type)
+        if params.get('all_use') and params.get('all_use') in smart_value_dict:
+            params.update({'all_use': smart_value_dict[params.get('all_use')]})
+        return AppResponse(message='query succeed', data=params)
 
     def get_default_ai_threshold(self):
         company = self.domain_service.company_repository.get_company_by_id(company=request_context.current_company)
         default_ai_threshold = company.default_ai_threshold if company else {}
-        return AppResponse(message='query succeed', data=default_ai_threshold.get(request_context.ai_type.value, 0.5))
+        default_threshold_value = default_ai_threshold.get(request_context.ai_type, 0.5)
+        # additional parameters
+        params = self.domain_service.merge_default_params(params={'threshold_value': default_threshold_value},
+                                                          ai_type=request_context.ai_type)
+        return AppResponse(message='query succeed', data=params)
+
+    def get_ws_url(self) -> str:
+        base_url = "wss://rtasr.xfyun.cn/v1/ws"
+        ts = str(int(time.time()))
+        tt = (APPID + ts).encode('utf-8')
+        md5 = hashlib.md5()
+        md5.update(tt)
+        baseString = md5.hexdigest()
+        baseString = bytes(baseString, encoding='utf-8')
+        apiKey = APIKey.encode('utf-8')
+        signa = hmac.new(apiKey, baseString, hashlib.sha1).digest()
+        signa = base64.b64encode(signa)
+        signa = str(signa, 'utf-8')
+        url = base_url + "?appid=" + APPID + "&ts=" + ts + "&signa=" + quote(signa)
+        logger.info('websocket url=%s' % url)
+        return url
