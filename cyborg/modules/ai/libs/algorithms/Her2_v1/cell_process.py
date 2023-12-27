@@ -57,6 +57,7 @@ def predict(model, images, apply_deduplication: bool = False, class_num=6):
     classes_batch_list = [0, ] * images.shape[0]
     scores_batch_list = [0, ] * images.shape[0]
     h, w = images.shape[-2:]
+    model.eval()
     outputs = model(images)
     for i in range(images.shape[0]):
         points = outputs['pnt_coords'][i].cpu().numpy()
