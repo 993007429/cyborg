@@ -10,6 +10,7 @@ from typing import Union
 
 from cyborg.app.settings import Settings
 from cyborg.infra.oss import oss
+from cyborg.utils.encoding import CyborgJsonEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class HybridFileSystem(LocalFileSystem):
 
     def save_object(self, file_key: str, obj: Union[list, dict]) -> str:
         buffer = BytesIO()
-        buffer.write(json.dumps(obj, ensure_ascii=False).encode('utf-8'))
+        buffer.write(json.dumps(obj, cls=CyborgJsonEncoder, ensure_ascii=False).encode('utf-8'))
         buffer.seek(0)
 
         if oss:
