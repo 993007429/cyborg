@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="15.958" height="17.022" viewBox="0 0 15.958 17.022">
+  <defs>
+    <clipPath id="clip-path">
+      <rect width="15.958" height="17.022" fill="none"/>
+    </clipPath>
+  </defs>
+  <g id="重复网格_1" data-name="重复网格 1" clip-path="url(#clip-path)">
+    <g id="组_11459" data-name="组 11459" transform="translate(-1788.092 -247.817)">
+      <g id="组_11465" data-name="组 11465">
+        <g id="组_11466" data-name="组 11466">
+          <g id="daochu-2" transform="translate(1789.553 249.14)">
+            <path id="路径_2101" data-name="路径 2101" d="M.011,8.124a6.389,6.389,0,0,1,5.9-2.433L6,8.532,9.626,4.28,5.726.008l.084,2.623S.479,2.025.011,8.124Z" transform="translate(6.617 0) rotate(51)" fill="#fff" stroke="rgba(0,0,0,0)" stroke-miterlimit="10" stroke-width="1"/>
+          </g>
+          <g id="daochu-2-2" data-name="daochu-2" transform="translate(1789.699 250.826)">
+            <path id="路径_2099" data-name="路径 2099" d="M98.315,110.313h13.221a.311.311,0,0,0,.315-.307v-12.9a.311.311,0,0,0-.315-.307h-6.481a.307.307,0,1,0,0,.614h6.168V109.7H98.63v-6.144a.315.315,0,0,0-.63,0v6.449a.312.312,0,0,0,.315.306Z" transform="translate(-98 -96.8)" fill="#fff" stroke="rgba(0,0,0,0)" stroke-miterlimit="10" stroke-width="1"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
