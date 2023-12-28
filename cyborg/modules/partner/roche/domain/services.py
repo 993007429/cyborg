@@ -257,14 +257,13 @@ class RocheDomainService(object):
             roi_list = [{'id': id_worker.get_new_id(), 'x': x_coords, 'y': y_coords}]
 
         # TODO 这里跟AI模块耦合，后续需要在AI模块提供原始算法输出的service以解耦
-        from cyborg.modules.ai.libs.algorithms.Her2New_.detect_all import run_her2_alg, roi_filter
+        from cyborg.modules.ai.libs.algorithms.Her2_v1.wsi_detect import run_alg, roi_filter
         wsa_roi_id = None
         if raw_result:
             center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = raw_result
             wsa_roi_id = list(center_coords_np_with_id.keys())[0]
         else:
-            center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_her2_alg(
-                slide_path=task.slide_path, roi_list=roi_list)
+            center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg = run_alg(task.slide_path, roi_list)
 
             if is_wsa:
                 raw_result = (center_coords_np_with_id, cls_labels_np_with_id, summary_dict, lvl, flg)
