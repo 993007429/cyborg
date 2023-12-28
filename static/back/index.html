@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset=utf-8><link rel=stylesheet href=static/css/reset.css><link rel="shortcut icon" href=static/video/logo.png type=image/x-icon><link rel=apple-touch-icon href=static/icon.png><meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-app-status-bar-style content=black><meta name=renderer content=webkit><meta name=viewport content="width=1024,user-scalable=no"><script>if(window.require){
+                
+                window.electron = window.require('electron');
+                window.remote =window.require("@electron/remote");
+                document.addEventListener('keypress', e => {
+                    if (e.ctrlKey && e.code == 'KeyQ') {
+                        window.remote.getCurrentWindow().toggleDevTools();
+                    } else if (e.ctrlKey && e.code == 'KeyR') {
+                        location.reload();
+                    }
+                });
+                // window.electron.remote.getCurrentWindow().maximize();
+                // electron.remote.process.on("uncaughtException",e=>{
+                //     console.error("uncaughtException:" + e.message);
+                // })
+
+                ///-------------------- log ---------------------
+                let fs = window.require("fs")
+                if(!fs.existsSync("log")){
+                    fs.mkdirSync("log")
+                }
+                log = fs.openSync("log/" + (new Date().toDateString()) +".log","a");
+
+                console._log = console.log;
+                console._error = console.error;
+                console._logFile = function(){
+                    fs.appendFile(log,[].slice.call(arguments).join("\t")+"\n",function(){})
+                }
+                console.log = function(){
+                    let args = [].slice.call(arguments);
+                    args.unshift(new Date().toISOString())
+                    console._log.apply(null,args)
+                    console._logFile.apply(null,args)
+                }
+                console.error = function(){
+                    let args = [].slice.call(arguments);
+                    
+                    args.unshift(new Date().toISOString())
+                    console._error.apply(null,args)
+                    console._logFile.apply(null,args)
+                }
+            }</script><link href=/static/css/main.49bd9322f7627db4f5daa6bed2507337.css rel=stylesheet></head><body><div id=app></div><script src=static/plugins/openseadragon/openseadragon.min.js></script><script src=static/plugins/openseadragon/OpenSeadragonImagingHelper.js></script><script src=static/plugins/paper-core.min.js></script><script>OpenSeadragon.DEFAULT_SETTINGS.timeout = 600000;</script><script type=text/javascript src=/static/js/manifest.3b6a4617cea568822295.js></script><script type=text/javascript src=/static/js/vendor.6ad6aca37f0c3955ec42.js></script><script type=text/javascript src=/static/js/main.9fefd65c85f747858246.js></script></body></html>
