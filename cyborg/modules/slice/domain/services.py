@@ -235,7 +235,6 @@ class SliceDomainService(object):
             info.pop('ai_diagnosisState', None)
             if slice.alg == 'her2' and not info.get('check_result'):
                 cover = True
-            logger.info('info======%s' % info)
             for k, v in info.items():
                 if k == 'id':
                     slice.update_data(fileid=v)

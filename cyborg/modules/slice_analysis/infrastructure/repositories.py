@@ -423,11 +423,9 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
 
     def get_templates(self, template_id: int) -> dict:
         # todo 待优化算法
-        logger.info('template_id==%s' % template_id)
         row = self.session.query(TemplateModel.id, TemplateModel.template_name, AIModel.ai_name,
                                  TemplateModel.is_multi_mark).outerjoin(
             AIModel, TemplateModel.ai_id == AIModel.id).filter(TemplateModel.id == template_id).first()
-        logger.info('row==%s' % row)
         mark_groups = self.session.query(ShareMarkGroupModel.id, ShareMarkGroupModel.parent_id,
                                          ShareMarkGroupModel.group_name,
                                          ShareMarkGroupModel.color).join(
@@ -479,7 +477,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         is_existed = self.session.query(TemplateModel).filter(
             TemplateModel.template_name == template.template_name).first()
         if is_existed:
-            logger.info('the template has existed.')
             return False, -1
         template = self.convert_to_model(template, TemplateModel)
         if not template:
@@ -513,14 +510,11 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                 model = self.convert_to_model(first_level_mark, ShareMarkGroupModel)
                 if not model:
                     return False, -1
-                logger.info('add first level mark begin. %s' % first_level_mark)
                 self.session.add(model)
                 self.session.flush([model])
                 first_level_mark.update_data(**model.raw_data)
                 first_parent_id = model.id
-                logger.info('add first level mark success. %s' % first_level_mark)
                 for second_mark in item['children'] if 'children' in item else []:
-                    logger.info('second_mark===%s' % second_mark)
                     second_level_mark = deepcopy(mark)
                     second_level_mark.raw_data['group_name'] = second_mark['groupName']
                     second_level_mark.raw_data['color'] = second_mark['color']
@@ -529,14 +523,11 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     model = self.convert_to_model(second_level_mark, ShareMarkGroupModel)
                     if not model:
                         return False, -1
-                    logger.info('add second level mark begin. %s' % second_level_mark)
                     self.session.add(model)
                     self.session.flush([model])
                     second_level_mark.update_data(**model.raw_data)
                     second_parent_id = model.id
-                    logger.info('add second level mark success. %s' % second_level_mark)
                     for third_mark in second_mark['children'] if 'children' in item else []:
-                        logger.info('third_mark===%s' % third_mark)
                         third_level_mark = deepcopy(mark)
                         third_level_mark.raw_data['group_name'] = third_mark['groupName']
                         third_level_mark.raw_data['color'] = third_mark['color']
@@ -548,8 +539,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                         self.session.add(model)
                         self.session.flush([model])
                         third_level_mark.update_data(**model.raw_data)
-                        logger.info('add third level mark success. %s' % third_level_mark)
-            logger.info('update first level end.%s' % item)
         return True, template.id
 
     @transaction
@@ -592,7 +581,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         c2 = list(set(all_ids).difference(set(ids)))  # 求a中有而b中没有的元素
         self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id.in_(c2)).delete(synchronize_session=False)
         for item in mark_group:
-            logger.info(item)
             if not item['parentId']:
                 first_level_mark = deepcopy(mark)
                 # 判断id是否存在 id不存在或者id存在，对象不存在 当新增
@@ -619,10 +607,8 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                     self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).update(
                         {'color': item['color'], 'default_color': item['color'], 'group_name': item['groupName']}
                     )
-                logger.info('add first level mark success.first_parent_id= %s' % first_parent_id)
 
                 for second_mark in item['children'] if 'children' in item else []:
-                    logger.info('second_mark==%s' % second_mark)
                     second_level_mark = deepcopy(mark)
                     second_parent_id = ''
                     id = second_mark.get('id')
@@ -647,7 +633,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                         self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.id == id).update(
                             {'color': second_mark['color'], 'default_color': second_mark['color'], 'group_name': second_mark['groupName']}
                         )
-                    logger.info('add second level mark success. first_parent_id=%s' % second_parent_id)
                     for third_mark in second_mark['children'] if 'children' in second_mark else []:
                         third_level_mark = deepcopy(mark)
                         id = third_mark.get('id')
@@ -672,8 +657,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
                                 {'color': third_mark['color'], 'default_color': third_mark['color'],
                                  'group_name': third_mark['groupName']}
                             )
-                        logger.info('add third level mark success. %s' % third_level_mark)
-        logger.info('add mark groups success.')
         return True
 
     @transaction
@@ -682,7 +665,6 @@ class SQLAlchemyAIConfigRepository(AIConfigRepository, SQLAlchemyRepository):
         self.session.query(ShareMarkGroupModel).filter(ShareMarkGroupModel.template_id == id).delete(
             synchronize_session=False)
         self.session.query(TemplateModel).filter(TemplateModel.id == id).delete(synchronize_session=False)
-        logger.info('del template end')
         return True
 
     def get_template_by_template_id(self, template_id: int) -> dict:

@@ -553,8 +553,6 @@ class SliceAnalysisDomainService(object):
         return mark_list
 
     def get_mark_group(self, group_id: int, template_id: int):
-        logger.info('group_id==%s' % group_id)
-        logger.info('template_id==%s' % template_id)
         if not group_id:
             return ''
         mark_groups = self.repository.get_mark_groups_by_template_id(template_id=template_id)
@@ -668,7 +666,6 @@ class SliceAnalysisDomainService(object):
             else:
                 marks_for_ai_result.append(mark)
 
-        logger.info(marks_for_ai_result)
         if marks_for_ai_result:
             self.update_ai_result(marks=marks_for_ai_result, option=2, ai_type=ai_type, tiled_slice=tiled_slice)
 
