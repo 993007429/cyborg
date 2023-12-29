@@ -96,7 +96,7 @@ class SliceModel(BaseModel):
     is_marked = Column(Boolean, default=False, comment='是否已标注(0未标注，1已标注)')
     labels = Column(JSON, comment='自定义标签')
     ai_tips = Column(JSON, nullable=True, comment="AI建议相关的说明文案")
-    pattern_id = Column(String(255), nullable=False, default='', comment='算法模式名称')
+    pattern_id = Column(Integer, nullable=False, default=0, comment='算法模式ID')
     pattern_name = Column(String(255), nullable=False, default='', comment='算法模式名称')
 
 
