@@ -1322,7 +1322,7 @@ class AIDomainService(object):
 
     def hack_slide_quality(self, slice_info: dict) -> Tuple[Optional[str], str, str]:
         ai_suggest = slice_info['ai_suggest']
-        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest)
+        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest, alg=slice_info.get('alg', ''))
         if ai_suggest_dict['flag'] == '0':
             return '无效的AI建议', '', ''
 
@@ -1350,7 +1350,7 @@ class AIDomainService(object):
         slice_id = slice_info['id']
         ai_suggest = slice_info['ai_suggest']
 
-        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest)
+        ai_suggest_dict = ALGResult.parse_ai_suggest(ai_suggest, alg=slice_info.get('alg', ''))
         diagnosis_str = ' '.join(ai_suggest_dict['diagnosis'])
         microbe_str = ','.join(ai_suggest_dict['microbe'])
         dna_diagnosis = ai_suggest_dict['dna_diagnosis']

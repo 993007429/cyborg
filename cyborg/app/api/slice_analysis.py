@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from cyborg.app.api.json import orjsonify
 from flask import request, jsonify, send_file, redirect
@@ -68,7 +69,6 @@ def mark_show():
 
 @api_blueprint.route('/slice/modifyMark', methods=['get', 'post'])
 def modify_marks():
-    import os
     caseid = request.form.get('caseid')
     fileid = request.form.get('fileid')
     ai_type = request.form.get('ai_type', '')

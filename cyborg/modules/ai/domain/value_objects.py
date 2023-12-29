@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from cyborg.seedwork.domain.value_objects import BaseValueObject, BaseEnum
+from cyborg.seedwork.domain.value_objects import BaseValueObject, BaseEnum, AIType
 
 
 class Mark(BaseValueObject):
@@ -33,7 +33,7 @@ class ALGResult(BaseValueObject):
     err_msg: Optional[str] = None
 
     @classmethod
-    def parse_ai_suggest(cls, ai_suggest: str) -> dict:
+    def parse_ai_suggest(cls, ai_suggest: str, alg: str) -> dict:
         """将tct lct dna模块的ai_suggest字符串解析成字典"""
         ai_suggest_dict = {
             "diagnosis": [],
@@ -42,10 +42,13 @@ class ALGResult(BaseValueObject):
             "flag": 1
         }
         try:
-            diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
-            if ";" in ai_suggest:
+            if AIType.get_by_value(alg) == AIType.dna_ploidy:
+                ai_suggest_dict["dna_diagnosis"] = ai_suggest
+            elif ";" in ai_suggest:
                 ai_suggest_dict["dna_diagnosis"] = ai_suggest.split(";")[-1]
+
             if "阴性" in ai_suggest:
+                diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
                 if "-样本不满意" in ai_suggest:
                     temp_list = diagnosis_microbe.split(" ")
                     if len(temp_list) == 2:
@@ -56,7 +59,6 @@ class ALGResult(BaseValueObject):
                         ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                     else:
                         ai_suggest_dict["flag"] = 0
-                        print(f"解析失败: {ai_suggest}")
                 else:
                     temp_list = diagnosis_microbe.split(" ")
                     if len(temp_list) == 1:
@@ -67,8 +69,8 @@ class ALGResult(BaseValueObject):
                         ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                     else:
                         ai_suggest_dict["flag"] = 0
-                        print(f"解析失败: {ai_suggest}")
             elif "阳性" in ai_suggest:
+                diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
                 temp_list = diagnosis_microbe.split(" ")
                 if len(temp_list) == 2:
                     ai_suggest_dict["diagnosis"] = [temp_list[0], temp_list[1]]
@@ -78,13 +80,10 @@ class ALGResult(BaseValueObject):
                     ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                 else:
                     ai_suggest_dict["flag"] = 0
-                    print(f"解析失败: {ai_suggest}")
             else:
                 ai_suggest_dict["flag"] = 0
-                print(f"ai建议(tct)格式非法: {ai_suggest}")
-        except Exception as e:
+        except Exception:
             ai_suggest_dict["flag"] = 0
-            print(f"解析 {ai_suggest} 失败: {e}")
         return ai_suggest_dict
 
 

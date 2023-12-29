@@ -145,10 +145,13 @@ class SliceEntity(BaseDomainEntity):
         }
         ai_suggest = self.ai_suggest
         try:
-            diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
-            if ";" in ai_suggest:
+            if self.ai_type == AIType.dna_ploidy:
+                ai_suggest_dict["dna_diagnosis"] = ai_suggest
+            elif ";" in ai_suggest:
                 ai_suggest_dict["dna_diagnosis"] = ai_suggest.split(";")[-1]
+
             if "阴性" in ai_suggest:
+                diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
                 if "-样本不满意" in ai_suggest:
                     temp_list = diagnosis_microbe.split(" ")
                     if len(temp_list) == 2:
@@ -159,7 +162,6 @@ class SliceEntity(BaseDomainEntity):
                         ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                     else:
                         ai_suggest_dict["flag"] = 0
-                        print(f"解析失败: {ai_suggest}")
                 else:
                     temp_list = diagnosis_microbe.split(" ")
                     if len(temp_list) == 1:
@@ -170,8 +172,8 @@ class SliceEntity(BaseDomainEntity):
                         ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                     else:
                         ai_suggest_dict["flag"] = 0
-                        print(f"解析失败: {ai_suggest}")
             elif "阳性" in ai_suggest:
+                diagnosis_microbe = ai_suggest.split(";")[0].replace("  ", " ")
                 temp_list = diagnosis_microbe.split(" ")
                 if len(temp_list) == 2:
                     ai_suggest_dict["diagnosis"] = [temp_list[0], temp_list[1]]
@@ -181,13 +183,10 @@ class SliceEntity(BaseDomainEntity):
                     ai_suggest_dict["microbe"] = diagnosis_microbe.split(" ")[-1].split(",")
                 else:
                     ai_suggest_dict["flag"] = 0
-                    print(f"解析失败: {ai_suggest}")
             else:
                 ai_suggest_dict["flag"] = 0
-                print(f"ai建议(tct)格式非法: {ai_suggest}")
-        except Exception as e:
+        except Exception:
             ai_suggest_dict["flag"] = 0
-            print(f"解析 {ai_suggest} 失败: {e}")
         return ai_suggest_dict
 
     @property
