@@ -277,5 +277,4 @@ class UserCoreService(object):
         signa = base64.b64encode(signa)
         signa = str(signa, 'utf-8')
         url = base_url + "?appid=" + APPID + "&ts=" + ts + "&signa=" + quote(signa)
-        logger.info('websocket url=%s' % url)
         return url
